@@ -1,0 +1,11 @@
+Quarterly Operations Review — Synthetic Sample
+
+Contact for questions: Jane Roe (SSN 123-45-6789), operations desk.
+
+Summary of findings. Call volume rose twelve percent over the prior quarter, driven mainly by the new self-service
+portal launch in March. Average handle time fell from 8.4 minutes to 7.1 minutes as more members resolved billing
+questions without an agent. Abstention on ambiguous cases held steady; the triage router sent 14 percent of
+tickets to a human, unchanged from last quarter. Cost per resolved ticket declined by nine percent.
+
+Recommendation. Staff the care-call queue to the higher forecasted volume for the next quarter, and review the
+"access" ticket category, which agents corrected most often.
