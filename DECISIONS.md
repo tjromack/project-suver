@@ -20,9 +20,18 @@ egress; shipping a demo-grade UI as the product.
 **Status.** Accepted — Phase 0. Detailed choices land as DEC 002+ per `TODO.md` (the tool-app contract, ingest,
 sanitize-in-flow, cite-or-drop, the tool, the hub).
 
+### DEC 003 — Supported formats + fail-friendly ingest
+**Decision.** Accept `.txt · .md · .pdf · .docx` + a paste path, with a size cap (`MAX_DOC_BYTES`, default 5 MB),
+extension detection, and **friendly `IngestError`s** — a too-big / unsupported / unreadable / empty file yields a
+clear, human message ("try a smaller document" / "isn't supported yet" / "is it a scan?"), never a crash. PDF/DOCX
+libraries are lazy-imported so text/markdown/paste (and all the guards) work with no extra deps.
+**Why.** Production posture for a consumer tool: a stranger will drop whatever they have; the app must degrade to a
+sentence, not a stack trace. Lazy imports keep the core testable offline and the dependency surface honest.
+**Rules out.** Crashing on a malformed/oversized file; silently truncating; requiring PDF libs to run text paths.
+**Status.** Accepted — Phase 2 (`app/ingest.py`, `tests/test_ingest.py`).
+
 <!-- Upcoming (per TODO):
 DEC 002 — the tool-app contract (input → [sanitize] → engine → output; one shell; zero config) (Phase 1)
-DEC 003 — supported formats (.txt/.md/.pdf/.docx + paste) + fail-friendly ingest guards (Phase 2)
 DEC 004 — sanitize-before-egress + local re-hydration in the product flow (the model only sees safe text) (Phase 3)
 DEC 005 — cite-or-drop grounding: the model drafts candidates, deterministic grounding keeps/withholds (Phase 4)
 DEC 006 — the Summarize tool-app; the 3-click, no-prompt, no-config product surface (Phase 5)

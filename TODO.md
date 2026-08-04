@@ -9,14 +9,23 @@ Legend: ☐ todo · ☑ done
 
 ---
 
-## Phase 0 — Scaffold & docs  ☐ (this commit)
-- ☐ `DESIGN.md`, `CLAUDE.md`, `TODO.md`, `README.md`, `DECISIONS.md` (001).
-- ☐ `Makefile` — **`setup` installs with the venv's Python explicitly** so a fresh clone just works; `requirements.txt`
-  **pinned** (fresh-install lessons baked in), `.gitignore`, `.env.example`.
-- ☐ `app/__init__.py`, `app/config.py` (settings + provider + size cap + sample dir), `tests/.gitkeep`,
-  `data/samples/` + a synthetic sample doc.
+## Phase 0 — Scaffold & docs  ☑ (committed locally)
+- ☑ `DESIGN.md`, `CLAUDE.md`, `TODO.md`, `README.md`, `DECISIONS.md` (001).
+- ☑ `Makefile` — **`setup` installs with the venv's Python explicitly** so a fresh clone just works;
+  `requirements.txt` (minimums; exact-lock = hardening TODO), `.gitignore`, `.env.example`.
+- ☑ `app/__init__.py`, `app/config.py`, `app/{_engines,tools,shell}` dirs, `tests/.gitkeep`, `data/samples/` + a
+  synthetic sample doc (with a planted SSN — feeds the Phase-3 sanitize demo).
 - ☐ **🔔 Manual (Trevor):** create the private repo `project-suver` + add an `ANTHROPIC_API_KEY` to `.env`
   (real product; the stub runs everything offline meanwhile). Wire the remote + push.
+
+## Phase 2 — Document ingest (real files → text)  ☑ (8 tests, +2 skip until deps)  *(built ahead of Phase 1 — pure module, no shell needed)*
+- ☑ `app/ingest.py` — `extract_text(filename, bytes|str) → IngestResult{text, kind, chars, note}` for
+  `.txt/.md/.pdf/.docx` (pypdf/python-docx **lazy-imported**) + a `from_paste()` path; a **size cap**, extension
+  detection, and **friendly `IngestError`s** (too big / unsupported / unreadable / empty → a clear message, never a
+  crash).
+- ☑ `make ingest FILE=…`. `tests/test_ingest.py` (8 + 2 skipped) — txt/md/paste extract; oversize · unsupported ·
+  empty · non-UTF8 all fail friendly; pdf/docx bad-bytes fail friendly (run once `make setup` installs the libs).
+- ☑ DECISIONS: DEC 003 — supported formats + the fail-friendly ingest guards.
 
 ## Phase 1 — The tool-app shell (the reusable consumer surface)  ☐
 - ☐ `app/shell/` templates — the shared consumer UI: one **drop/paste zone**, one **primary action**, one **result
