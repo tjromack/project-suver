@@ -11,6 +11,11 @@ every tool. Pick one tool, or a platform of them.
 This repo is Suver's home: the reusable **tool-app shell**, the **hub launcher**, and the tools. The first tool —
 and this repo's flagship pilot — is **Summarize**.
 
+> **Status — pilot built & live-verified.** Phases 0–6 complete · 27 tests (stub-backed, no network) · the full
+> flow runs end-to-end on real PDFs (`make serve` → drop a file → cited summary) with both the offline `stub` and
+> the real `anthropic` model. A planted SSN is sanitized before the model and re-hydrated only in the local view.
+> Remaining: Phase 7 (suite records + the product-readiness dimension) and the Demo.
+
 ## The first tool: Summarize
 **Drop a real document → get a cited summary.** Open Summarize, drop a PDF / DOCX / TXT / MD (or paste text), and
 get key points where **every claim cites a source span of your document** and anything the source doesn't support
