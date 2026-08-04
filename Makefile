@@ -41,10 +41,10 @@ ingest:
 	$(PY) -m app.show_ingest "$(FILE)"
 
 sanitize:
-	$(PY) -m app.show_sanitize "$(TEXT)"
+	$(PY) -m app.show_summary --sanitize-only "$(TEXT)"
 
 summarize:
-	$(PY) -m app.show_summarize "$(TEXT)"
+	$(PY) -m app.show_summary "$(TEXT)"
 
 fmt:
 	$(PY) -m ruff format app tests

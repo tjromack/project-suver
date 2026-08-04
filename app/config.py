@@ -28,8 +28,10 @@ class Settings:
     # Provider for the DRAFTING step only: "stub" (deterministic, offline) | "anthropic".
     provider: str = os.getenv("PROVIDER", "stub").strip().lower()
     anthropic_model: str = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5")
-    # Max size (bytes) of a dropped document.
-    max_doc_bytes: int = int(os.getenv("MAX_DOC_BYTES", "5000000"))
+    # Max size (bytes) of a dropped document (real reports run large — 20 MB default).
+    max_doc_bytes: int = int(os.getenv("MAX_DOC_BYTES", "20000000"))
+    # Cap on characters sent to the drafting model (long docs → draft over the leading portion, transparently).
+    max_draft_chars: int = int(os.getenv("MAX_DRAFT_CHARS", "40000"))
     # Grounding support threshold (fraction of a claim's content tokens that must appear in its best span).
     ground_threshold: float = float(os.getenv("GROUND_THRESHOLD", "0.6"))
     samples_dir: Path = REPO_ROOT / os.getenv("SAMPLES_DIR", "data/samples")

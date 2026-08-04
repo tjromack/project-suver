@@ -44,25 +44,26 @@ Legend: ☐ todo · ☑ done
   type → a clear error; a malformed file degrades gracefully. (Small synthetic fixtures under `data/samples/`.)
 - ☐ DECISIONS: DEC 003 — supported formats + the fail-friendly ingest guards.
 
-## Phase 3 — Data-Boundary in the flow (sanitize before egress)  ☐
-- ☐ `app/_engines/boundary/` — **vendor** `policy.py` + `detect.py` + `sanitize.py` from `phi-pii-data-boundary`
-  (origin header on each). `app/pipeline.py` step: `sanitize(text, policy) → BoundaryResult`; use `safe_text` for
-  everything downstream; keep the **token map local**; a `route_local`/`block` class → tell the user, **don't send
-  out**. `rehydrate()` restores reversible tokens locally for display.
-- ☐ `make sanitize TEXT=…` shows the safe text + the "N items handled" count. `tests/test_sanitize_flow.py` —
-  ⭐ **the text handed downstream never contains a planted sensitive value** (the model only sees safe text);
-  re-hydration restores the reversible ones locally; a never-egress class stops egress.
-- ☐ DECISIONS: DEC 004 — sanitize-before-egress + local re-hydration in the product flow (the buyer's "yes").
+## Phase 3 — Data-Boundary in the flow (sanitize before egress)  ☑ (5 tests; live-verified)
+- ☑ `app/_engines/boundary/` — **vendored** `policy.py` + `detect.py` + `sanitize.py` from `phi-pii-data-boundary`
+  (origin header on each; self-contained `DEFAULT_POLICY` replaces the file loaders). `app/pipeline.py` step:
+  `sanitize(text, policy) → BoundaryResult`; `safe_text` for everything downstream; **token map local**; a
+  `route_local`/`block` class → **blocked, not summarized, told to the user**. `rehydrate()` restores locally.
+- ☑ `make sanitize TEXT=…` shows the safe text + the "N items handled" count. `tests/test_sanitize_flow.py` —
+  ⭐ **the text handed the drafter never contains a planted value** (a spy asserts it); re-hydration is local;
+  a never-egress class stops egress.
+- ☑ DECISIONS: DEC 004.
 
-## Phase 4 — Summarize engine wired in (cite-or-drop, real LLM)  ☐
-- ☐ `app/_engines/summarize/` — **vendor** `spans.py` (split_document) + `ground.py` (ground/cite-or-drop) from
-  `summarize-brief-generator` (origin header). `app/provider.py` — `draft_candidates(safe_text, provider)`:
-  `anthropic` = a real key-points draft; `stub` = extractive candidates (ground trivially, offline). `app/pipeline.py`
-  completes: split safe_text → spans → draft candidates → **ground** (keep cited, withhold unsupported).
-- ☐ `make summarize TEXT=…`. `tests/test_pipeline.py` — a supported claim is kept **with a citation**; a fabricated
-  claim (tokens not in the source) is **withheld**; reproducible; the stub path needs no network. ⭐ **no claim is
-  shown without a source span.**
-- ☐ DECISIONS: DEC 005 — cite-or-drop grounding (deterministic; the model drafts, it never self-certifies).
+## Phase 4 — Summarize engine wired in (cite-or-drop, real LLM)  ☑ (4 tests; live-verified with `anthropic`)
+- ☑ `app/_engines/summarize/` — **vendored** `spans.py` + `ground.py` from `summarize-brief-generator` (origin
+  header; `Candidate` inlined; explicit threshold). `app/provider.py` — `draft_candidates(safe_text, spans,
+  provider)`: `anthropic` = a real key-points draft; `stub` = extractive sentence-length candidates (ground
+  trivially, offline). `app/pipeline.py` completes: sanitize → split → draft → **ground** → re-hydrate; long docs
+  drafted over the leading `MAX_DRAFT_CHARS` (noted).
+- ☑ `make summarize TEXT=…`. `tests/test_pipeline.py` — a supported claim is **kept with a citation**; a
+  fabricated claim is **withheld**; reproducible; stub needs no network. ⭐ **no claim shown without a source span.**
+- ☑ DECISIONS: DEC 005.  *(Live: 7 cited points on the sample; a planted SSN re-hydrated in the view, never seen
+  by the model.)*
 
 ## Phase 5 — The end-to-end Summarize tool-app (the flagship)  ☐ 🟩 the win
 - ☐ `app/tools/summarize.py` — the first `Tool`: `run(input) → SummaryResult{claims[(text, span)], withheld[],

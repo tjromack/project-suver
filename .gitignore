@@ -6,3 +6,7 @@ data/db/
 *.sqlite
 .pytest_cache/
 uploads/
+
+# real test documents (local only; the synthetic sample.txt is the committed fixture)
+data/samples/real/*.pdf
+data/samples/real/*.docx
