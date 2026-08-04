@@ -1,0 +1,66 @@
+<style>
+  .res{padding:22px}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:999px;font-size:13px;
+    font-weight:600;background:var(--good-soft);color:var(--good)}
+  .chip.none{background:var(--accent-soft);color:var(--accent)}
+  .metaline{color:var(--faint);font-size:12.5px;margin-top:10px}
+  .asked{margin:16px 0 4px;font-size:13px;color:var(--faint)}
+  .asked b{color:var(--muted);font-weight:600}
+  .answer{margin-top:6px;font-size:16px;line-height:1.55;color:var(--ink)}
+  .sources{margin-top:20px}
+  .sources h4{margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.03em;color:var(--faint);text-transform:uppercase}
+  details.src{margin:0 0 8px}
+  details.src summary{cursor:pointer;color:var(--accent);font-size:12.5px;font-weight:600;list-style:none}
+  details.src summary::-webkit-details-marker{display:none}
+  details.src summary::before{content:"› ";}
+  details.src[open] summary::before{content:"⌄ ";}
+  .span{margin-top:8px;padding:11px 13px;border-left:3px solid var(--accent);background:var(--accent-soft);
+    border-radius:0 8px 8px 0;font-size:13.5px;color:var(--muted)}
+  .span .lbl{display:block;color:var(--faint);font-size:11px;font-weight:700;letter-spacing:.03em;margin-bottom:4px}
+  .abstain{margin-top:14px;padding:16px 18px;border-radius:12px;background:var(--accent-soft)}
+  .abstain strong{display:block;margin-bottom:4px;font-size:15px;color:var(--accent)}
+  .abstain .why{color:var(--muted);font-size:13px;margin-top:6px}
+  .blocked{padding:20px;border-radius:12px;background:var(--warn-soft);color:var(--warn)}
+  .blocked strong{display:block;margin-bottom:4px;font-size:15px}
+</style>
+
+<div class="panel res">
+  {% if r.handled_count > 0 %}
+    <span class="chip">🛡 {{ r.handled_note }}</span>
+  {% else %}
+    <span class="chip none">🛡 {{ r.handled_note }}</span>
+  {% endif %}
+  <div class="metaline">
+    boundary: <strong>{{ r.decision }}</strong>
+    {% if r.handled_classes %}· handled: {{ r.handled_classes | join(", ") }}{% endif %}
+    · source: {{ r.kind }} ({{ "{:,}".format(r.source_chars) }} chars) · answered by: {{ r.provider }}
+  </div>
+
+  {% if r.query %}<div class="asked">You asked: <b>{{ r.query }}</b></div>{% endif %}
+
+  {% if r.blocked %}
+    <div class="blocked" style="margin-top:12px">
+      <strong>Kept on your device — not sent.</strong>
+      {{ r.block_message }}
+    </div>
+  {% elif r.answered %}
+    <div class="answer">{{ r.answer }}</div>
+    {% if r.citations %}
+      <div class="sources">
+        <h4>From your document</h4>
+        {% for c in r.citations %}
+          <details class="src">
+            <summary>{{ c.span_id }} · relevance {{ "%.0f"|format(c.support*100) }}%</summary>
+            <div class="span"><span class="lbl">{{ c.span_id }}</span>{{ c.span_text }}</div>
+          </details>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% else %}
+    <div class="abstain">
+      <strong>Not in your document</strong>
+      {{ r.answer }}
+      {% if r.abstain_reason %}<div class="why">Why: {{ r.abstain_reason }} — the tool won’t guess.</div>{% endif %}
+    </div>
+  {% endif %}
+</div>

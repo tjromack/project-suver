@@ -62,6 +62,34 @@ def test_empty_input_is_friendly():
     assert "Add a document or paste" in r.text
 
 
+def test_copilot_shell_has_a_question_field():
+    r = client.get("/t/copilot")
+    assert r.status_code == 200
+    assert "Your question" in r.text                        # the shell renders the query field
+    assert 'name="query"' in r.text
+
+
+def test_copilot_run_answers_with_citation():
+    doc = "The launch date is April 3. The venue is the downtown conference center."
+    r = client.post("/t/copilot/run", data={"paste": doc, "query": "When is the launch?"})
+    assert r.status_code == 200
+    assert "April 3" in r.text
+    assert "From your document" in r.text                    # the sources panel
+
+
+def test_copilot_abstains_in_the_ui():
+    doc = "The launch date is April 3."
+    r = client.post("/t/copilot/run", data={"paste": doc, "query": "What is the refund policy?"})
+    assert r.status_code == 200
+    assert "Not in your document" in r.text
+
+
+def test_copilot_needs_a_question():
+    r = client.post("/t/copilot/run", data={"paste": "Some document text here.", "query": "  "})
+    assert r.status_code == 200
+    assert "Type a question" in r.text
+
+
 def test_healthz():
     r = client.get("/healthz")
     assert r.status_code == 200

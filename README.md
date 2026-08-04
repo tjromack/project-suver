@@ -11,10 +11,12 @@ every tool. Pick one tool, or a platform of them.
 This repo is Suver's home: the reusable **tool-app shell**, the **hub launcher**, and the tools. The first tool —
 and this repo's flagship pilot — is **Summarize**.
 
-> **Status — pilot built & live-verified.** Phases 0–6 complete · 27 tests (stub-backed, no network) · the full
-> flow runs end-to-end on real PDFs (`make serve` → drop a file → cited summary) with both the offline `stub` and
-> the real `anthropic` model. A planted SSN is sanitized before the model and re-hydrated only in the local view.
-> Remaining: Phase 7 (suite records + the product-readiness dimension) and the Demo.
+> **Status — pilot built, live-verified, growing into a platform.** **2 live Documents tools on one shell:**
+> **Summarize** (drop a file → cited summary) and **Copilot** ("Ask this document" → a grounded, cited answer or an
+> honest "not in your document"). 36 tests (stub-backed, no network); verified end-to-end on real PDFs with both the
+> offline `stub` and the real `anthropic` model. Sensitive data is sanitized before the model and re-hydrated only
+> in the local view — on both tools. The reusable **shell + hub + tool-app contract** make each next tool a small
+> add (Copilot proved it — a tool with a *different shape*, needing a question, was a small add).
 
 ## The first tool: Summarize
 **Drop a real document → get a cited summary.** Open Summarize, drop a PDF / DOCX / TXT / MD (or paste text), and

@@ -52,7 +52,13 @@ def tool_page(request: Request, slug: str):
 
 
 @app.post("/t/{slug}/run", response_class=HTMLResponse)
-async def tool_run(request: Request, slug: str, file: UploadFile | None = File(None), paste: str = Form("")):
+async def tool_run(
+    request: Request,
+    slug: str,
+    file: UploadFile | None = File(None),
+    paste: str = Form(""),
+    query: str = Form(""),
+):
     tool = get(slug)
     if tool is None or not tool.is_live:
         return templates.TemplateResponse(
@@ -65,7 +71,7 @@ async def tool_run(request: Request, slug: str, file: UploadFile | None = File(N
         filename = file.filename
 
     try:
-        out = tool.run(ToolInput(filename=filename, data=data, paste=paste))
+        out = tool.run(ToolInput(filename=filename, data=data, paste=paste, query=query))
     except ToolError as e:  # friendly, user-facing
         return templates.TemplateResponse(request, "_error.html", _ctx(request, message=str(e)))
     except Exception:  # defensive — never leak a stack trace to a consumer

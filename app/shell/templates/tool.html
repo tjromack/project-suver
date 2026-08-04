@@ -18,6 +18,11 @@
   textarea{width:100%;min-height:110px;resize:vertical;padding:14px;border-radius:12px;
     border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-size:14.5px}
   textarea:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+  .queryblock{margin-top:16px}
+  .qlabel{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px}
+  input[type=text]{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--line);
+    background:var(--panel);color:var(--ink);font:inherit;font-size:15px}
+  input[type=text]:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
   .actions{display:flex;align-items:center;gap:14px;margin-top:16px}
   .tag{display:inline-block;font-size:11.5px;color:var(--muted);background:var(--accent-soft);
     padding:2px 9px;border-radius:999px;margin-right:6px}
@@ -50,9 +55,16 @@
     <div class="or">or paste text</div>
     <textarea name="paste" id="paste" placeholder="Paste a document or article here…"></textarea>
 
+    {% if tool.needs_query %}
+    <div class="queryblock">
+      <label class="qlabel" for="query">{{ tool.query_label }}</label>
+      <input type="text" name="query" id="query" placeholder="{{ tool.query_placeholder }}" autocomplete="off">
+    </div>
+    {% endif %}
+
     <div class="actions">
       <button class="btn" id="go" type="submit">{{ tool.action_label }}</button>
-      <span class="faint">No prompt to write. One click.</span>
+      <span class="faint">{% if tool.needs_query %}Ask in plain words — no prompt craft.{% else %}No prompt to write. One click.{% endif %}</span>
     </div>
   </form>
 
@@ -74,7 +86,7 @@
         ev.preventDefault();
         go.disabled=true;
         result.innerHTML='<div class="panel"><div class="working"><span class="spin"></span>'+
-          'Sanitizing, then summarizing — the model only sees safe text…</div></div>';
+          'Sanitizing first — the model only ever sees safe text…</div></div>';
         try{
           const resp=await fetch('/t/{{ tool.slug }}/run',{method:'POST',body:new FormData(form)});
           result.innerHTML=await resp.text();

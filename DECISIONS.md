@@ -107,3 +107,25 @@ literal. Registering the soon tools makes the platform legible and each future t
 **Rules out.** A bespoke landing page per tool; a hub that can't grow without code changes to itself.
 **Status.** Accepted — Phase 6. `app/main.py` (`/`, `/t/{slug}`), `app/tools/coming_soon.py`, `hub.html`.
 **Live-verified**: hub lists 1 live + 3 soon; opening Summarize renders its shell.
+
+### DEC 008 — Copilot ("Ask this document"): the 2nd Documents tool, and the contract grows a `query`
+**Decision.** Add **Copilot** — add a document (or paste), ask a plain-language question → a **grounded, cited
+answer** from the document, or an honest **"not in your document."** It reuses the *same* vendored cores (no new
+engine, no heavy RAG deps): `split_document` for passages + the grounding core's content-token `support` for
+**deterministic retrieval** (rank passages by question↔passage overlap, keep the top-K above a relevance floor;
+nothing relevant → abstain *before* the model sees anything). The model then answers **only** from the retrieved
+(sanitized) passages or emits `NOT_IN_DOCUMENT`; the answer must still **ground** (support ≥ threshold) or we
+**abstain** — never show an ungrounded answer. The tool-app **contract grew one optional `query`** field
+(`ToolInput.query`, `Tool.needs_query/query_label/query_placeholder`); the shell renders one question box when a
+tool needs it. *A question is the user's information need in plain words — not prompt craft — so the no-prompt
+principle holds.* The **question is sanitized too** (the model never sees a sensitive value in the query either).
+**Why.** It proves the reusable rails: a second tool with a *different shape* (needs a question) was a small add —
+new provider fn + a pipeline path + a Tool + a result partial + one contract field — reusing all the trust
+machinery. Retrieval-by-overlap keeps it lean (no embeddings/vector DB) and consistent with cite-or-drop; the
+copilot's signature move (**abstention over hallucination**) is preserved on real documents.
+**Rules out.** A heavy RAG stack (sentence-transformers/chromadb) for single-document Q&A; answering from outside
+the document; showing an answer that doesn't ground; a free-form "prompt" box (the question is scoped to the doc).
+**Status.** Accepted. `app/tools/copilot.py`, `app/pipeline.py` (`answer_question`), `app/provider.py`
+(`draft_answer`), `app/shell/templates/_answer_result.html`, `tests/test_copilot.py`. **Live-verified** with
+`anthropic`: a grounded answer with inline `[S2]`/`[S4]` citations; an out-of-document question abstained. The
+Documents platform now has **2 live tools** (Summarize + Copilot) on one shell.

@@ -10,17 +10,6 @@ from __future__ import annotations
 from app.tools import Tool, register
 
 register(Tool(
-    slug="copilot",
-    name="Ask this document",
-    blurb="Ask a question, get a cited answer from your document — or an honest 'not in the source'.",
-    icon="💬",
-    accepts="PDF · DOCX · TXT · MD",
-    action_label="Ask",
-    status="soon",
-    tags=("Documents", "Cited Q&A"),
-))
-
-register(Tool(
     slug="draft",
     name="Draft from a document",
     blurb="Turn a source into a structured first draft — a brief, a summary memo, a letter — grounded in it.",

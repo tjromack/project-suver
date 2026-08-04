@@ -22,15 +22,23 @@ class ToolError(ValueError):
 
 @dataclass(frozen=True)
 class ToolInput:
-    """One input: an uploaded file (filename+data) or pasted text. Exactly the user's own content — no prompt."""
+    """The user's own content: an uploaded file (filename+data) or pasted text, plus an optional plain-language
+    `query` for tools that answer a question about the document (Copilot). A question is the user's information
+    need in plain words — NOT prompt craft; the no-prompt principle still holds (you ask what you want to know,
+    you don't instruct the model how to behave)."""
 
     filename: str | None = None
     data: bytes | None = None
     paste: str | None = None
+    query: str | None = None
 
     @property
     def is_empty(self) -> bool:
         return not (self.data or (self.paste and self.paste.strip()))
+
+    @property
+    def has_query(self) -> bool:
+        return bool(self.query and self.query.strip())
 
 
 @dataclass(frozen=True)
@@ -52,6 +60,11 @@ class Tool:
     run: Callable[[ToolInput], ToolOutput] | None = None
     status: str = "live"  # "live" | "soon"
     tags: tuple[str, ...] = field(default_factory=tuple)
+    # Some tools ask a plain-language question about the document (Copilot). The shell renders one question field
+    # when needs_query is set — still no prompt craft, just the user's information need.
+    needs_query: bool = False
+    query_label: str = "Your question"
+    query_placeholder: str = "Ask a question about this document…"
 
     @property
     def is_live(self) -> bool:
@@ -78,5 +91,6 @@ def all_tools() -> list[Tool]:
 
 def load_builtin() -> None:
     """Import the built-in tools so they self-register. Called once at app startup."""
-    from app.tools import summarize  # noqa: F401  (the live tool — registers on import)
+    from app.tools import summarize  # noqa: F401  (live — registers on import)
+    from app.tools import copilot  # noqa: F401  (live — the 2nd Documents tool)
     from app.tools import coming_soon  # noqa: F401  (the rest of the Documents platform, as 'soon' cards)

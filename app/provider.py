@@ -106,3 +106,58 @@ def draft_candidates(safe_text: str, spans: list[Span], provider: str) -> list[C
     if provider == "anthropic":
         return _anthropic_candidates(safe_text)
     return _stub_candidates(spans)
+
+
+# --- Copilot ("Ask this document"): draft a grounded ANSWER from retrieved passages ------------------
+
+# The model must answer only from the passages, or emit this exact sentinel so we can abstain (never guess).
+NOT_IN_DOCUMENT = "NOT_IN_DOCUMENT"
+
+_ANSWER_PROMPT = (
+    "You are answering a question using ONLY the numbered passages from the user's own document below.\n"
+    "Rules:\n"
+    "- Answer in 1–4 sentences using ONLY facts stated in the passages. Do not use outside knowledge.\n"
+    "- If the passages do not contain the answer, reply with EXACTLY this and nothing else: {sentinel}\n"
+    "- Some names/identifiers may appear as bracketed tokens like [PERSON_NAME_1]; keep such tokens exactly.\n\n"
+    "QUESTION: {q}\n\nPASSAGES:\n{passages}"
+)
+
+
+def _passages(spans: list[Span]) -> str:
+    return "\n".join(f"[{sp.id}] {sp.text}" for sp in spans)
+
+
+def _stub_answer(safe_query: str, retrieved: list[Span]) -> str:
+    """Extractive, offline: the single best-matching passage IS the answer (it grounds trivially). Deterministic."""
+    if not retrieved:
+        return NOT_IN_DOCUMENT
+    # retrieved is already ranked by relevance; the top passage is the extractive answer.
+    return retrieved[0].text
+
+
+def _anthropic_answer(safe_query: str, retrieved: list[Span]) -> str:
+    import truststore
+
+    truststore.inject_into_ssl()
+    from anthropic import Anthropic
+
+    from app.config import settings
+
+    if not retrieved:
+        return NOT_IN_DOCUMENT
+    client = Anthropic()
+    prompt = _ANSWER_PROMPT.format(sentinel=NOT_IN_DOCUMENT, q=safe_query, passages=_passages(retrieved))
+    msg = client.messages.create(
+        model=settings.anthropic_model,
+        max_tokens=512,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return "".join(getattr(b, "text", "") for b in msg.content).strip()
+
+
+def draft_answer(safe_query: str, retrieved: list[Span], provider: str) -> str:
+    """Answer the question from the retrieved (sanitized) passages, or return NOT_IN_DOCUMENT. The model only ever
+    sees safe passages + the safe question; grounding downstream still verifies before anything is shown."""
+    if provider == "anthropic":
+        return _anthropic_answer(safe_query, retrieved)
+    return _stub_answer(safe_query, retrieved)

@@ -34,6 +34,10 @@ class Settings:
     max_draft_chars: int = int(os.getenv("MAX_DRAFT_CHARS", "40000"))
     # Grounding support threshold (fraction of a claim's content tokens that must appear in its best span).
     ground_threshold: float = float(os.getenv("GROUND_THRESHOLD", "0.6"))
+    # Copilot ("Ask this document") retrieval: how many passages to consider, and the minimum question↔passage
+    # relevance below which we abstain ("not in your document") rather than answer.
+    copilot_top_k: int = int(os.getenv("COPILOT_TOP_K", "4"))
+    copilot_min_relevance: float = float(os.getenv("COPILOT_MIN_RELEVANCE", "0.12"))
     samples_dir: Path = REPO_ROOT / os.getenv("SAMPLES_DIR", "data/samples")
 
     def provenance(self) -> dict:
