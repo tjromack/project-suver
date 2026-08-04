@@ -27,14 +27,14 @@ Legend: ☐ todo · ☑ done
   empty · non-UTF8 all fail friendly; pdf/docx bad-bytes fail friendly (run once `make setup` installs the libs).
 - ☑ DECISIONS: DEC 003 — supported formats + the fail-friendly ingest guards.
 
-## Phase 1 — The tool-app shell (the reusable consumer surface)  ☐
-- ☐ `app/shell/` templates — the shared consumer UI: one **drop/paste zone**, one **primary action**, one **result
-  panel**, a **trust chip** slot, zero visible config. Theme-aware, responsive, calm, fast (modern
-  `TemplateResponse(request, …)`). `app/tools/__init__.py` — the `Tool` registration `{slug, name, blurb, icon,
-  accepts, run(input)->Result}`.
-- ☐ `app/main.py` renders the shell for a registered tool (Summarize stubbed to echo for now). `make serve`.
-  `tests/test_shell.py` (the shell renders; a `Tool` registers; the result panel renders a placeholder result).
-- ☐ DECISIONS: DEC 002 — the tool-app contract (`input → [sanitize] → engine → output`, one shell, zero config).
+## Phase 1 — The tool-app shell (the reusable consumer surface)  ☑ (built with Phase 5)
+- ☑ `app/shell/templates/` — the shared consumer UI: one **drop/paste zone** (drag-drop + click), one **primary
+  action**, one **result slot**, a **trust chip**, zero visible config. Theme-aware, responsive, calm, fast
+  (modern `TemplateResponse(request, …)`; dependency-free vanilla `fetch`, no CDN). `app/tools/__init__.py` — the
+  `Tool` contract `{slug, name, blurb, icon, accepts, action_label, run(ToolInput)->ToolOutput, status, tags}`.
+- ☑ `app/main.py` renders the shell for a registered tool. `make serve`. `tests/test_app.py` (the shell renders;
+  tools register; unknown tool → 404; a coming-soon tool shows a placeholder).
+- ☑ DECISIONS: DEC 002.
 
 ## Phase 2 — Document ingest (real files → text)  ☐
 - ☐ `app/ingest.py` — `extract_text(filename, bytes|str) -> IngestResult{text, kind, chars, note}` for
@@ -65,23 +65,23 @@ Legend: ☐ todo · ☑ done
 - ☑ DECISIONS: DEC 005.  *(Live: 7 cited points on the sample; a planted SSN re-hydrated in the view, never seen
   by the model.)*
 
-## Phase 5 — The end-to-end Summarize tool-app (the flagship)  ☐ 🟩 the win
-- ☐ `app/tools/summarize.py` — the first `Tool`: `run(input) → SummaryResult{claims[(text, span)], withheld[],
-  handled_count}`, wired through the full pipeline (ingest → sanitize → split → draft → ground → re-hydrate). The
-  result panel renders the **cited key-points** (each with a "› source" reveal), the **withheld** panel, and the
-  **🛡 trust chip**. **Drop a real document → cited summary, 3 clicks, zero prompt/config.**
-- ☐ `make serve` + `tests/test_summarize_tool.py` (the tool runs end-to-end on a sample doc; safe-text invariant
-  holds; a withheld claim shows in its panel). **Live-verify** (uvicorn: drop a real PDF → cited summary; with a
-  planted SSN → sanitized before the model, re-hydrated in the view). *(Real-LLM verify needs the key; stub verify
-  works without.)*
-- ☐ DECISIONS: DEC 006 — the Summarize tool-app; the 3-click, no-config product surface.
+## Phase 5 — The end-to-end Summarize tool-app (the flagship)  ☑ 🟩 THE WIN — live-verified (stub + real model)
+- ☑ `app/tools/summarize.py` — the first `Tool`: `run(ToolInput) → SummaryResult{claims[(text, span_id, span_text,
+  support)], withheld[], handled_count, …}`, wired through the full pipeline (ingest → sanitize → split → draft →
+  ground → re-hydrate). The result panel renders the **cited key-points** (each with a `› source` reveal), the
+  **withheld** panel, the **truncation note**, and the **🛡 trust chip**. **Drop a real document → cited summary,
+  3 clicks, zero prompt/config.**
+- ☑ `make serve` + `tests/test_app.py`. **Live-verified** (uvicorn): paste + file upload; a real 5.5 MB PDF →
+  cited summary + truncation note; the planted SSN → sanitized before the model, re-hydrated in the view. (Real
+  `anthropic` draft verified separately — 7 crisp cited points.)
+- ☑ DECISIONS: DEC 006.
 
-## Phase 6 — The hub launcher  ☐
-- ☐ `app/hub.py` + `main.py` — a **launcher**: the hub lists registered `Tool`s (Summarize live; others as
-  "coming soon" cards) and **opens** a tool. Even with one tool live, the **browse → click → use** path is real.
-  Reuse `_LEARNING/showcase.html`'s look where it helps, but this is the *app*, not the catalog.
-- ☐ `tests/test_hub.py` (the hub lists tools; opening Summarize renders its shell). Live-verify the browse→open flow.
-- ☐ DECISIONS: DEC 007 — the hub launches anything implementing the tool-app contract.
+## Phase 6 — The hub launcher  ☑ (browse → click → open, live-verified)
+- ☑ `app/main.py` `GET /` — the **hub**: lists registered `Tool`s (Summarize live; Copilot/Draft/Extractor as
+  "coming soon" cards, `app/tools/coming_soon.py`) and **opens** a live tool at `/t/{slug}`. The
+  **browse → click → use** path is real with one tool live.
+- ☑ `tests/test_app.py` (the hub lists 1 live + 3 soon; opening Summarize renders its shell; unknown → 404).
+- ☑ DECISIONS: DEC 007.
 
 ## Phase 7 — Records + product-readiness  ☐ 🟩 BUILT (target)
 - ☐ **STATUS gets a product-readiness dimension** (engine-grade vs. **consumer-grade**); Summarize → consumer-grade.

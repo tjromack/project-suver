@@ -1,0 +1,79 @@
+<style>
+  .res{padding:22px}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:999px;font-size:13px;
+    font-weight:600;background:var(--good-soft);color:var(--good)}
+  .chip.none{background:var(--accent-soft);color:var(--accent)}
+  .metaline{color:var(--faint);font-size:12.5px;margin-top:10px}
+  .note{margin-top:12px;padding:10px 13px;border-radius:10px;background:var(--warn-soft);color:var(--warn);font-size:13px}
+  .points{list-style:none;margin:18px 0 0;padding:0}
+  .points li{padding:14px 0;border-top:1px solid var(--line)}
+  .points li:first-child{border-top:0}
+  .claim{display:flex;gap:11px}
+  .claim .n{flex:none;width:23px;height:23px;border-radius:50%;background:var(--accent-soft);color:var(--accent);
+    font-size:12.5px;font-weight:700;display:grid;place-items:center;margin-top:1px}
+  .claim .txt{flex:1}
+  details.src{margin:8px 0 0 34px}
+  details.src summary{cursor:pointer;color:var(--accent);font-size:12.5px;font-weight:600;list-style:none}
+  details.src summary::-webkit-details-marker{display:none}
+  details.src summary::before{content:"› ";}
+  details.src[open] summary::before{content:"⌄ ";}
+  .span{margin-top:8px;padding:11px 13px;border-left:3px solid var(--accent);background:var(--accent-soft);
+    border-radius:0 8px 8px 0;font-size:13.5px;color:var(--muted)}
+  .span .lbl{display:block;color:var(--faint);font-size:11px;font-weight:700;letter-spacing:.03em;margin-bottom:4px}
+  .withheld{margin-top:22px;padding:16px 18px;border-radius:12px;background:var(--warn-soft)}
+  .withheld h4{margin:0 0 4px;font-size:13.5px;color:var(--warn)}
+  .withheld ul{margin:8px 0 0;padding-left:18px;color:var(--muted);font-size:13px}
+  .withheld li{margin:4px 0}
+  .blocked{padding:20px;border-radius:12px;background:var(--warn-soft);color:var(--warn)}
+  .blocked strong{display:block;margin-bottom:4px;font-size:15px}
+</style>
+
+<div class="panel res">
+  {% if r.handled_count > 0 %}
+    <span class="chip">🛡 {{ r.handled_note }}</span>
+  {% else %}
+    <span class="chip none">🛡 {{ r.handled_note }}</span>
+  {% endif %}
+  <div class="metaline">
+    boundary: <strong>{{ r.decision }}</strong>
+    {% if r.handled_classes %}· handled: {{ r.handled_classes | join(", ") }}{% endif %}
+    · source: {{ r.kind }} ({{ "{:,}".format(r.source_chars) }} chars) · drafted by: {{ r.provider }}
+  </div>
+
+  {% if r.blocked %}
+    <div class="blocked" style="margin-top:16px">
+      <strong>Kept on your device — not summarized.</strong>
+      {{ r.block_message }}
+    </div>
+  {% else %}
+    {% if r.note %}<div class="note">{{ r.note }}</div>{% endif %}
+
+    {% if r.claims %}
+      <ol class="points">
+        {% for c in r.claims %}
+          <li>
+            <div class="claim">
+              <span class="n">{{ loop.index }}</span>
+              <span class="txt">{{ c.text }}</span>
+            </div>
+            <details class="src">
+              <summary>source · {{ c.span_id }} · support {{ "%.0f"|format(c.support*100) }}%</summary>
+              <div class="span"><span class="lbl">FROM YOUR DOCUMENT — {{ c.span_id }}</span>{{ c.span_text }}</div>
+            </details>
+          </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <p class="muted" style="margin-top:16px">No points could be grounded to a source span, so nothing is shown as
+        trusted. Try a longer or clearer document.</p>
+    {% endif %}
+
+    {% if r.withheld %}
+      <div class="withheld">
+        <h4>⚠ {{ r.withheld|length }} point(s) withheld — not supported by your source</h4>
+        <div class="faint" style="font-size:12px">Shown for transparency; never presented as trusted.</div>
+        <ul>{% for w in r.withheld %}<li>{{ w.text }} <span class="faint">— {{ w.reason }}</span></li>{% endfor %}</ul>
+      </div>
+    {% endif %}
+  {% endif %}
+</div>

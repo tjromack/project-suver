@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Suver — tools, not prompts{% endblock %}
+{% block head %}
+<style>
+  .hero{margin:6px 0 26px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+  .card{display:block;padding:20px;border-radius:var(--radius);background:var(--panel);
+    border:1px solid var(--line);box-shadow:var(--shadow);transition:transform .12s,border-color .12s}
+  a.card:hover{transform:translateY(-2px);border-color:var(--accent)}
+  .card .ic{font-size:26px;line-height:1}
+  .card h3{margin:.5em 0 .25em;font-size:17px;letter-spacing:-.01em}
+  .card p{margin:0;color:var(--muted);font-size:14px;min-height:40px}
+  .card .accepts{margin-top:12px;color:var(--faint);font-size:12px}
+  .soon{opacity:.72} .soon .badge{color:var(--warn);background:var(--warn-soft)}
+  .badge{float:right;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;
+    background:var(--good-soft);color:var(--good)}
+</style>
+{% endblock %}
+{% block body %}
+  <div class="hero">
+    <h1>Pick a tool. Bring your input. Get the output.</h1>
+    <p class="lede">No prompt to write, nothing to configure. Your document is sanitized before any model sees it,
+      and every result cites your source.</p>
+  </div>
+  <div class="grid">
+    {% for t in tools %}
+      {% if t.is_live %}
+        <a class="card" href="/t/{{ t.slug }}">
+          <span class="badge">Live</span>
+          <div class="ic">{{ t.icon }}</div>
+          <h3>{{ t.name }}</h3>
+          <p>{{ t.blurb }}</p>
+          <div class="accepts">{{ t.accepts }}</div>
+        </a>
+      {% else %}
+        <div class="card soon">
+          <span class="badge">Soon</span>
+          <div class="ic">{{ t.icon }}</div>
+          <h3>{{ t.name }}</h3>
+          <p>{{ t.blurb }}</p>
+          <div class="accepts">{{ t.accepts }}</div>
+        </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+{% endblock %}

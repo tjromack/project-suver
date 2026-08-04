@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Suver{% endblock %}</title>
+  <style>
+    :root{
+      --bg:#f7f8fa; --panel:#ffffff; --ink:#1a1f2b; --muted:#5b6472; --faint:#889;
+      --line:#e6e9ef; --accent:#3b5bdb; --accent-ink:#fff; --accent-soft:#eef1fe;
+      --good:#1c7c54; --good-soft:#e7f5ee; --warn:#8a6d1a; --warn-soft:#fbf3dc;
+      --shield:#2b5fd0; --shadow:0 1px 2px rgba(20,25,40,.04),0 8px 28px rgba(20,25,40,.06);
+      --radius:16px;
+    }
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg:#0f1219; --panel:#161b25; --ink:#eef1f6; --muted:#a2adbd; --faint:#6f7a8a;
+        --line:#242c3a; --accent:#6c8cff; --accent-ink:#0f1219; --accent-soft:#1b2540;
+        --good:#54d19a; --good-soft:#12291f; --warn:#e6c667; --warn-soft:#2a2412;
+        --shield:#7ea2ff; --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+      }
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);
+      font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      -webkit-font-smoothing:antialiased;}
+    a{color:inherit;text-decoration:none}
+    .wrap{max-width:860px;margin:0 auto;padding:28px 22px 72px}
+    header.top{display:flex;align-items:center;gap:12px;padding:20px 22px;max-width:860px;margin:0 auto}
+    .brand{display:flex;align-items:baseline;gap:9px;font-weight:700;letter-spacing:-.02em;font-size:19px}
+    .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);display:inline-block}
+    .brand small{font-weight:500;color:var(--faint);font-size:12px;letter-spacing:.02em}
+    .crumbs{margin-left:auto;color:var(--faint);font-size:13px}
+    .crumbs a:hover{color:var(--muted)}
+    h1{font-size:26px;letter-spacing:-.02em;margin:.2em 0 .15em}
+    .lede{color:var(--muted);margin:.1em 0 1.4em;font-size:16px}
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .btn{appearance:none;border:0;border-radius:11px;padding:12px 20px;font-size:15px;font-weight:600;
+      background:var(--accent);color:var(--accent-ink);cursor:pointer;transition:filter .12s,transform .02s}
+    .btn:hover{filter:brightness(1.06)} .btn:active{transform:translateY(1px)}
+    .btn[disabled]{opacity:.55;cursor:default}
+    .muted{color:var(--muted)} .faint{color:var(--faint)}
+    footer.foot{max-width:860px;margin:26px auto 0;padding:0 22px;color:var(--faint);font-size:12.5px;
+      display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;
+      background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:600}
+    code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.9em;
+      background:var(--accent-soft);padding:1px 6px;border-radius:6px}
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/"><span class="dot"></span>Suver <small>tools, not prompts</small></a>
+    <nav class="crumbs">{% block crumbs %}{% endblock %}</nav>
+  </header>
+  <main class="wrap">{% block body %}{% endblock %}</main>
+  <footer class="foot">
+    <span class="pill">🛡 governed by design</span>
+    <span>The model only ever sees sanitized text · every claim cites your source.</span>
+    <span style="margin-left:auto">Suver · v{{ app_version }} · provider: {{ provider }}</span>
+  </footer>
+</body>
+</html>

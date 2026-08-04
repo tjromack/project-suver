@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}{{ tool.name }} · Suver{% endblock %}
+{% block crumbs %}<a href="/">← all tools</a>{% endblock %}
+{% block head %}
+<style>
+  .toolhead{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+  .toolhead .ic{font-size:30px}
+  .drop{margin:18px 0 0;padding:30px;border:2px dashed var(--line);border-radius:var(--radius);
+    background:var(--panel);text-align:center;cursor:pointer;transition:border-color .12s,background .12s}
+  .drop.hot{border-color:var(--accent);background:var(--accent-soft)}
+  .drop .big{font-size:16px;font-weight:600}
+  .drop .sub{color:var(--faint);font-size:13px;margin-top:4px}
+  .drop .file{margin-top:10px;color:var(--accent);font-weight:600;font-size:14px}
+  .or{display:flex;align-items:center;gap:12px;color:var(--faint);font-size:12px;margin:14px 0}
+  .or::before,.or::after{content:"";height:1px;background:var(--line);flex:1}
+  textarea{width:100%;min-height:110px;resize:vertical;padding:14px;border-radius:12px;
+    border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-size:14.5px}
+  textarea:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+  .actions{display:flex;align-items:center;gap:14px;margin-top:16px}
+  .tagrow{margin-top:4px}
+  .tag{display:inline-block;font-size:11.5px;color:var(--muted);background:var(--accent-soft);
+    padding:2px 9px;border-radius:999px;margin-right:6px}
+  #result{margin-top:24px}
+  .working{display:flex;align-items:center;gap:10px;color:var(--muted);padding:18px}
+  .spin{width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--accent);
+    border-radius:50%;animation:sp .7s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+</style>
+{% endblock %}
+{% block body %}
+  <div class="toolhead"><span class="ic">{{ tool.icon }}</span><h1>{{ tool.name }}</h1></div>
+  <p class="lede">{{ tool.blurb }}</p>
+
+  {% if not tool.is_live %}
+    <div class="panel" style="padding:26px"><strong>Coming soon.</strong>
+      <span class="muted">This tool is on the roadmap — the shell and safety rails are ready; the engine is next.</span>
+    </div>
+  {% else %}
+  <div class="tagrow">{% for tag in tool.tags %}<span class="tag">{{ tag }}</span>{% endfor %}</div>
+
+  <form id="toolform" autocomplete="off">
+    <label class="drop" id="drop">
+      <input type="file" name="file" id="file" accept=".pdf,.docx,.txt,.md,.markdown,.text" hidden>
+      <div class="big">Drop a document here, or click to choose</div>
+      <div class="sub">{{ tool.accepts }} · up to 20&nbsp;MB · your file never leaves your device un-sanitized</div>
+      <div class="file" id="filename" hidden></div>
+    </label>
+
+    <div class="or">or paste text</div>
+    <textarea name="paste" id="paste" placeholder="Paste a document or article here…"></textarea>
+
+    <div class="actions">
+      <button class="btn" id="go" type="submit">{{ tool.action_label }}</button>
+      <span class="faint">No prompt to write. One click.</span>
+    </div>
+  </form>
+
+  <div id="result" aria-live="polite"></div>
+
+  <script>
+    (function(){
+      const form=document.getElementById('toolform'), drop=document.getElementById('drop'),
+            file=document.getElementById('file'), fname=document.getElementById('filename'),
+            paste=document.getElementById('paste'), result=document.getElementById('result'),
+            go=document.getElementById('go');
+      function showName(){ if(file.files.length){ fname.hidden=false; fname.textContent='📄 '+file.files[0].name; }
+                           else { fname.hidden=true; } }
+      file.addEventListener('change',showName);
+      ['dragenter','dragover'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('hot');}));
+      ['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('hot');}));
+      drop.addEventListener('drop',ev=>{ if(ev.dataTransfer.files.length){ file.files=ev.dataTransfer.files; showName(); }});
+      form.addEventListener('submit',async ev=>{
+        ev.preventDefault();
+        go.disabled=true;
+        result.innerHTML='<div class="panel"><div class="working"><span class="spin"></span>'+
+          'Sanitizing, then summarizing — the model only sees safe text…</div></div>';
+        try{
+          const resp=await fetch('/t/{{ tool.slug }}/run',{method:'POST',body:new FormData(form)});
+          result.innerHTML=await resp.text();
+        }catch(e){
+          result.innerHTML='<div class="panel" style="padding:20px">Couldn’t reach the server. Try again.</div>';
+        }finally{ go.disabled=false; }
+      });
+    })();
+  </script>
+  {% endif %}
+{% endblock %}
