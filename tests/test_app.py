@@ -135,6 +135,29 @@ def test_extractor_empty_is_honest():
     assert "No dates" in r.text
 
 
+def test_compare_shell_has_two_drop_zones():
+    r = client.get("/t/compare")
+    assert r.status_code == 200
+    assert "Document A" in r.text and "Document B" in r.text
+    assert 'name="file2"' in r.text and 'name="paste2"' in r.text     # the second input
+    assert "What to compare" in r.text                                # the field-set select
+
+
+def test_compare_run_shows_a_difference_table():
+    a = {"paste": "Vendor: Acme\nAmount: $1,200.00", "paste2": "Vendor: Acme\nAmount: $1,500.00", "choice": "facts"}
+    r = client.post("/t/compare/run", data=a)
+    assert r.status_code == 200
+    assert "<table" in r.text
+    assert "difference" in r.text.lower()
+    assert "never picks which document is right" in r.text            # the never-decides promise
+
+
+def test_compare_needs_a_second_document():
+    r = client.post("/t/compare/run", data={"paste": "Only one document here.", "choice": "facts"})
+    assert r.status_code == 200
+    assert "second document" in r.text.lower()
+
+
 def test_healthz():
     r = client.get("/healthz")
     assert r.status_code == 200

@@ -22,6 +22,7 @@
   textarea{width:100%;min-height:110px;resize:vertical;padding:14px;border-radius:12px;
     border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-size:14.5px}
   textarea:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+  .doclabel{font-size:13px;font-weight:700;letter-spacing:.02em;color:var(--muted);margin-bottom:8px}
   .queryblock{margin-top:16px}
   .qlabel{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px}
   input[type=text],select{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--line);
@@ -51,6 +52,7 @@
   <div class="tagrow">{% for tag in tool.tags %}<span class="tag">{{ tag }}</span>{% endfor %}</div>
 
   <form id="toolform" autocomplete="off">
+    {% if tool.needs_second %}<div class="doclabel">{{ tool.doc_labels[0] }}</div>{% endif %}
     <label class="drop" id="drop">
       <input type="file" name="file" id="file" accept=".pdf,.docx,.txt,.md,.markdown,.text" hidden>
       <div class="big">Drop a document here, or click to choose</div>
@@ -63,6 +65,21 @@
 
     <div class="or">or paste text</div>
     <textarea name="paste" id="paste" placeholder="Paste a document or article here…"></textarea>
+
+    {% if tool.needs_second %}
+    <div class="doclabel" style="margin-top:24px">{{ tool.doc_labels[1] }}</div>
+    <label class="drop" id="drop2">
+      <input type="file" name="file2" id="file2" accept=".pdf,.docx,.txt,.md,.markdown,.text" hidden>
+      <div class="big">Drop the second document here, or click to choose</div>
+      <div class="sub">{{ tool.accepts }} · up to 20&nbsp;MB · sanitized before the model, same as the first</div>
+      <div class="file" id="filename2" hidden>
+        <span id="fname-text2"></span>
+        <button type="button" class="clearfile" id="clearfile2" aria-label="Remove this file">✕ remove</button>
+      </div>
+    </label>
+    <div class="or">or paste text</div>
+    <textarea name="paste2" id="paste2" placeholder="Paste the second document here…"></textarea>
+    {% endif %}
 
     {% if tool.needs_query %}
     <div class="queryblock">
@@ -90,19 +107,24 @@
 
   <script>
     (function(){
-      const form=document.getElementById('toolform'), drop=document.getElementById('drop'),
-            file=document.getElementById('file'), fname=document.getElementById('filename'),
-            fnameText=document.getElementById('fname-text'), clearBtn=document.getElementById('clearfile'),
-            paste=document.getElementById('paste'), result=document.getElementById('result'),
+      const form=document.getElementById('toolform'), result=document.getElementById('result'),
             go=document.getElementById('go');
-      function showName(){ if(file.files.length){ fname.hidden=false; fnameText.textContent='📄 '+file.files[0].name; }
-                           else { fname.hidden=true; fnameText.textContent=''; } }
-      file.addEventListener('change',showName);
-      // "✕ remove" clears the chosen file without needing to pick another; don't let the click reopen the picker.
-      clearBtn.addEventListener('click',ev=>{ ev.preventDefault(); ev.stopPropagation(); file.value=''; showName(); });
-      ['dragenter','dragover'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('hot');}));
-      ['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('hot');}));
-      drop.addEventListener('drop',ev=>{ if(ev.dataTransfer.files.length){ file.files=ev.dataTransfer.files; showName(); }});
+      // Wire one drop/paste zone (drag-drop, click-to-choose, filename display, ✕ remove). Called per zone.
+      function wireDrop(dropId, fileId, fnameId, textId, clearId){
+        const drop=document.getElementById(dropId), file=document.getElementById(fileId),
+              fname=document.getElementById(fnameId), fnameText=document.getElementById(textId),
+              clearBtn=document.getElementById(clearId);
+        if(!drop) return;
+        function showName(){ if(file.files.length){ fname.hidden=false; fnameText.textContent='📄 '+file.files[0].name; }
+                             else { fname.hidden=true; fnameText.textContent=''; } }
+        file.addEventListener('change',showName);
+        clearBtn.addEventListener('click',ev=>{ ev.preventDefault(); ev.stopPropagation(); file.value=''; showName(); });
+        ['dragenter','dragover'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('hot');}));
+        ['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('hot');}));
+        drop.addEventListener('drop',ev=>{ if(ev.dataTransfer.files.length){ file.files=ev.dataTransfer.files; showName(); }});
+      }
+      wireDrop('drop','file','filename','fname-text','clearfile');
+      wireDrop('drop2','file2','filename2','fname-text2','clearfile2');   // no-op if the tool has one input
       form.addEventListener('submit',async ev=>{
         ev.preventDefault();
         go.disabled=true;

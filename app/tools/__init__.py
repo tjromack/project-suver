@@ -32,10 +32,18 @@ class ToolInput:
     paste: str | None = None
     query: str | None = None
     choice: str | None = None   # a picked option (e.g. the draft kind) — a select value, never prompt text
+    # A second document, for tools that compare two (Compare). Still just the user's input — no prompt.
+    filename2: str | None = None
+    data2: bytes | None = None
+    paste2: str | None = None
 
     @property
     def is_empty(self) -> bool:
         return not (self.data or (self.paste and self.paste.strip()))
+
+    @property
+    def has_second(self) -> bool:
+        return bool(self.data2 or (self.paste2 and self.paste2.strip()))
 
     @property
     def has_query(self) -> bool:
@@ -70,6 +78,9 @@ class Tool:
     # pairs when options is non-empty — a pick, not a prompt. The first option is the default.
     options: tuple[tuple[str, str], ...] = field(default_factory=tuple)
     choice_label: str = "What to make"
+    # Some tools compare TWO documents (Compare). The shell renders a second drop/paste zone when set.
+    needs_second: bool = False
+    doc_labels: tuple[str, str] = ("Document A", "Document B")
 
     @property
     def has_options(self) -> bool:
@@ -103,5 +114,6 @@ def load_builtin() -> None:
     from app.tools import summarize  # noqa: F401  (live — the 1st Documents tool)
     from app.tools import copilot  # noqa: F401  (live — the 2nd Documents tool)
     from app.tools import draft  # noqa: F401  (live — the 3rd Documents tool)
-    from app.tools import extractor  # noqa: F401  (live — the 4th Documents tool; the platform is complete)
+    from app.tools import extractor  # noqa: F401  (live — the 4th Documents tool)
+    from app.tools import compare  # noqa: F401  (live — the 5th Documents tool; first two-document tool)
     from app.tools import coming_soon  # noqa: F401  (no soon cards currently — the Documents platform is fully live)

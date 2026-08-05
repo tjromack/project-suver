@@ -59,6 +59,8 @@ async def tool_run(
     paste: str = Form(""),
     query: str = Form(""),
     choice: str = Form(""),
+    file2: UploadFile | None = File(None),
+    paste2: str = Form(""),
 ):
     tool = get(slug)
     if tool is None or not tool.is_live:
@@ -70,9 +72,14 @@ async def tool_run(
     if file is not None and file.filename:
         data = await file.read()
         filename = file.filename
+    filename2 = data2 = None
+    if file2 is not None and file2.filename:
+        data2 = await file2.read()
+        filename2 = file2.filename
 
     try:
-        out = tool.run(ToolInput(filename=filename, data=data, paste=paste, query=query, choice=choice))
+        out = tool.run(ToolInput(filename=filename, data=data, paste=paste, query=query, choice=choice,
+                                 filename2=filename2, data2=data2, paste2=paste2))
     except ToolError as e:  # friendly, user-facing
         return templates.TemplateResponse(request, "_error.html", _ctx(request, message=str(e)))
     except Exception:  # defensive — never leak a stack trace to a consumer

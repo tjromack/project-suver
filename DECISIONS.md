@@ -244,3 +244,27 @@ market lanes (demos · pitches · enablement).
 flashy hero that fights the consumer-grade calm.
 **Status.** Accepted. `app/shell/templates/hub.html`; `tests/test_app.py` (hub asserts the platform framing +
 trust band + the four lanes). 63 tests; live-verified (200, clean render).
+
+### DEC 014 — Compare ("Compare two documents"): the 5th tool; the platform's first TWO-document tool
+**Decision.** Add **Compare** — drop **two documents**, pick a **field-set** (facts · dates · people · amounts) →
+the same fields pulled from both, **aligned**, and compared **type-aware** (money cent-tolerance · dates
+normalized · strings fuzzy · missing-on-one-side). Every difference shows a grounded, plain-English note, but the
+tool **never decides which document is right** (rules detect · the model explains · a human decides). Composes the
+**Extractor** (pull the field-set from each doc — reused whole) + the vendored **Reconcile** core
+(`app/_engines/compare/` — the type-aware `compare()` rules + the `check_coherence` "explain, never decide" guard;
+the deterministic **stub** explanation is used, so there's **no per-difference model call** — the model is used
+only for the two extractions). The tool-app **contract grew its first TWO-document shape** (`data2`/`paste2` +
+`needs_second`; the shell renders a second labelled drop/paste zone). *Adaptation:* Reconcile aligns by a shared
+**named schema**; here the two docs are extracted independently, so items are **aligned by fuzzy label**
+(SequenceMatcher ≥ 0.62), then the `{label: value}` dicts + an on-the-fly `CompareSchema` go to `compare()`
+verbatim.
+**Why.** "Compare two documents" (contract vs. standard · v1 vs. v2 · statement vs. invoice) is a universal,
+high-value document job, and it deepens the platform with a genuinely *new input shape* — not just another card.
+The comparison is deterministic and auditable; the model's only role (extraction) is the one it's good at.
+**Rules out.** An LLM "diff" that could invent/suppress a difference or pick a winner; a shared-schema requirement
+(consumer docs are arbitrary — align by label); a prompt box.
+**Status.** Accepted. `app/_engines/compare/{schema,compare,explain}.py`, `app/pipeline.py` (`compare_two`/
+`_align_labels`/`compare_inputs`), `app/tools/compare.py`, `_compare_result.html`, the two-doc shell + contract.
+`tests/test_compare.py` (differences · type-aware money · only-in-one · **never-decides** guard · reproducible ·
+both docs sanitized). **Live-verified** with `anthropic`: two contract versions → term/payment/termination
+differences + a newly-added late fee (only in B) caught; the unchanged fee matched. **5 live Documents tools.**

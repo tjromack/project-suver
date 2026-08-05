@@ -1,0 +1,67 @@
+<style>
+  .res{padding:22px}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:999px;font-size:13px;
+    font-weight:600;background:var(--good-soft);color:var(--good)}
+  .chip.none{background:var(--accent-soft);color:var(--accent)}
+  .metaline{color:var(--faint);font-size:12.5px;margin-top:10px}
+  .summary{margin-top:14px;font-size:14px}
+  .summary .d{font-weight:700;color:var(--warn)} .summary .m{font-weight:700;color:var(--good)}
+  .empty,.blocked{margin-top:14px;padding:18px;border-radius:12px}
+  .empty{background:var(--accent-soft);color:var(--muted)}
+  .blocked{background:var(--warn-soft);color:var(--warn)} .blocked strong{display:block;margin-bottom:4px;font-size:15px}
+  .tablewrap{margin-top:16px;overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{text-align:left;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);
+    padding:10px 14px;border-bottom:1px solid var(--line);background:var(--accent-soft)}
+  td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  td.field{color:var(--muted);white-space:nowrap;font-weight:500}
+  td.val{color:var(--ink)}
+  tr.differ td.val,tr.only_a td.val,tr.only_b td.val{color:var(--warn)}
+  .st{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
+  .st.match{background:var(--good-soft);color:var(--good)}
+  .st.differ,.st.only_a,.st.only_b{background:var(--warn-soft);color:var(--warn)}
+  .note{color:var(--muted);font-size:12.5px;margin-top:5px}
+  .absent{color:var(--faint);font-style:italic}
+</style>
+
+<div class="panel res">
+  {% if r.handled_count > 0 %}
+    <span class="chip">🛡 {{ r.handled_note }}</span>
+  {% else %}
+    <span class="chip none">🛡 {{ r.handled_note }}</span>
+  {% endif %}
+  <div class="metaline">
+    Comparing {{ r.fieldset_label|lower }}
+    · A: {{ r.doc_a_kind }} ({{ "{:,}".format(r.doc_a_chars) }} chars) · B: {{ r.doc_b_kind }} ({{ "{:,}".format(r.doc_b_chars) }} chars)
+    · extracted by: {{ r.provider }} · comparison is deterministic
+  </div>
+
+  {% if r.blocked %}
+    <div class="blocked"><strong>Not compared.</strong> {{ r.block_message }}</div>
+  {% elif r.empty %}
+    <div class="empty">{{ r.empty_note }} <span class="faint">— nothing was invented.</span></div>
+  {% else %}
+    <div class="summary">
+      {% if r.n_differ %}<span class="d">{{ r.n_differ }} difference{{ "" if r.n_differ == 1 else "s" }}</span>{% else %}<span class="m">No differences</span>{% endif %}
+      · <span class="m">{{ r.n_match }}</span> match. <span class="faint">The tool detects; it never picks which document is right.</span>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Field</th><th>Document A</th><th>Document B</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for row in r.rows %}
+            <tr class="{{ row.status }}">
+              <td class="field">{{ row.field }}</td>
+              <td class="val">{% if row.a %}{{ row.a }}{% else %}<span class="absent">—</span>{% endif %}</td>
+              <td class="val">{% if row.b %}{{ row.b }}{% else %}<span class="absent">—</span>{% endif %}
+                {% if row.note %}<div class="note">{{ row.note }}</div>{% endif %}
+              </td>
+              <td><span class="st {{ row.status }}">{% if row.status == "match" %}match{% elif row.status == "only_a" %}only in A{% elif row.status == "only_b" %}only in B{% else %}differs{% endif %}</span></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</div>

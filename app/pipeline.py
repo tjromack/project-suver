@@ -13,7 +13,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from difflib import SequenceMatcher
+
 from app._engines.boundary import BoundaryResult, default_policy, rehydrate, sanitize
+from app._engines.compare import CompareField, CompareSchema
+from app._engines.compare import FieldType as CompareFieldType
+from app._engines.compare import compare, explain_stub
 from app._engines.draft import GroundedSection, assemble, default_kind, get_kind
 from app._engines.extract import default_fieldset, get_fieldset, score_item
 from app._engines.summarize import Span, content_tokens, ground, split_document, support
@@ -529,3 +534,152 @@ def extract_document(filename: str, data: bytes | str, fieldset_slug: str | None
 def extract_paste(text: str, fieldset_slug: str | None = None, *, provider: str | None = None) -> ExtractOutcome:
     r = from_paste(text)
     return extract_fields(r.text, fieldset_slug, doc_kind=r.kind, provider=provider)
+
+
+# --- Compare: two documents, side by side — rules detect the differences, the model never decides --------------
+
+
+@dataclass(frozen=True)
+class CompareRow:
+    field: str
+    a: str
+    b: str
+    status: str          # "match" | "differ" | "only_a" | "only_b"
+    rule: str = ""
+    severity: str = ""
+    note: str = ""       # a grounded, decision-free explanation (for a difference)
+
+
+@dataclass(frozen=True)
+class CompareOutcome:
+    fieldset_slug: str = ""
+    fieldset_label: str = ""
+    rows: list = field(default_factory=list)
+    n_differ: int = 0
+    n_match: int = 0
+    handled_count: int = 0
+    handled_classes: list = field(default_factory=list)
+    provider: str = "stub"
+    doc_a_kind: str = "text"
+    doc_b_kind: str = "text"
+    doc_a_chars: int = 0
+    doc_b_chars: int = 0
+    empty: bool = False
+    empty_note: str | None = None
+    blocked: bool = False
+    block_message: str | None = None
+
+    @property
+    def handled_note(self) -> str:
+        n = self.handled_count
+        if n == 0:
+            return "No sensitive items detected"
+        return f"{n} sensitive {'item' if n == 1 else 'items'} handled before the model"
+
+
+_ALIGN_THRESHOLD = 0.62
+
+
+def _align_labels(items_a: list[tuple[str, str]], items_b: list[tuple[str, str]]):
+    """Greedy fuzzy align two label/value lists by label similarity (the two docs were extracted independently, so
+    their labels rarely match exactly). Returns (pairs, only_a, only_b)."""
+    used_b: set[int] = set()
+    pairs, only_a = [], []
+    for la, va in items_a:
+        best_j, best_r = -1, 0.0
+        for j, (lb, _vb) in enumerate(items_b):
+            if j in used_b:
+                continue
+            r = SequenceMatcher(None, la.lower(), lb.lower()).ratio()
+            if r > best_r:
+                best_r, best_j = r, j
+        if best_j >= 0 and best_r >= _ALIGN_THRESHOLD:
+            used_b.add(best_j)
+            pairs.append((la, va, items_b[best_j][1]))
+        else:
+            only_a.append((la, va))
+    only_b = [items_b[j] for j in range(len(items_b)) if j not in used_b]
+    return pairs, only_a, only_b
+
+
+def _uniq(name: str, used: set[str]) -> str:
+    key, i = name, 2
+    while key in used:
+        key, i = f"{name} ({i})", i + 1
+    used.add(key)
+    return key
+
+
+def compare_two(text_a: str, text_b: str, fieldset_slug: str | None = None, *,
+                doc_a_kind: str = "text", doc_b_kind: str = "text", provider: str | None = None) -> CompareOutcome:
+    """Pull the chosen field-set from BOTH documents (each via the Extractor pipeline — sanitized, re-hydrated),
+    align the items by label, and compare the values **type-aware** (money cent-tolerance · dates normalized ·
+    strings fuzzy · missing-on-one-side). The rules detect every difference; the explanation never decides which
+    document is right. The model is used only for the two extractions; the comparison itself is deterministic."""
+    provider = provider or settings.provider
+    fs = get_fieldset(fieldset_slug) or default_fieldset()
+    out_a = extract_fields(text_a, fs.slug, doc_kind=doc_a_kind, provider=provider)
+    out_b = extract_fields(text_b, fs.slug, doc_kind=doc_b_kind, provider=provider)
+    base = dict(
+        fieldset_slug=fs.slug, fieldset_label=fs.label,
+        handled_count=out_a.handled_count + out_b.handled_count,
+        handled_classes=sorted(set(out_a.handled_classes) | set(out_b.handled_classes)),
+        provider=provider, doc_a_kind=out_a.doc_kind, doc_b_kind=out_b.doc_kind,
+        doc_a_chars=out_a.source_chars, doc_b_chars=out_b.source_chars,
+    )
+
+    if out_a.blocked or out_b.blocked:
+        which = "first" if out_a.blocked else "second"
+        return CompareOutcome(**base, blocked=True,
+                              block_message=(f"The {which} document contains data that must stay on your device, "
+                                             "so the comparison was not run."))
+
+    items_a = [(it.label, it.value) for it in out_a.items]
+    items_b = [(it.label, it.value) for it in out_b.items]
+    if not items_a and not items_b:
+        return CompareOutcome(**base, empty=True,
+                              empty_note=f"Couldn't find any {fs.label.lower()} in either document to compare.")
+
+    pairs, only_a, only_b = _align_labels(items_a, items_b)
+    ftype = CompareFieldType(fs.item_type.value)
+    used: set[str] = set()
+    fields, a_dict, b_dict = [], {}, {}
+    for la, va, vb in pairs:
+        k = _uniq(la, used); fields.append(CompareField(k, ftype)); a_dict[k] = va; b_dict[k] = vb
+    for la, va in only_a:
+        k = _uniq(la, used); fields.append(CompareField(k, ftype)); a_dict[k] = va
+    for lb, vb in only_b:
+        k = _uniq(lb, used); fields.append(CompareField(k, ftype)); b_dict[k] = vb
+
+    schema = CompareSchema(fs.slug, tuple(fields))
+    discreps = {d.field: d for d in compare(schema, a_dict, b_dict)}
+    rows = []
+    for f in fields:
+        av, bv = a_dict.get(f.name), b_dict.get(f.name)
+        d = discreps.get(f.name)
+        if d is None:
+            rows.append(CompareRow(f.name, str(av or ""), str(bv or ""), "match"))
+        elif d.rule == "missing_on_one_side":
+            status = "only_a" if d.b is None else "only_b"
+            rows.append(CompareRow(f.name, str(av or ""), str(bv or ""), status, d.rule, d.severity, explain_stub(d).text))
+        else:
+            rows.append(CompareRow(f.name, str(av or ""), str(bv or ""), "differ", d.rule, d.severity, explain_stub(d).text))
+
+    rows.sort(key=lambda r: (0 if r.status != "match" else 1, r.field.lower()))   # differences first
+    return CompareOutcome(**base, rows=rows,
+                          n_differ=sum(1 for r in rows if r.status != "match"),
+                          n_match=sum(1 for r in rows if r.status == "match"))
+
+
+def _ingest_side(filename: str | None, data: bytes | None, paste: str | None) -> IngestResult:
+    if data is not None:
+        return extract_text(filename or "document", data)
+    return from_paste(paste or "")
+
+
+def compare_inputs(a_filename, a_data, a_paste, b_filename, b_data, b_paste,
+                   fieldset_slug: str | None = None, *, provider: str | None = None) -> CompareOutcome:
+    """Resolve each side (file or paste) → text, then compare. `IngestError` propagates (friendly)."""
+    ra = _ingest_side(a_filename, a_data, a_paste)
+    rb = _ingest_side(b_filename, b_data, b_paste)
+    return compare_two(ra.text, rb.text, fieldset_slug, doc_a_kind=ra.kind, doc_b_kind=rb.kind, provider=provider)
