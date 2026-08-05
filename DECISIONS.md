@@ -129,3 +129,30 @@ the document; showing an answer that doesn't ground; a free-form "prompt" box (t
 (`draft_answer`), `app/shell/templates/_answer_result.html`, `tests/test_copilot.py`. **Live-verified** with
 `anthropic`: a grounded answer with inline `[S2]`/`[S4]` citations; an out-of-document question abstained. The
 Documents platform now has **2 live tools** (Summarize + Copilot) on one shell.
+
+### DEC 009 — Draft ("Draft from a document"): the 3rd tool; a grounded memo, cite-or-block; the contract grows a `choice`
+**Decision.** Add **Draft** — drop a document, **pick a kind** (Summary memo · Plain-language explainer · Action
+items) → a **grounded memo/brief**: a titled document whose every **section** is drawn from the document and
+**cited**, or is **omitted** (optional) / **blocks** the draft (required). It **never fabricates** a section the
+document doesn't support (cite-or-block — Draft's signature, the 3rd shape of the one discipline after Summarize's
+cite-or-drop and Copilot's abstain). Composed from the built engine: `app/_engines/draft/` vendors the
+`draft-template-responder` **template + cite-or-block core**, slimmed to **kind = ordered grounded sections**;
+the grounding is Suver's own — each section is grounded on the document's **salient passages** (density-ranked,
+like Summarize; NOT the section's meta-question, which shares no vocabulary with an arbitrary document), and the
+model writes each section from those or returns `NOT_IN_DOCUMENT`. The tool-app **contract grew one optional
+`choice` field** (`ToolInput.choice`, `Tool.options`/`choice_label`); the shell renders a **`<select>`** of kinds
+— *a pick, not a prompt.* Same trust posture: the model only ever sees sanitized passages (tested with a
+`draft_section` spy); sections re-hydrate locally. A dedicated `draft_section` prompt keeps memo prose clean (no
+preamble, no inline `[S#]` markers).
+**Why.** It's the *write* leg of read · ask · write · pull-data, and a **third-shape** proof of the rails: a tool
+that needs a *pick* was a small add reusing the salient-retrieval + answer path already built. Salient-passage
+grounding (vs meta-question retrieval) is the one real adaptation — a memo draws from the document's core, not
+from passages matching "what is this about."
+**Rules out.** A prompt/instruction box (the kind is a select); writing a section the document doesn't support;
+domain-specific letter templates (the engine's healthcare letters — too narrow for the consumer product); a
+heavy per-section retriever.
+**Status.** Accepted. `app/_engines/draft/{template,assemble}.py`, `app/pipeline.py` (`draft_text` +
+`_salient_spans` + `_section_grounder`), `app/provider.py` (`draft_section`), `app/tools/draft.py`,
+`_draft_result.html`, `tests/test_draft.py`. **Live-verified** with `anthropic`: clean, correctly-scoped sections
+each cited; a doc with no next-steps → the "Next Steps" section **omitted** (not fabricated); a contentless doc →
+**blocked**. The Documents platform now has **3 live tools**.

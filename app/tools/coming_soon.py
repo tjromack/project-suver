@@ -10,17 +10,6 @@ from __future__ import annotations
 from app.tools import Tool, register
 
 register(Tool(
-    slug="draft",
-    name="Draft from a document",
-    blurb="Turn a source into a structured first draft — a brief, a summary memo, a letter — grounded in it.",
-    icon="✍️",
-    accepts="PDF · DOCX · TXT · MD",
-    action_label="Draft",
-    status="soon",
-    tags=("Documents", "Grounded drafting"),
-))
-
-register(Tool(
     slug="extractor",
     name="Extract fields",
     blurb="Pull the fields you need into a clean table — typed, validated, with the uncertain ones flagged.",

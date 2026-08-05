@@ -31,7 +31,7 @@ def test_unknown_tool_404():
 
 
 def test_coming_soon_tool_shows_placeholder():
-    r = client.get("/t/draft")
+    r = client.get("/t/extractor")   # still a roadmap card
     assert r.status_code == 200
     assert "Coming soon" in r.text
 
@@ -88,6 +88,29 @@ def test_copilot_needs_a_question():
     r = client.post("/t/copilot/run", data={"paste": "Some document text here.", "query": "  "})
     assert r.status_code == 200
     assert "Type a question" in r.text
+
+
+def test_draft_shell_has_a_kind_select():
+    r = client.get("/t/draft")
+    assert r.status_code == 200
+    assert "<select" in r.text and 'name="choice"' in r.text
+    assert "Summary memo" in r.text                          # the pickable kinds
+
+
+def test_draft_run_produces_a_cited_memo():
+    doc = ("Project Atlas is a company-wide billing migration that began in March across four regions and cut "
+           "invoice errors by thirty percent. The finance team must finish reconciliation by June 30.")
+    r = client.post("/t/draft/run", data={"paste": doc, "choice": "memo"})
+    assert r.status_code == 200
+    assert "Overview" in r.text or "Key Points" in r.text     # section headings
+    assert "from your document" in r.text.lower()             # per-section citations
+    assert "🛡" in r.text                                      # the trust chip
+
+
+def test_draft_blocks_do_not_fabricate():
+    r = client.post("/t/draft/run", data={"paste": "x y z.", "choice": "memo"})
+    assert r.status_code == 200
+    assert "Nothing drafted" in r.text
 
 
 def test_healthz():

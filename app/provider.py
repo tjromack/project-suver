@@ -161,3 +161,58 @@ def draft_answer(safe_query: str, retrieved: list[Span], provider: str) -> str:
     if provider == "anthropic":
         return _anthropic_answer(safe_query, retrieved)
     return _stub_answer(safe_query, retrieved)
+
+
+# --- Draft: write one memo SECTION from the salient passages (clean prose, no preamble, no inline markers) -------
+
+import re as _re
+
+_SECTION_PROMPT = (
+    'Write the "{heading}" section of a short brief about the user\'s document, using ONLY the numbered passages.\n'
+    "Rules:\n"
+    "- 1–3 sentences of clean, direct prose. NO preamble (never begin with \"Based on…\"/\"According to…\"), and\n"
+    "  NO inline citation markers like [S1].\n"
+    "- Use ONLY facts stated in the passages; add nothing from outside them.\n"
+    "- Focus this section on: {focus}\n"
+    "- If the passages do not support this section, reply with EXACTLY this and nothing else: {sentinel}\n"
+    "- Keep bracketed tokens like [PERSON_NAME_1] exactly as written.\n\n"
+    "PASSAGES:\n{passages}"
+)
+
+_PREAMBLE = _re.compile(r"^\s*(based on|according to)\b[^:.\n]*[:.]\s*", _re.IGNORECASE)
+
+
+def _clean_section(text: str) -> str:
+    """Strip inline [S#] markers and a leading 'Based on…/According to…' preamble the model may still emit."""
+    text = _re.sub(r"\s*\[S\d+\]", "", text)   # drop inline citation markers (citations show separately)
+    text = _PREAMBLE.sub("", text)
+    return text.strip()
+
+
+def _anthropic_section(heading: str, focus: str, passages: list[Span]) -> str:
+    import truststore
+
+    truststore.inject_into_ssl()
+    from anthropic import Anthropic
+
+    from app.config import settings
+
+    if not passages:
+        return NOT_IN_DOCUMENT
+    client = Anthropic()
+    prompt = _SECTION_PROMPT.format(heading=heading, focus=focus, sentinel=NOT_IN_DOCUMENT, passages=_passages(passages))
+    msg = client.messages.create(
+        model=settings.anthropic_model,
+        max_tokens=400,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    raw = "".join(getattr(b, "text", "") for b in msg.content).strip()
+    return raw if raw == NOT_IN_DOCUMENT else _clean_section(raw)
+
+
+def draft_section(heading: str, focus: str, passages: list[Span], provider: str) -> str:
+    """Write one memo section from the sanitized salient passages, or NOT_IN_DOCUMENT. `stub` is extractive (the
+    top passage). The model only ever sees the safe passages; grounding still verifies before the section shows."""
+    if provider == "anthropic":
+        return _anthropic_section(heading, focus, passages)
+    return _stub_answer(focus, passages)  # extractive: the top (rotated) salient passage

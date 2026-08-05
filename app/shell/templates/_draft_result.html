@@ -1,0 +1,66 @@
+<style>
+  .res{padding:22px}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:999px;font-size:13px;
+    font-weight:600;background:var(--good-soft);color:var(--good)}
+  .chip.none{background:var(--accent-soft);color:var(--accent)}
+  .metaline{color:var(--faint);font-size:12.5px;margin-top:10px}
+  .draft{margin-top:18px;padding:20px 22px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+  .draft .title{font-size:18px;font-weight:700;letter-spacing:-.01em;margin:0 0 14px}
+  .sec{padding:12px 0;border-top:1px solid var(--line)}
+  .sec:first-of-type{border-top:0;padding-top:0}
+  .sec h4{margin:0 0 5px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent)}
+  .sec .body{font-size:15px;line-height:1.55;color:var(--ink)}
+  details.src{margin:8px 0 0}
+  details.src summary{cursor:pointer;color:var(--accent);font-size:12px;font-weight:600;list-style:none}
+  details.src summary::-webkit-details-marker{display:none}
+  details.src summary::before{content:"› ";}
+  details.src[open] summary::before{content:"⌄ ";}
+  .span{margin-top:7px;padding:10px 12px;border-left:3px solid var(--accent);background:var(--accent-soft);
+    border-radius:0 8px 8px 0;font-size:13px;color:var(--muted)}
+  .span .lbl{display:block;color:var(--faint);font-size:11px;font-weight:700;letter-spacing:.03em;margin-bottom:4px}
+  .omitted{margin-top:14px;padding:11px 14px;border-radius:10px;background:var(--warn-soft);color:var(--warn);font-size:13px}
+  .blocked{padding:20px;border-radius:12px;background:var(--warn-soft);color:var(--warn)}
+  .blocked strong{display:block;margin-bottom:4px;font-size:15px}
+</style>
+
+<div class="panel res">
+  {% if r.handled_count > 0 %}
+    <span class="chip">🛡 {{ r.handled_note }}</span>
+  {% else %}
+    <span class="chip none">🛡 {{ r.handled_note }}</span>
+  {% endif %}
+  <div class="metaline">
+    {{ r.kind_label }} · boundary: <strong>{{ r.decision }}</strong>
+    {% if r.handled_classes %}· handled: {{ r.handled_classes | join(", ") }}{% endif %}
+    · source: {{ r.doc_kind }} ({{ "{:,}".format(r.source_chars) }} chars) · drafted by: {{ r.provider }}
+  </div>
+
+  {% if r.blocked %}
+    <div class="blocked" style="margin-top:14px">
+      <strong>Nothing drafted.</strong>
+      {{ r.block_message }}
+    </div>
+  {% else %}
+    <div class="draft">
+      <div class="title">{{ r.title }}</div>
+      {% for s in r.sections %}
+        <div class="sec">
+          <h4>{{ s.heading }}</h4>
+          <div class="body">{{ s.text }}</div>
+          {% if s.citations %}
+            <details class="src">
+              <summary>{{ s.citations|length }} source{{ "" if s.citations|length == 1 else "s" }} from your document</summary>
+              {% for c in s.citations %}
+                <div class="span"><span class="lbl">{{ c.span_id }} · relevance {{ "%.0f"|format(c.support*100) }}%</span>{{ c.span_text }}</div>
+              {% endfor %}
+            </details>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+    {% if r.omitted %}
+      <div class="omitted">⚠ Omitted (the document didn’t support {{ "it" if r.omitted|length == 1 else "them" }}):
+        {{ r.omitted | join(" · ") }} — nothing was invented to fill {{ "it" if r.omitted|length == 1 else "them" }} in.</div>
+    {% endif %}
+  {% endif %}
+</div>

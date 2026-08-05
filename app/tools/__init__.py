@@ -31,6 +31,7 @@ class ToolInput:
     data: bytes | None = None
     paste: str | None = None
     query: str | None = None
+    choice: str | None = None   # a picked option (e.g. the draft kind) — a select value, never prompt text
 
     @property
     def is_empty(self) -> bool:
@@ -65,6 +66,14 @@ class Tool:
     needs_query: bool = False
     query_label: str = "Your question"
     query_placeholder: str = "Ask a question about this document…"
+    # Some tools offer a fixed set of output kinds to PICK (Draft). The shell renders a <select> of (value, label)
+    # pairs when options is non-empty — a pick, not a prompt. The first option is the default.
+    options: tuple[tuple[str, str], ...] = field(default_factory=tuple)
+    choice_label: str = "What to make"
+
+    @property
+    def has_options(self) -> bool:
+        return bool(self.options)
 
     @property
     def is_live(self) -> bool:
@@ -93,4 +102,5 @@ def load_builtin() -> None:
     """Import the built-in tools so they self-register. Called once at app startup."""
     from app.tools import summarize  # noqa: F401  (live — registers on import)
     from app.tools import copilot  # noqa: F401  (live — the 2nd Documents tool)
-    from app.tools import coming_soon  # noqa: F401  (the rest of the Documents platform, as 'soon' cards)
+    from app.tools import draft  # noqa: F401  (live — the 3rd Documents tool)
+    from app.tools import coming_soon  # noqa: F401  (Extractor, as a 'soon' card)

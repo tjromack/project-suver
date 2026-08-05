@@ -14,10 +14,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from app._engines.boundary import BoundaryResult, default_policy, rehydrate, sanitize
-from app._engines.summarize import Span, ground, split_document, support
+from app._engines.draft import GroundedSection, assemble, default_kind, get_kind
+from app._engines.summarize import Span, content_tokens, ground, split_document, support
 from app.config import settings
 from app.ingest import IngestResult, extract_text, from_paste
-from app.provider import NOT_IN_DOCUMENT, draft_answer, draft_candidates
+from app.provider import NOT_IN_DOCUMENT, draft_answer, draft_candidates, draft_section
 
 
 @dataclass(frozen=True)
@@ -250,3 +251,127 @@ def answer_document(filename: str, data: bytes | str, query: str, *, provider: s
 def answer_paste(text: str, query: str, *, provider: str | None = None) -> AnswerResult:
     r = from_paste(text)
     return answer_question(r.text, query, kind=r.kind, provider=provider)
+
+
+# --- Draft: a grounded memo/brief from the document — cite-or-block, no prompt ------------------------
+
+
+@dataclass(frozen=True)
+class DraftOutcome:
+    kind_slug: str = ""
+    kind_label: str = ""
+    title: str = ""
+    sections: list = field(default_factory=list)   # DraftSection (re-hydrated text + Claim citations)
+    omitted: list = field(default_factory=list)     # headings dropped (optional, couldn't ground)
+    markdown: str = ""                              # the assembled memo (for copy/export)
+    handled_count: int = 0
+    handled_classes: list = field(default_factory=list)
+    decision: str = "clear"
+    provider: str = "stub"
+    doc_kind: str = "text"
+    source_chars: int = 0
+    blocked: bool = False
+    block_message: str | None = None
+    note: str | None = None
+
+    @property
+    def handled_note(self) -> str:
+        n = self.handled_count
+        if n == 0:
+            return "No sensitive items detected"
+        return f"{n} sensitive {'item' if n == 1 else 'items'} handled before the model"
+
+
+def _doc_title(safe_text: str, tmap: dict) -> str:
+    """A memo title from the document's first non-empty line (re-hydrated for local display), trimmed."""
+    for line in safe_text.splitlines():
+        line = line.strip()
+        if line:
+            t = rehydrate(line, tmap)
+            return (t[:70].rstrip() + "…") if len(t) > 70 else t
+    return ""
+
+
+# Draft grounds each section on the document's most information-dense passages (like Summarize), not on the
+# section's meta-question (which shares no vocabulary with an arbitrary document). The model answers each section
+# over those; a section it can't ground is omitted/blocked.
+_DRAFT_MIN_TOKENS = 4
+_DRAFT_SALIENT_K = 8
+
+
+def _salient_spans(spans: list[Span]) -> list[Span]:
+    scored = [(len(content_tokens(sp.text)), sp) for sp in spans]
+    scored = [(n, sp) for n, sp in scored if n >= _DRAFT_MIN_TOKENS]
+    scored.sort(key=lambda t: (-t[0], t[1].index))
+    top = [sp for _, sp in scored[:_DRAFT_SALIENT_K]]
+    return sorted(top, key=lambda sp: sp.index)  # emit in document order
+
+
+def _section_grounder(salient: list[Span], tmap: dict, provider: str):
+    """Return a `ground(section, index) -> GroundedSection | None`. Both providers go through `draft_answer`
+    (so the model-only-sees-safe-text invariant is uniform and testable); the passages are rotated per section so
+    the offline stub yields a distinct salient passage per section. A section that can't ground returns None."""
+
+    def ground(sec, i: int) -> GroundedSection | None:
+        if not salient:
+            return None
+        k = i % len(salient)
+        rotated = salient[k:] + salient[:k]          # stub reads passage 0 → a distinct salient span per section
+        raw = draft_section(sec.heading, sec.query, rotated, provider)
+        if raw == NOT_IN_DOCUMENT:
+            return None
+        if support(raw, " ".join(sp.text for sp in salient)) < settings.ground_threshold:
+            return None
+        cites = [
+            Claim(text=rehydrate(sp.text, tmap), span_id=sp.id, span_text=rehydrate(sp.text, tmap),
+                  support=round(support(raw, sp.text), 4))
+            for sp in salient if support(raw, sp.text) > 0
+        ][:3]
+        if not cites:  # grounded overall but nothing single-span attributable → cite the best-supporting span
+            best = max(salient, key=lambda sp: support(raw, sp.text))
+            cites = [Claim(text=rehydrate(best.text, tmap), span_id=best.id, span_text=rehydrate(best.text, tmap),
+                           support=round(support(raw, best.text), 4))]
+        return GroundedSection(text=rehydrate(raw, tmap), citations=cites)
+
+    return ground
+
+
+def draft_text(text: str, kind_slug: str | None = None, *, doc_kind: str = "text",
+               provider: str | None = None) -> DraftOutcome:
+    """Build a grounded memo/brief of the chosen kind from the document. Every section is document-supported or it
+    is omitted; a required section that can't ground **blocks** the draft (never fabricates). Same trust posture:
+    the model only ever sees sanitized passages; sections re-hydrate locally."""
+    provider = provider or settings.provider
+    kind = get_kind(kind_slug) or default_kind()
+    doc = sanitize(text, default_policy())
+    base = dict(
+        kind_slug=kind.slug, kind_label=kind.label, handled_count=len(doc.spans), handled_classes=doc.classes,
+        decision=doc.decision, provider=provider, doc_kind=doc_kind, source_chars=len(text),
+    )
+
+    if doc.safe_text is None:
+        return DraftOutcome(**base, blocked=True,
+                            block_message=_BLOCK_MSG.format(classes=", ".join(doc.classes) or "restricted content"))
+
+    spans = split_document(doc.safe_text)
+    salient = _salient_spans(spans)
+    ground = _section_grounder(salient, doc.token_map, provider)
+    result = assemble(kind, _doc_title(doc.safe_text, doc.token_map), ground)
+
+    if result.blocked:
+        return DraftOutcome(**base, blocked=True,
+                            block_message=(f"Couldn't build a grounded {kind.label.lower()} — {result.block_reason}. "
+                                           "The tool won't fabricate; try a different draft kind or document."))
+    return DraftOutcome(**base, title=result.title, sections=result.sections, omitted=result.omitted,
+                        markdown=result.text)
+
+
+def draft_document(filename: str, data: bytes | str, kind_slug: str | None = None, *,
+                   provider: str | None = None) -> DraftOutcome:
+    r: IngestResult = extract_text(filename, data)
+    return draft_text(r.text, kind_slug, doc_kind=r.kind, provider=provider)
+
+
+def draft_paste(text: str, kind_slug: str | None = None, *, provider: str | None = None) -> DraftOutcome:
+    r = from_paste(text)
+    return draft_text(r.text, kind_slug, doc_kind=r.kind, provider=provider)

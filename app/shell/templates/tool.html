@@ -20,9 +20,11 @@
   textarea:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
   .queryblock{margin-top:16px}
   .qlabel{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px}
-  input[type=text]{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--line);
+  input[type=text],select{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--line);
     background:var(--panel);color:var(--ink);font:inherit;font-size:15px}
-  input[type=text]:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+  input[type=text]:focus,select:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+  select{cursor:pointer;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+    background-position:calc(100% - 18px) 55%,calc(100% - 13px) 55%;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:38px}
   .actions{display:flex;align-items:center;gap:14px;margin-top:16px}
   .tag{display:inline-block;font-size:11.5px;color:var(--muted);background:var(--accent-soft);
     padding:2px 9px;border-radius:999px;margin-right:6px}
@@ -62,9 +64,18 @@
     </div>
     {% endif %}
 
+    {% if tool.has_options %}
+    <div class="queryblock">
+      <label class="qlabel" for="choice">{{ tool.choice_label }}</label>
+      <select name="choice" id="choice">
+        {% for value, label in tool.options %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    {% endif %}
+
     <div class="actions">
       <button class="btn" id="go" type="submit">{{ tool.action_label }}</button>
-      <span class="faint">{% if tool.needs_query %}Ask in plain words — no prompt craft.{% else %}No prompt to write. One click.{% endif %}</span>
+      <span class="faint">{% if tool.needs_query %}Ask in plain words — no prompt craft.{% elif tool.has_options %}Pick what to make — no prompt.{% else %}No prompt to write. One click.{% endif %}</span>
     </div>
   </form>
 

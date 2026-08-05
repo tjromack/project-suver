@@ -11,12 +11,13 @@ every tool. Pick one tool, or a platform of them.
 This repo is Suver's home: the reusable **tool-app shell**, the **hub launcher**, and the tools. The first tool —
 and this repo's flagship pilot — is **Summarize**.
 
-> **Status — pilot built, live-verified, growing into a platform.** **2 live Documents tools on one shell:**
-> **Summarize** (drop a file → cited summary) and **Copilot** ("Ask this document" → a grounded, cited answer or an
-> honest "not in your document"). 36 tests (stub-backed, no network); verified end-to-end on real PDFs with both the
-> offline `stub` and the real `anthropic` model. Sensitive data is sanitized before the model and re-hydrated only
-> in the local view — on both tools. The reusable **shell + hub + tool-app contract** make each next tool a small
-> add (Copilot proved it — a tool with a *different shape*, needing a question, was a small add).
+> **Status — a live Documents platform (3 tools) on one shell.** **Summarize** (drop a file → cited summary),
+> **Copilot** ("Ask this document" → a grounded, cited answer or an honest "not in your document"), and **Draft**
+> (pick a kind → a grounded memo/brief whose every section is cited or omitted — *cite-or-block*, never fabricated).
+> 45 tests (stub-backed, no network); verified end-to-end on real PDFs with both the offline `stub` and the real
+> `anthropic` model. Sensitive data is sanitized before the model and re-hydrated only in the local view — on every
+> tool. The reusable **shell + hub + tool-app contract** make each next tool a small add: Copilot proved it (a tool
+> needing a *question*), Draft proved it again (a tool needing a *pick*). Draft = *read · ask · **write***.
 
 ## The first tool: Summarize
 **Drop a real document → get a cited summary.** Open Summarize, drop a PDF / DOCX / TXT / MD (or paste text), and
