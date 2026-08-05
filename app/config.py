@@ -34,8 +34,16 @@ class Settings:
     anthropic_model: str = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5")
     # Max size (bytes) of a dropped document (real reports run large — 20 MB default).
     max_doc_bytes: int = int(os.getenv("MAX_DOC_BYTES", "20000000"))
-    # Cap on characters sent to the drafting model (long docs → draft over the leading portion, transparently).
-    max_draft_chars: int = int(os.getenv("MAX_DRAFT_CHARS", "40000"))
+    # Long-document handling. `max_draft_chars` is the per-call WINDOW: a doc up to this size is processed in one
+    # model call (~120K chars ≈ 30K tokens — comfortable for current models). A larger doc is split into windows
+    # and **map-reduced** (each window processed, then merged), capped at `max_chunks` so cost stays bounded; a doc
+    # beyond that is processed up to the cap with an honest note. (Copilot is unaffected — it retrieves over the
+    # whole doc.) See DECISIONS.md DEC 012.
+    max_draft_chars: int = int(os.getenv("MAX_DRAFT_CHARS", "200000"))
+    max_chunks: int = int(os.getenv("MAX_CHUNKS", "6"))
+    # Merge caps for map-reduced output: the summary keeps its top-N points; the table keeps up to N rows.
+    summary_max_points: int = int(os.getenv("SUMMARY_MAX_POINTS", "12"))
+    extract_max_items: int = int(os.getenv("EXTRACT_MAX_ITEMS", "60"))
     # Grounding support threshold (fraction of a claim's content tokens that must appear in its best span).
     ground_threshold: float = float(os.getenv("GROUND_THRESHOLD", "0.6"))
     # Copilot ("Ask this document") retrieval: how many passages to consider, and the minimum question↔passage

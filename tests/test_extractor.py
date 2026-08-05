@@ -90,6 +90,14 @@ def test_model_only_sees_safe_text():
     assert "123-45-6789" not in captured["seen"]
 
 
+def test_parse_items_salvages_truncated_json():
+    """A model that overflows its output limit returns a truncated array — salvage the complete objects."""
+    from app.provider import _parse_items
+    assert len(_parse_items('[{"label":"A","value":"1"},{"label":"B","value":"2"}]')) == 2
+    truncated = '[\n {"label":"A","value":"1"},\n {"label":"B","value":"2"},\n {"label":"C","valu'
+    assert len(_parse_items(truncated)) == 2   # A and B recovered; the half-written C dropped
+
+
 def test_unknown_fieldset_falls_back_to_default():
     r = extract_fields("Project: Atlas", "not-a-real-fieldset")
     assert r.fieldset_slug == "facts"  # default_fieldset

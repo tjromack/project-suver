@@ -27,8 +27,11 @@ KEY_FACTS = FieldSet(
     slug="facts",
     label="Key facts",
     item_type=FieldType.STRING,
-    instruction=("Extract the most important key facts as label:value pairs (e.g. \"Project: Atlas\", "
-                 "\"Status: on schedule\"). Keep each value short and taken only from the document."),
+    instruction=("Extract the most important key facts. For each, give a short descriptive **label you assign** and "
+                 "a concise **value** taken only from the document — e.g. \"Project: Atlas\", \"Report date: May "
+                 "2026\", \"Main risk: rising Treasury yields\", \"Key recommendation: strengthen oversight\". This "
+                 "works for structured docs (labelled fields) AND narrative ones (synthesize a label for each "
+                 "salient fact). Prefer specific, factual statements; keep each value short."),
     blurb="Pull the document's key facts into a clean label → value table.",
     empty_note="No clear key facts were found in this document.",
     stub_kind="keyvalue",

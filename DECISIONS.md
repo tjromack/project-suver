@@ -203,3 +203,28 @@ every narrative amount as invalid.
 `app/_engines/extract/types.py` (`parse_money` magnitude/search). 57 tests. Live-verified with `anthropic`:
 Copilot answers, FSOC amounts validate (0 flagged). *Open (BACKLOG): long-document handling — the 40 K cap only
 processes the start of a long doc (Summarize + Extractor).*
+
+### DEC 012 — Long-document handling: a 200K single-call window + map-reduce, so the WHOLE doc is covered *(Trevor's 2026-08-05 Demo)*
+**Decision.** The 40K cap only processed a long doc's *start* (Trevor's Demo, Summarize + Extractor). Fix:
+- **Raise the per-call window** (`max_draft_chars`) 40K → **200K** (~50K tokens — comfortable for current models),
+  so most real docs (incl. the 143K Byzantine article) are summarized/extracted in **one** call. A single call
+  lets the model prioritize globally, which avoids a pitfall of naïve chunking (a Wikipedia article's tail is its
+  *bibliography* — forcing a window over it produced reference entries as "key points").
+- **Map-reduce beyond one window:** split into ≤ `max_chunks` (6) windows, process each, then **merge** —
+  Summarize dedupes kept points (by text) and keeps the top `summary_max_points` (12) by support in document
+  order; Extractor dedupes items by (label, value) and caps at `extract_max_items` (60). An honest note reports
+  "across the full document — N chars in M sections" (or a capped-truncation note past `max_chunks`). Copilot is
+  unaffected (retrieves over the whole doc); Draft is unaffected (grounds on salient spans across the whole doc).
+- **Extraction output-truncation fix** (why FSOC "Key facts" was empty): a full field-set is many rows, and the
+  model's JSON **overflowed `max_tokens=1024`** → truncated mid-array → invalid JSON → 0 items. Raised extraction
+  `max_tokens` to 4096, bounded the ask to "~25 most important," and made `_parse_items` **salvage** a truncated
+  array (close it after the last complete object). Also **broadened the Key-facts instruction** so it synthesizes
+  a label per fact for *narrative* docs (not just `label: value` structured ones).
+**Why.** "Only the first 40 K" was the last real gap on big files — the exact thing a reports/contracts user hits.
+**Rules out.** Silently summarizing/extracting only a doc's opening; a truncated-JSON extraction returning empty;
+Key-facts working only on structured docs.
+**Status.** Accepted. `app/config.py`, `app/pipeline.py` (`_span_windows`/`_text_windows`/`_long_doc_note` +
+map-reduce in `summarize_text`/`extract_fields`), `app/provider.py` (extraction max_tokens + salvage + bound),
+`app/_engines/extract/fieldsets.py` (Key-facts). `tests/test_longdoc.py` + salvage test → **63 tests**.
+**Live-verified:** Byzantine (143 K) → 1 content-focused call; FSOC (326 K) → Summarize points span S47–S1425
+(whole doc), Key facts → **51 items** (was 0), Amounts validate.

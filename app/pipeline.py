@@ -66,6 +66,50 @@ _BLOCK_MSG = (
 )
 
 
+# --- Long-document handling: window a doc into ≤ budget-char passes; map-reduce over the windows -------
+
+
+def _span_windows(spans: list[Span], budget: int) -> list[list[Span]]:
+    """Group consecutive spans into windows each spanning ≤ `budget` chars (never splitting a span). One window
+    for a short doc; several for a long one. Used to keep each model call within a comfortable context size."""
+    windows: list[list[Span]] = []
+    cur: list[Span] = []
+    for sp in spans:
+        if cur and (sp.end - cur[0].start) > budget:
+            windows.append(cur)
+            cur = []
+        cur.append(sp)
+    if cur:
+        windows.append(cur)
+    return windows or [[]]
+
+
+def _text_windows(text: str, size: int) -> list[str]:
+    """Split raw text into ≤ `size`-char windows, breaking at a newline near the boundary where possible."""
+    if len(text) <= size:
+        return [text]
+    windows: list[str] = []
+    i, n = 0, len(text)
+    while i < n:
+        end = min(i + size, n)
+        if end < n:
+            nl = text.rfind("\n", i + size // 2, end)  # prefer a line break in the back half of the window
+            if nl > i:
+                end = nl
+        windows.append(text[i:end])
+        i = end
+    return windows
+
+
+def _long_doc_note(verb: str, covered: int, total: int, n_windows: int, truncated: bool) -> str | None:
+    if n_windows <= 1:
+        return None
+    if truncated:
+        return (f"Long document — {verb} the first {covered:,} of {total:,} characters "
+                f"({n_windows} sections; capped at {settings.max_chunks}).")
+    return f"{verb.capitalize()} across the full document — {total:,} characters in {n_windows} sections."
+
+
 def summarize_text(text: str, *, kind: str = "text", provider: str | None = None) -> SummaryResult:
     """Run the full pipeline on already-extracted text. Deterministic except the drafting step."""
     provider = provider or settings.provider
@@ -94,19 +138,32 @@ def summarize_text(text: str, *, kind: str = "text", provider: str | None = None
     #    the model saw and grounded against).
     spans: list[Span] = split_document(safe_text)
 
-    # 3) DRAFT — the only model call. Long docs: the drafter sees the leading portion (transparently noted);
-    #    grounding still runs against every span so any cited point resolves.
-    note = None
-    draft_text = safe_text
-    if len(safe_text) > settings.max_draft_chars:
-        draft_text = safe_text[: settings.max_draft_chars]
-        note = f"Long document — summarized the first {len(draft_text):,} of {len(safe_text):,} characters."
-    draft_spans = [s for s in spans if s.start < len(draft_text)]
-    candidates = draft_candidates(draft_text, draft_spans, provider)
+    # 3) DRAFT — the only model call. One pass for a short doc; MAP-REDUCE for a long one (a pass per window,
+    #    then merge), so the whole document is covered — not just its start. Grounding runs against every span.
+    windows = _span_windows(spans, settings.max_draft_chars)
+    truncated = len(windows) > settings.max_chunks
+    windows = windows[: settings.max_chunks]
+    candidates = []
+    for win in windows:
+        wtext = safe_text[win[0].start : win[-1].end] if win else ""
+        candidates += draft_candidates(wtext, win, provider)
+    covered = windows[-1][-1].end if windows and windows[-1] else len(safe_text)
+    note = _long_doc_note("summarized", covered, len(safe_text), len(windows), truncated)
 
     # 4) GROUND — cite-or-drop. Deterministic; the model never self-certifies.
     grounding = ground(candidates, spans, settings.ground_threshold)
     by_id = {s.id: s for s in spans}
+
+    # 4b) REDUCE — dedupe repeated points (by text), keep the top-N by support, present in document order.
+    seen: set[str] = set()
+    uniq = []
+    for gc in sorted(grounding.kept, key=lambda g: -g.support):
+        key = gc.text.strip().lower()
+        if key and key not in seen:
+            seen.add(key)
+            uniq.append(gc)
+    top = uniq[: settings.summary_max_points]
+    top.sort(key=lambda g: by_id[g.span_id].index if g.span_id in by_id else 0)
 
     # 5) RE-HYDRATE — LOCAL ONLY, for display. Restore the user's real values in both the claim and its citation.
     tmap = boundary.token_map
@@ -117,9 +174,10 @@ def summarize_text(text: str, *, kind: str = "text", provider: str | None = None
             span_text=rehydrate(by_id[gc.span_id].text, tmap) if gc.span_id in by_id else "",
             support=gc.support,
         )
-        for gc in grounding.kept
+        for gc in top
     ]
-    withheld = [Withheld(text=rehydrate(d.text, tmap), reason=d.reason) for d in grounding.dropped]
+    # Surface a few withheld points for transparency (not the full — possibly long — dropped set).
+    withheld = [Withheld(text=rehydrate(d.text, tmap), reason=d.reason) for d in grounding.dropped[:8]]
 
     return SummaryResult(
         claims=claims,
@@ -429,18 +487,33 @@ def extract_fields(text: str, fieldset_slug: str | None = None, *, doc_kind: str
         return ExtractOutcome(**base, blocked=True,
                               block_message=_BLOCK_MSG.format(classes=", ".join(doc.classes) or "restricted content"))
 
-    safe_text, note = doc.safe_text, None
-    if len(safe_text) > settings.max_draft_chars:
-        safe_text = safe_text[: settings.max_draft_chars]
-        note = f"Long document — extracted from the first {len(safe_text):,} of {len(doc.safe_text):,} characters."
+    safe_text = doc.safe_text
+    # One pass for a short doc; MAP-REDUCE for a long one (extract per window, then merge) so fields from the WHOLE
+    # document are caught — not just its start.
+    windows = _text_windows(safe_text, settings.max_draft_chars)
+    truncated = len(windows) > settings.max_chunks
+    windows = windows[: settings.max_chunks]
+    raw_items: list[dict] = []
+    for w in windows:
+        raw_items += extract_items(w, fs, provider)
+    covered = sum(len(w) for w in windows)
+    note = _long_doc_note("extracted", covered, len(safe_text), len(windows), truncated)
 
-    raw_items = extract_items(safe_text, fs, provider)
+    # Merge: dedupe by (label, value); cap the table so a huge doc can't produce a runaway list.
     tmap = doc.token_map
-    items = [
-        score_item(rehydrate(it["label"], tmap), rehydrate(it["value"], tmap), fs.item_type,
-                   bool(it.get("uncertain", False)), threshold=settings.extract_threshold)
-        for it in raw_items
-    ]
+    seen: set[tuple[str, str]] = set()
+    items = []
+    for it in raw_items:
+        label, value = rehydrate(it["label"], tmap), rehydrate(it["value"], tmap)
+        key = (label.strip().lower(), value.strip())
+        if not value.strip() or key in seen:
+            continue
+        seen.add(key)
+        items.append(score_item(label, value, fs.item_type, bool(it.get("uncertain", False)),
+                                threshold=settings.extract_threshold))
+        if len(items) >= settings.extract_max_items:
+            break
+
     if not items:
         return ExtractOutcome(**base, empty=True, empty_note=fs.empty_note, note=note)
     return ExtractOutcome(**base, items=items, flagged_count=sum(1 for it in items if it.status == "flagged"),
