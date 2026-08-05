@@ -1,0 +1,60 @@
+<style>
+  .res{padding:22px}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:999px;font-size:13px;
+    font-weight:600;background:var(--good-soft);color:var(--good)}
+  .chip.none{background:var(--accent-soft);color:var(--accent)}
+  .metaline{color:var(--faint);font-size:12.5px;margin-top:10px}
+  .convo{margin-top:16px;display:flex;flex-direction:column;gap:16px}
+  .turn{border-top:1px solid var(--line);padding-top:14px}
+  .turn:first-child{border-top:0;padding-top:0}
+  .q{font-size:14px;color:var(--muted)} .q b{color:var(--ink);font-weight:600}
+  .a{margin-top:7px;font-size:15px;line-height:1.55;color:var(--ink)}
+  .a.abstain{color:var(--accent)}
+  details.src{margin:8px 0 0}
+  details.src summary{cursor:pointer;color:var(--accent);font-size:12px;font-weight:600;list-style:none}
+  details.src summary::-webkit-details-marker{display:none}
+  details.src summary::before{content:"› ";} details.src[open] summary::before{content:"⌄ ";}
+  .span{margin-top:7px;padding:10px 12px;border-left:3px solid var(--accent);background:var(--accent-soft);
+    border-radius:0 8px 8px 0;font-size:13px;color:var(--muted)}
+  .span .lbl{display:block;color:var(--faint);font-size:11px;font-weight:700;letter-spacing:.03em;margin-bottom:4px}
+  .blocked{padding:20px;border-radius:12px;background:var(--warn-soft);color:var(--warn)}
+  .blocked strong{display:block;margin-bottom:4px;font-size:15px}
+</style>
+
+{% if r.session_id %}<div data-session="{{ r.session_id }}" hidden></div>{% endif %}
+
+<div class="panel res">
+  {% if r.blocked or r.expired %}
+    <div class="blocked"><strong>{{ "Conversation expired." if r.expired else "Kept on your device." }}</strong>
+      {{ r.block_message }}</div>
+  {% else %}
+    {% if r.handled_count > 0 %}
+      <span class="chip">🛡 {{ r.handled_note }}</span>
+    {% else %}
+      <span class="chip none">🛡 {{ r.handled_note }}</span>
+    {% endif %}
+    <div class="metaline">
+      boundary: <strong>{{ r.decision }}</strong>
+      {% if r.handled_classes %}· handled: {{ r.handled_classes | join(", ") }}{% endif %}
+      · source: {{ r.doc_kind }} ({{ "{:,}".format(r.source_chars) }} chars) · answered by: {{ r.provider }}
+      · {{ r.turns|length }} turn{{ "" if r.turns|length == 1 else "s" }}
+    </div>
+
+    <div class="convo">
+      {% for t in r.turns %}
+        <div class="turn">
+          <div class="q">You: <b>{{ t.question }}</b></div>
+          <div class="a {{ '' if t.answered else 'abstain' }}">{{ t.answer }}</div>
+          {% if t.citations %}
+            <details class="src">
+              <summary>{{ t.citations|length }} source{{ "" if t.citations|length == 1 else "s" }} from your document</summary>
+              {% for c in t.citations %}
+                <div class="span"><span class="lbl">{{ c.span_id }} · relevance {{ "%.0f"|format(c.support*100) }}%</span>{{ c.span_text }}</div>
+              {% endfor %}
+            </details>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>

@@ -36,6 +36,8 @@ class ToolInput:
     filename2: str | None = None
     data2: bytes | None = None
     paste2: str | None = None
+    # An existing conversation id, for multi-turn tools (Converse). Empty on the first turn.
+    session: str | None = None
 
     @property
     def is_empty(self) -> bool:
@@ -81,6 +83,9 @@ class Tool:
     # Some tools compare TWO documents (Compare). The shell renders a second drop/paste zone when set.
     needs_second: bool = False
     doc_labels: tuple[str, str] = ("Document A", "Document B")
+    # Multi-turn chat tools (Converse): the shell keeps the conversation going — after the first answer it hides the
+    # drop zone, keeps the question box, and sends the session id (not the doc) on each follow-up.
+    is_chat: bool = False
 
     @property
     def has_options(self) -> bool:
@@ -116,4 +121,5 @@ def load_builtin() -> None:
     from app.tools import draft  # noqa: F401  (live — the 3rd Documents tool)
     from app.tools import extractor  # noqa: F401  (live — the 4th Documents tool)
     from app.tools import compare  # noqa: F401  (live — the 5th Documents tool; first two-document tool)
+    from app.tools import converse  # noqa: F401  (live — the 6th Documents tool; first multi-turn/chat tool)
     from app.tools import coming_soon  # noqa: F401  (no soon cards currently — the Documents platform is fully live)

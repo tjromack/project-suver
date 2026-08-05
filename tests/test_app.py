@@ -158,6 +158,28 @@ def test_compare_needs_a_second_document():
     assert "second document" in r.text.lower()
 
 
+def test_converse_start_then_followup_over_the_route():
+    doc = "The launch date is April 3. The venue is the downtown center. Catering is by Bluebird."
+    first = client.post("/t/converse/run", data={"paste": doc, "query": "When is the launch?"})
+    assert first.status_code == 200
+    assert "April 3" in first.text
+    assert "data-session=" in first.text                    # the session id the shell will reuse
+    import re
+    sid = re.search(r'data-session="([^"]+)"', first.text).group(1)
+    # a follow-up sends only the session + the next question (no document)
+    second = client.post("/t/converse/run", data={"session": sid, "query": "Who is doing catering?"})
+    assert second.status_code == 200
+    assert "Bluebird" in second.text
+    assert "2 turns" in second.text                         # the conversation grew
+
+
+def test_converse_shell_is_a_chat():
+    r = client.get("/t/converse")
+    assert r.status_code == 200
+    assert "Chat with a document" in r.text
+    assert "isChat=true" in r.text                          # the shell renders the chat behaviour
+
+
 def test_healthz():
     r = client.get("/healthz")
     assert r.status_code == 200

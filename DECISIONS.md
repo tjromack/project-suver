@@ -268,3 +268,30 @@ The comparison is deterministic and auditable; the model's only role (extraction
 `tests/test_compare.py` (differences · type-aware money · only-in-one · **never-decides** guard · reproducible ·
 both docs sanitized). **Live-verified** with `anthropic`: two contract versions → term/payment/termination
 differences + a newly-added late fee (only in B) caught; the unchanged fee matched. **5 live Documents tools.**
+
+### DEC 015 — Converse ("Chat with a document"): the 6th tool; the platform's first MULTI-TURN tool
+**Decision.** Add **Converse** — add a document, then **ask questions in a conversation** (follow-ups and all).
+Same trust posture as Copilot (each answer grounded in the document or an honest "not in your document"; the model
+only ever sees sanitized passages), plus **conversation state**: the document is sanitized + split **once** and
+stored ephemerally (in-memory, LRU-capped, `app/sessions.py`), and each follow-up runs against the stored safe
+spans. It follows the `converse-grounded-assistant` discipline — **history resolves the query, only retrieval
+answers it**: a follow-up retrieves on the new question alone, and *only if that finds nothing* (an **elliptical**
+follow-up) falls back to the question + the **most recent prior question** as context; the model then answers from
+the retrieved passages. So the bot can't answer from its own chat log. The tool-app **contract grew a `session`
+field + an `is_chat` flag**; the shell keeps the conversation going (after the first answer it hides the drop zone,
+keeps the question box, and posts the session id — not the doc — on each follow-up). First turn = document +
+question; each follow-up = the next question. Reuses the Copilot retrieval + answer path (refactored into a shared
+`_answer_over_spans` helper — Copilot now uses it too).
+**Why.** "Chat with a document" is the natural multi-turn companion to Copilot's one-shot ask, and it's the first
+tool with real **state** — a new shape that proves the shell handles a conversation, not just a request/response.
+Retrieve-on-the-new-question-first (resolve only when elliptical) avoids the trap of a topic-changing follow-up
+being dragged back to the prior topic.
+**Rules out.** Answering from the chat log rather than the document; re-uploading/re-processing the doc each turn;
+a persistent datastore (state is ephemeral — a demo/pilot posture); a semantic retriever (kept the lean
+content-token retrieval — a known vocabulary-match limitation, honest abstention over a flaky fallback).
+**Status.** Accepted. `app/sessions.py`, `app/pipeline.py` (`_answer_over_spans`, `converse_start`/
+`converse_followup`/`_converse_answer`), `app/tools/converse.py`, `_converse_result.html`, the chat shell +
+`session`/`is_chat` contract. `tests/test_converse.py` (start + session · follow-up continues · abstains · expired
+· the-model-only-sees-safe-text · reproducible). **Live-verified** with `anthropic`: a multi-turn conversation
+with a correctly-resolved **elliptical** follow-up ("what did that force?" → the navy decline → cited). **6 live
+Documents tools.**

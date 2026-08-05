@@ -61,12 +61,12 @@
 
   <div class="sec">
     <h2>🗂 The Documents platform</h2>
-    <span class="tally">{{ tools | selectattr("is_live") | list | length }} tools · read · ask · write · pull data · compare</span>
+    <span class="tally">{{ tools | selectattr("is_live") | list | length }} tools · read · ask · write · pull data · compare · chat</span>
   </div>
   <p class="sec-sub">Everything you need to do with a document — read it, ask it, write from it, pull data from it,
-    compare two of them — grounded, cited, no prompting required.</p>
+    compare two of them, chat with one — grounded, cited, no prompting required.</p>
 
-  {% set lanes = {"summarize":"Read","copilot":"Ask","draft":"Write","extractor":"Pull data","compare":"Compare"} %}
+  {% set lanes = {"summarize":"Read","copilot":"Ask","draft":"Write","extractor":"Pull data","compare":"Compare","converse":"Chat"} %}
   <div class="grid">
     {% for t in tools %}
       <{{ "a" if t.is_live else "div" }} class="card {{ '' if t.is_live else 'soon' }}"{% if t.is_live %} href="/t/{{ t.slug }}"{% endif %}>

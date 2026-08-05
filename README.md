@@ -11,16 +11,16 @@ every tool. Pick one tool, or a platform of them.
 This repo is Suver's home: the reusable **tool-app shell**, the **hub launcher**, and the tools. The first tool —
 and this repo's flagship pilot — is **Summarize**.
 
-> **Status — a live Documents platform: 5 tools on one shell.** **Summarize** (→ cited summary), **Copilot** ("Ask
+> **Status — a live Documents platform: 6 tools on one shell.** **Summarize** (→ cited summary), **Copilot** ("Ask
 > this document" → a grounded, cited answer or an honest "not in your document"), **Draft** (pick a kind → a
 > grounded memo, *cite-or-block*), **Extractor** (pick a field-set → a **typed table**, the uncertain **flagged**),
-> and **Compare** (drop **two** documents → every difference, type-aware, grounded in both — the tool never picks a
-> winner). That's *read · ask · write · pull data · compare*. 73 tests (stub-backed, no network); verified
-> end-to-end on real PDFs with both the offline `stub` and the real `anthropic` model. Sensitive data is sanitized
-> before the model and re-hydrated only in the local view — on every tool. The reusable **shell + hub + tool-app
-> contract** made each tool after the first a small add (a *question* for Copilot, a *pick* for Draft & Extractor,
-> a *second document* for Compare). Long docs are handled (200K window + map-reduce). Next: a new platform, or the
-> Model/Prompt Gateway.
+> **Compare** (drop **two** documents → every difference, type-aware, grounded in both — the tool never picks a
+> winner), and **Converse** (add a document, then **chat** — multi-turn, grounded, follow-ups and all). That's
+> *read · ask · write · pull data · compare · chat*. 81 tests (stub-backed, no network); verified end-to-end on
+> real PDFs with both the offline `stub` and the real `anthropic` model. Sensitive data is sanitized before the
+> model and re-hydrated only in the local view — on every tool. The reusable **shell + hub + tool-app contract**
+> made each tool after the first a small add (a *question*, two *picks*, a *second document*, a *conversation*).
+> Long docs are handled (200K window + map-reduce). Next: a new platform, or the Model/Prompt Gateway.
 
 ## The first tool: Summarize
 **Drop a real document → get a cited summary.** Open Summarize, drop a PDF / DOCX / TXT / MD (or paste text), and

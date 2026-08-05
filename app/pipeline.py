@@ -25,6 +25,7 @@ from app._engines.summarize import Span, content_tokens, ground, split_document,
 from app.config import settings
 from app.ingest import IngestResult, extract_text, from_paste
 from app.provider import NOT_IN_DOCUMENT, draft_answer, draft_candidates, draft_section, extract_items
+from app.sessions import ConverseTurn, create_session, get_session
 
 
 @dataclass(frozen=True)
@@ -248,6 +249,29 @@ def _retrieve(safe_query: str, spans: list[Span]) -> list[tuple[Span, float]]:
     return scored[: settings.copilot_top_k]
 
 
+def _answer_over_spans(spans: list[Span], safe_query: str, tmap: dict, provider: str,
+                       *, fallback_query: str | None = None):
+    """Answer `safe_query` from already-sanitized spans → (answered, answer_text, citations). Retrieve on the
+    question alone first; only if that finds nothing (an **elliptical** follow-up) fall back to `fallback_query`
+    (the question + prior-question context — *history resolves the query*). The model answers from the retrieved
+    passages or we abstain. Shared by Copilot (one-shot) and Converse (multi-turn)."""
+    retrieved = _retrieve(safe_query, spans)
+    if not retrieved and fallback_query:
+        retrieved = _retrieve(fallback_query, spans)   # elliptical follow-up → resolve with prior questions
+    if not retrieved:
+        return False, _ABSTAIN, []                     # no vocabulary match → abstain (over hallucination)
+    ranked = [sp for sp, _ in retrieved]
+    raw = draft_answer(safe_query, ranked, provider)
+    if raw == NOT_IN_DOCUMENT or support(raw, " ".join(sp.text for sp in ranked)) < settings.ground_threshold:
+        return False, _ABSTAIN, []
+    cites = [
+        Claim(text=rehydrate(sp.text, tmap), span_id=sp.id, span_text=rehydrate(sp.text, tmap),
+              support=round(support(raw, sp.text), 4))
+        for sp in ranked if support(raw, sp.text) > 0
+    ]
+    return True, rehydrate(raw, tmap), cites
+
+
 def answer_question(text: str, query: str, *, kind: str = "text", provider: str | None = None) -> AnswerResult:
     """Answer a plain-language question strictly from the user's document, with citations — or abstain.
 
@@ -275,36 +299,15 @@ def answer_question(text: str, query: str, *, kind: str = "text", provider: str 
                                "block_message": _BLOCK_MSG.format(classes=", ".join(classes) or "restricted content")
                                + f" (the {which} contains data that must stay on your device.)"})
 
-    safe_text, safe_query = doc.safe_text, ques.safe_text
     tmap = {**doc.token_map, **ques.token_map}
-    spans = split_document(safe_text)
+    spans = split_document(doc.safe_text)
 
-    # RETRIEVE relevant passages; nothing relevant → abstain before the model sees anything.
-    retrieved = _retrieve(safe_query, spans)
-    if not retrieved:
+    answered, answer_text, cites = _answer_over_spans(spans, ques.safe_text, tmap, provider)
+    if not answered:
         return AnswerResult(**{**base, "answered": False, "abstained": True,
-                               "abstain_reason": "No passage in the document matched the question.",
-                               "answer": _ABSTAIN})
-
-    ranked_spans = [sp for sp, _ in retrieved]
-    raw = draft_answer(safe_query, ranked_spans, provider)
-
-    # The model may abstain explicitly; or the answer may fail to ground → abstain (never show an ungrounded answer).
-    grounded_ok = raw != NOT_IN_DOCUMENT and support(raw, " ".join(sp.text for sp in ranked_spans)) >= settings.ground_threshold
-    if not grounded_ok:
-        return AnswerResult(**{**base, "answered": False, "abstained": True,
-                               "abstain_reason": ("the model reported the answer isn't in the document"
-                                                  if raw == NOT_IN_DOCUMENT else
-                                                  "the drafted answer wasn't supported by any passage — withheld"),
-                               "answer": _ABSTAIN})
-
-    # Cite the retrieved passages that actually support the answer; re-hydrate everything for local display.
-    cites = [
-        Claim(text=rehydrate(sp.text, tmap), span_id=sp.id, span_text=rehydrate(sp.text, tmap),
-              support=round(support(raw, sp.text), 4))
-        for sp in ranked_spans if support(raw, sp.text) > 0
-    ]
-    return AnswerResult(**{**base, "answered": True, "answer": rehydrate(raw, tmap), "citations": cites})
+                               "abstain_reason": "the document doesn't support an answer to that question",
+                               "answer": answer_text})
+    return AnswerResult(**{**base, "answered": True, "answer": answer_text, "citations": cites})
 
 
 def answer_document(filename: str, data: bytes | str, query: str, *, provider: str | None = None) -> AnswerResult:
@@ -683,3 +686,99 @@ def compare_inputs(a_filename, a_data, a_paste, b_filename, b_data, b_paste,
     ra = _ingest_side(a_filename, a_data, a_paste)
     rb = _ingest_side(b_filename, b_data, b_paste)
     return compare_two(ra.text, rb.text, fieldset_slug, doc_a_kind=ra.kind, doc_b_kind=rb.kind, provider=provider)
+
+
+# --- Converse: chat with a document — multi-turn, grounded; history resolves the query, retrieval answers it -----
+
+
+@dataclass(frozen=True)
+class ConverseResult:
+    session_id: str = ""
+    turns: list = field(default_factory=list)     # ConverseTurn (whole conversation, re-hydrated)
+    handled_count: int = 0
+    handled_classes: list = field(default_factory=list)
+    decision: str = "clear"
+    provider: str = "stub"
+    doc_kind: str = "text"
+    source_chars: int = 0
+    answered_last: bool = False
+    blocked: bool = False
+    block_message: str | None = None
+    expired: bool = False                         # the session was lost (restart / evicted) — re-add the document
+
+    @property
+    def handled_note(self) -> str:
+        n = self.handled_count
+        if n == 0:
+            return "No sensitive items detected"
+        return f"{n} sensitive {'item' if n == 1 else 'items'} handled before the model"
+
+
+def _converse_answer(session, raw_question: str, ques) -> ConverseResult:
+    """Answer one turn against the session's stored (safe) spans, append it, and return the whole conversation.
+    Follow-up questions retrieve with recent prior questions as context (history resolves the query); the model
+    still answers only from the retrieved passages (retrieval answers it)."""
+    session.token_map.update(ques.token_map)         # merge this question's reversible tokens (local only)
+    session.handled_count += len(ques.spans)
+    safe_query = ques.safe_text
+    context = session.safe_questions[-1] if session.safe_questions else ""   # the most recent question is the referent
+    fallback = (safe_query + " " + context).strip() if context else None
+    answered, answer_text, cites = _answer_over_spans(
+        session.spans, safe_query, session.token_map, session.provider, fallback_query=fallback)
+    session.safe_questions.append(safe_query)
+    session.turns.append(ConverseTurn(question=rehydrate(safe_query, session.token_map),
+                                      answer=answer_text, citations=cites, answered=answered))
+    return ConverseResult(
+        session_id=session.id, turns=session.turns, handled_count=session.handled_count,
+        handled_classes=session.handled_classes, decision=session.decision, provider=session.provider,
+        doc_kind=session.doc_kind, source_chars=session.source_chars, answered_last=answered)
+
+
+def converse_start(text: str, question: str, *, doc_kind: str = "text", provider: str | None = None) -> ConverseResult:
+    """Start a conversation: sanitize + split the document ONCE, store it, and answer the first question."""
+    provider = provider or settings.provider
+    q = (question or "").strip()
+    doc = sanitize(text, default_policy())
+    ques = sanitize(q, default_policy())
+    handled = len(doc.spans)
+    classes = sorted(set(doc.classes) | set(ques.classes))
+    if doc.safe_text is None or ques.safe_text is None:
+        which = "document" if doc.safe_text is None else "question"
+        return ConverseResult(handled_count=handled + len(ques.spans), handled_classes=classes,
+                              decision=doc.decision, provider=provider, doc_kind=doc_kind, source_chars=len(text),
+                              blocked=True,
+                              block_message=(f"The {which} contains data that must stay on your device, so nothing "
+                                             "was sent to the model."))
+    session = create_session(
+        spans=split_document(doc.safe_text), token_map=dict(doc.token_map), handled_count=handled,
+        handled_classes=classes, decision=doc.decision, doc_kind=doc_kind, source_chars=len(text), provider=provider)
+    return _converse_answer(session, q, ques)
+
+
+def converse_followup(session_id: str, question: str, *, provider: str | None = None) -> ConverseResult:
+    """Answer a follow-up question against an existing conversation's stored document."""
+    session = get_session(session_id)
+    if session is None:
+        return ConverseResult(expired=True,
+                              block_message="This conversation expired — please re-add the document to start again.")
+    q = (question or "").strip()
+    ques = sanitize(q, default_policy())
+    if ques.safe_text is None:
+        session.turns.append(ConverseTurn(question=q, answered=False,
+                                          answer="That question contains data that can't leave your device, so it "
+                                                 "wasn't sent. Try rephrasing it."))
+        return ConverseResult(session_id=session.id, turns=session.turns, handled_count=session.handled_count,
+                              handled_classes=session.handled_classes, decision=session.decision,
+                              provider=session.provider, doc_kind=session.doc_kind, source_chars=session.source_chars,
+                              answered_last=False)
+    return _converse_answer(session, q, ques)
+
+
+def converse_document(filename: str, data: bytes | str, question: str, *, provider: str | None = None) -> ConverseResult:
+    r: IngestResult = extract_text(filename, data)
+    return converse_start(r.text, question, doc_kind=r.kind, provider=provider)
+
+
+def converse_paste(text: str, question: str, *, provider: str | None = None) -> ConverseResult:
+    r = from_paste(text)
+    return converse_start(r.text, question, doc_kind=r.kind, provider=provider)

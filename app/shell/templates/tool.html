@@ -125,16 +125,30 @@
       }
       wireDrop('drop','file','filename','fname-text','clearfile');
       wireDrop('drop2','file2','filename2','fname-text2','clearfile2');   // no-op if the tool has one input
+      const isChat={{ 'true' if tool.is_chat else 'false' }};
+      let sessionId="";
       form.addEventListener('submit',async ev=>{
         ev.preventDefault();
         go.disabled=true;
-        result.innerHTML='<div class="panel"><div class="working"><span class="spin"></span>'+
-          'Sanitizing first — the model only ever sees safe text…</div></div>';
+        const fd=new FormData(form), chatting=isChat && sessionId;
+        if(chatting){ fd.set('session',sessionId); fd.delete('file'); fd.delete('file2'); }   // follow-up: no doc
+        const working='<div class="panel"><div class="working"><span class="spin"></span>'+
+          (chatting?'Thinking — grounded in your document…':'Sanitizing first — the model only ever sees safe text…')+'</div></div>';
+        if(chatting){ result.insertAdjacentHTML('beforeend', working.replace('class="panel"','class="panel" id="__wk"')); }
+        else { result.innerHTML=working; }
         try{
-          const resp=await fetch('/t/{{ tool.slug }}/run',{method:'POST',body:new FormData(form)});
+          const resp=await fetch('/t/{{ tool.slug }}/run',{method:'POST',body:fd});
           result.innerHTML=await resp.text();
+          const s=result.querySelector('[data-session]');
+          if(s) sessionId=s.getAttribute('data-session');
+          if(isChat && sessionId){                       // document loaded → keep the chat going
+            const q=document.getElementById('query'); if(q){ q.value=''; q.focus(); }
+            ['drop','paste','filename'].forEach(id=>{const el=document.getElementById(id); if(el) el.style.display='none';});
+            const or=document.querySelector('.or'); if(or) or.style.display='none';
+          }
         }catch(e){
-          result.innerHTML='<div class="panel" style="padding:20px">Couldn’t reach the server. Try again.</div>';
+          const w=document.getElementById('__wk'); if(w) w.remove();
+          result.insertAdjacentHTML('beforeend','<div class="panel" style="padding:20px">Couldn’t reach the server. Try again.</div>');
         }finally{ go.disabled=false; }
       });
     })();
