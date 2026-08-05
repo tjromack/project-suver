@@ -12,11 +12,15 @@ client = TestClient(app)
 def test_hub_lists_tools():
     r = client.get("/")
     assert r.status_code == 200
-    # all four Documents tools are live (the platform is complete — no coming-soon cards)
+    # all four Documents tools are listed on the platform front door
     for name in ("Summarize", "Ask this document", "Draft from a document", "Extract fields"):
         assert name in r.text
-    assert "Live" in r.text
-    assert "removes the prompt" in r.text or "no prompt" in r.text.lower()
+    assert "Documents platform" in r.text            # the product framing
+    assert "Governed by design" in r.text            # the trust band (the buyer's "yes")
+    assert "no prompt" in r.text.lower()             # the no-prompt promise
+    # the read · ask · write · pull-data lanes
+    for lane in ("Read", "Ask", "Write", "Pull data"):
+        assert lane in r.text
 
 
 def test_tool_shell_renders():

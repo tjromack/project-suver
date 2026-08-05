@@ -228,3 +228,19 @@ map-reduce in `summarize_text`/`extract_fields`), `app/provider.py` (extraction 
 `app/_engines/extract/fieldsets.py` (Key-facts). `tests/test_longdoc.py` + salvage test → **63 tests**.
 **Live-verified:** Byzantine (143 K) → 1 content-focused call; FSOC (326 K) → Summarize points span S47–S1425
 (whole doc), Key facts → **51 items** (was 0), Amounts validate.
+
+### DEC 013 — The hub is the product front door: platform framing + how-it-works + a trust band
+**Decision.** Rework `GET /` from a flat card grid into a **product-grade landing** for the Documents platform:
+a tighter hero (**"Tools, not prompts."**), a 3-step **how it works** (pick a tool → bring your input → get the
+output — reinforcing *no prompt*), the tools presented under a **"🗂 The Documents platform"** section with a
+*read · ask · write · pull data* framing and a per-tool **lane chip** (Read/Ask/Write/Pull data) instead of a now-
+redundant "Live" badge, and a **"🛡 Governed by design"** trust band naming the buyer's "yes" (the model only sees
+safe text · every result cites its source or says it can't · nothing fabricated · re-hydration is local). Calm,
+consumer-grade, dependency-free — no over-design.
+**Why.** The hub is the first thing a user, a buyer, or an enablement session sees; it should read as a coherent
+*product* (a platform with a value prop + the trust story), not a list of apps. This directly serves the go-to-
+market lanes (demos · pitches · enablement).
+**Rules out.** A bare grid with no platform/trust framing; a redundant "Live" badge when every tool is live; any
+flashy hero that fights the consumer-grade calm.
+**Status.** Accepted. `app/shell/templates/hub.html`; `tests/test_app.py` (hub asserts the platform framing +
+trust band + the four lanes). 63 tests; live-verified (200, clean render).

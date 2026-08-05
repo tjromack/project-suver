@@ -2,45 +2,95 @@
 {% block title %}Suver — tools, not prompts{% endblock %}
 {% block head %}
 <style>
-  .hero{margin:6px 0 26px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
-  .card{display:block;padding:20px;border-radius:var(--radius);background:var(--panel);
+  .hero{margin:8px 0 30px;max-width:60ch}
+  .hero h1{font-size:30px;line-height:1.1;letter-spacing:-.022em;margin:0 0 .3em}
+  .hero h1 em{font-style:normal;color:var(--accent)}
+
+  /* how it works — three calm steps */
+  .how{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin:0 0 34px}
+  .step{display:flex;gap:12px;align-items:flex-start}
+  .step .n{flex:none;width:26px;height:26px;border-radius:50%;background:var(--accent-soft);color:var(--accent);
+    font-size:13px;font-weight:700;display:grid;place-items:center;margin-top:1px}
+  .step .t{font-size:14px;color:var(--muted)} .step .t b{color:var(--ink);font-weight:600;display:block}
+
+  /* platform section */
+  .sec{display:flex;align-items:baseline;gap:12px;margin:0 0 4px}
+  .sec h2{font-size:18px;font-weight:720;letter-spacing:-.01em;margin:0}
+  .sec .tally{color:var(--faint);font-size:12.5px;margin-left:auto}
+  .sec-sub{color:var(--muted);font-size:14px;margin:0 0 18px}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:16px}
+  .card{display:flex;flex-direction:column;padding:18px 18px 16px;border-radius:var(--radius);background:var(--panel);
     border:1px solid var(--line);box-shadow:var(--shadow);transition:transform .12s,border-color .12s}
   a.card:hover{transform:translateY(-2px);border-color:var(--accent)}
-  .card .ic{font-size:26px;line-height:1}
-  .card h3{margin:.5em 0 .25em;font-size:17px;letter-spacing:-.01em}
-  .card p{margin:0;color:var(--muted);font-size:14px;min-height:40px}
-  .card .accepts{margin-top:12px;color:var(--faint);font-size:12px}
-  .soon{opacity:.72} .soon .badge{color:var(--warn);background:var(--warn-soft)}
-  .badge{float:right;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;
-    background:var(--good-soft);color:var(--good)}
+  .card .top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .card .ic{font-size:24px;line-height:1}
+  .card .lane{margin-left:auto;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--accent);background:var(--accent-soft);padding:3px 8px;border-radius:999px}
+  .card h3{margin:0 0 5px;font-size:16.5px;letter-spacing:-.01em}
+  .card p{margin:0 0 12px;color:var(--muted);font-size:13.5px;flex:1}
+  .card .accepts{color:var(--faint);font-size:12px;border-top:1px solid var(--line);padding-top:10px}
+  .card.soon{opacity:.7}
+  .badge{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--good-soft);color:var(--good)}
+  .soon .lane{color:var(--warn);background:var(--warn-soft)}
+
+  /* trust band — the buyer's "yes" */
+  .trust{margin:34px 0 6px;padding:18px 20px;border:1px solid var(--line);border-radius:var(--radius);
+    background:var(--panel);display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+  .trust .shield{font-size:22px;line-height:1}
+  .trust .body{flex:1;min-width:260px}
+  .trust .body b{display:block;font-size:14.5px;margin-bottom:3px}
+  .trust ul{margin:6px 0 0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px 18px;
+    color:var(--muted);font-size:13px}
+  .trust li{position:relative;padding-left:16px}
+  .trust li::before{content:"";position:absolute;left:2px;top:.55em;width:5px;height:5px;border-radius:50%;background:var(--good)}
 </style>
 {% endblock %}
 {% block body %}
   <div class="hero">
-    <h1>Pick a tool. Bring your input. Get the output.</h1>
-    <p class="lede">No prompt to write, nothing to configure. Your document is sanitized before any model sees it,
-      and every result cites your source.</p>
+    <h1>Tools, <em>not prompts.</em></h1>
+    <p class="lede">Pick a tool, bring only your input, get the output — no prompt to write, nothing to configure.
+      Sensitive data is sanitized before any model sees it, and nothing is ever fabricated.</p>
   </div>
+
+  <div class="how">
+    <div class="step"><span class="n">1</span><span class="t"><b>Pick a tool</b>from the platform below</span></div>
+    <div class="step"><span class="n">2</span><span class="t"><b>Bring your input</b>a document — at most a plain question or a pick</span></div>
+    <div class="step"><span class="n">3</span><span class="t"><b>Get the output</b>cited to your source, or an honest “it isn’t there”</span></div>
+  </div>
+
+  <div class="sec">
+    <h2>🗂 The Documents platform</h2>
+    <span class="tally">{{ tools | selectattr("is_live") | list | length }} tools · read · ask · write · pull data</span>
+  </div>
+  <p class="sec-sub">Everything you need to do with a document — read it, ask it, write from it, pull data from it —
+    grounded, cited, no prompting required.</p>
+
+  {% set lanes = {"summarize":"Read","copilot":"Ask","draft":"Write","extractor":"Pull data"} %}
   <div class="grid">
     {% for t in tools %}
-      {% if t.is_live %}
-        <a class="card" href="/t/{{ t.slug }}">
-          <span class="badge">Live</span>
-          <div class="ic">{{ t.icon }}</div>
-          <h3>{{ t.name }}</h3>
-          <p>{{ t.blurb }}</p>
-          <div class="accepts">{{ t.accepts }}</div>
-        </a>
-      {% else %}
-        <div class="card soon">
-          <span class="badge">Soon</span>
-          <div class="ic">{{ t.icon }}</div>
-          <h3>{{ t.name }}</h3>
-          <p>{{ t.blurb }}</p>
-          <div class="accepts">{{ t.accepts }}</div>
+      <{{ "a" if t.is_live else "div" }} class="card {{ '' if t.is_live else 'soon' }}"{% if t.is_live %} href="/t/{{ t.slug }}"{% endif %}>
+        <div class="top">
+          <span class="ic">{{ t.icon }}</span>
+          {% if t.is_live %}<span class="lane">{{ lanes.get(t.slug, "Tool") }}</span>{% else %}<span class="badge">Soon</span>{% endif %}
         </div>
-      {% endif %}
+        <h3>{{ t.name }}</h3>
+        <p>{{ t.blurb }}</p>
+        <div class="accepts">{{ t.accepts }}</div>
+      </{{ "a" if t.is_live else "div" }}>
     {% endfor %}
+  </div>
+
+  <div class="trust">
+    <span class="shield">🛡</span>
+    <div class="body">
+      <b>Governed by design — the reason a regulated organization can say yes.</b>
+      <ul>
+        <li>The model only ever sees Data-Boundary-safe text</li>
+        <li>Every result cites your source — or says it can’t</li>
+        <li>Nothing is fabricated: cite-or-drop · abstain · cite-or-block · flag-the-uncertain</li>
+        <li>Sensitive values re-hydrate only on your device</li>
+      </ul>
+    </div>
   </div>
 {% endblock %}
