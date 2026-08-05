@@ -12,7 +12,11 @@
   .drop.hot{border-color:var(--accent);background:var(--accent-soft)}
   .drop .big{font-size:16px;font-weight:600}
   .drop .sub{color:var(--faint);font-size:13px;margin-top:4px}
-  .drop .file{margin-top:10px;color:var(--accent);font-weight:600;font-size:14px}
+  .drop .file{margin-top:10px;color:var(--accent);font-weight:600;font-size:14px;
+    display:inline-flex;align-items:center;gap:10px}
+  .clearfile{appearance:none;border:1px solid var(--line);background:var(--panel);color:var(--muted);
+    font:inherit;font-size:12px;font-weight:600;padding:3px 9px;border-radius:8px;cursor:pointer}
+  .clearfile:hover{border-color:var(--accent);color:var(--accent)}
   .or{display:flex;align-items:center;gap:12px;color:var(--faint);font-size:12px;margin:14px 0}
   .or::before,.or::after{content:"";height:1px;background:var(--line);flex:1}
   textarea{width:100%;min-height:110px;resize:vertical;padding:14px;border-radius:12px;
@@ -51,7 +55,10 @@
       <input type="file" name="file" id="file" accept=".pdf,.docx,.txt,.md,.markdown,.text" hidden>
       <div class="big">Drop a document here, or click to choose</div>
       <div class="sub">{{ tool.accepts }} · up to 20&nbsp;MB · your file never leaves your device un-sanitized</div>
-      <div class="file" id="filename" hidden></div>
+      <div class="file" id="filename" hidden>
+        <span id="fname-text"></span>
+        <button type="button" class="clearfile" id="clearfile" aria-label="Remove this file">✕ remove</button>
+      </div>
     </label>
 
     <div class="or">or paste text</div>
@@ -85,11 +92,14 @@
     (function(){
       const form=document.getElementById('toolform'), drop=document.getElementById('drop'),
             file=document.getElementById('file'), fname=document.getElementById('filename'),
+            fnameText=document.getElementById('fname-text'), clearBtn=document.getElementById('clearfile'),
             paste=document.getElementById('paste'), result=document.getElementById('result'),
             go=document.getElementById('go');
-      function showName(){ if(file.files.length){ fname.hidden=false; fname.textContent='📄 '+file.files[0].name; }
-                           else { fname.hidden=true; } }
+      function showName(){ if(file.files.length){ fname.hidden=false; fnameText.textContent='📄 '+file.files[0].name; }
+                           else { fname.hidden=true; fnameText.textContent=''; } }
       file.addEventListener('change',showName);
+      // "✕ remove" clears the chosen file without needing to pick another; don't let the click reopen the picker.
+      clearBtn.addEventListener('click',ev=>{ ev.preventDefault(); ev.stopPropagation(); file.value=''; showName(); });
       ['dragenter','dragover'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('hot');}));
       ['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('hot');}));
       drop.addEventListener('drop',ev=>{ if(ev.dataTransfer.files.length){ file.files=ev.dataTransfer.files; showName(); }});
