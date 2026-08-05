@@ -2,16 +2,27 @@
 
 Guidance for any agent (or human) working in this repo. This is **Project Suver** — the *product* the 17-project
 suite becomes: an AI **tool hub that removes the prompt.** This repo is Suver's home (the reusable tool-app shell,
-the hub launcher, and the tools). The first tool is **Summarize** — the flagship pilot. Read `DESIGN.md` first —
-it is the specification; this file is the *how we work* contract. Product North Star: `../_PLATFORM/VISION.md`.
+the hub launcher, and the tools). `DESIGN.md` holds the original spec (written when Summarize was the pilot); this
+file is the *how we work* contract. Product North Star: `../_PLATFORM/VISION.md`.
 
-## What this is
-A **consumer-grade tool-app**: open **Summarize** → **drop a real document** (PDF/DOCX/TXT/MD or paste) → get a
-**cited summary** (every claim cites a source span; unsupported claims withheld), with sensitive data **sanitized
-before the LLM** and re-hydrated locally — **3 clicks, no prompt, no config.** It **composes** built engines: the
-`phi-pii-data-boundary` sanitize core + the `summarize-brief-generator` cite-or-drop grounding core. It also fixes
-the **tool-app contract** (`input → [sanitize] → engine → output` + one shared shell) that every future Suver tool
-reuses.
+## What this is  *(status: the Documents platform is COMPLETE — 4 live tools, 2026-08-05)*
+A **consumer-grade tool platform** on one shell — *read · ask · write · pull data* — each tool: bring only your
+input (a document; at most a plain **question** or a **pick**), get the output; **no prompt, no config**; sensitive
+data **sanitized before the model** and re-hydrated locally.
+- **Summarize** — drop a document → a **cited** summary (every claim cites a source span; unsupported ones withheld).
+- **Copilot ("Ask this document")** — ask a plain question → a grounded, **cited** answer, or an honest "not in
+  your document" (**abstention** over hallucination).
+- **Draft ("Draft from a document")** — pick a kind (memo · explainer · action-items) → a **grounded memo**, every
+  section cited or omitted; a required section that can't ground **blocks** (**cite-or-block**, never fabricates).
+- **Extractor ("Extract fields")** — pick a field-set (facts · dates · people · amounts) → a **typed table**, the
+  uncertain **flagged** (**confidence = min(validation, model)**), never guessed.
+
+It **composes built engines** (vendored lean cores, not forks): `phi-pii-data-boundary` (sanitize, under every
+tool) · `summarize-brief-generator` (split + cite-or-drop) · `draft-template-responder` (template + cite-or-block)
+· `document-structured-extractor` (type parsers + confidence gate). It also fixes the **tool-app contract**
+(`input → [sanitize] → engine → output` + one shared shell + hub) that every tool reuses — proven ×4 (a
+*question* added `query`; two *picks* added/reused `choice`). Long docs are handled (200K single-call window +
+map-reduce). Provider `anthropic | stub`; the **product defaults to the real model** when a key is present.
 
 ## The product principles (non-negotiable)
 1. **The tool removes the prompt; the user brings only their input.** No prompt box, no "how would you like…?",
@@ -45,14 +56,13 @@ reuses.
 ## Repo layout (target)
 ```
 app/
-  _engines/        vendored lean cores: boundary (policy/detect/sanitize) + summarize (spans/ground) + origin headers
+  _engines/        vendored lean cores (origin-headered): boundary · summarize · draft · extract
   ingest.py        file/paste -> plain text (.txt/.md/.pdf/.docx), size-capped, friendly errors
   pipeline.py      the tool pipeline: ingest -> sanitize -> split -> draft(LLM) -> ground(cite-or-drop) -> re-hydrate
   provider.py      anthropic | stub (the drafting call only)
-  tools/           one module per tool; `summarize.py` = the first Tool {slug,name,blurb,accepts,run}
-  shell/           the reusable consumer UI shell (templates + result-panel partials)
-  hub.py           the launcher (lists registered tools, opens them)
-  main.py          FastAPI app: the shell + the Summarize tool + the hub
+  tools/           one module per tool: summarize · copilot · draft · extractor (each a Tool{slug,name,run,…})
+  shell/           the reusable consumer UI shell (templates + per-tool result partials)
+  main.py          FastAPI app: the hub (/) + the shell (/t/{slug}) + run (/t/{slug}/run)
 data/samples/      synthetic/public sample documents for demos + tests
 tests/             pytest — stub-backed, deterministic, no network
 DESIGN.md CLAUDE.md TODO.md README.md DECISIONS.md

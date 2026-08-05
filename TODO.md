@@ -95,6 +95,9 @@ Legend: ☐ todo · ☑ done
 ---
 
 ### After the pilot
-- Complete the **Documents platform** (Copilot/Converse · Draft · Extractor as tool-apps on the same shell).
-- Then the engine loop in parallel (the **Model/Prompt Gateway** service — the "wrap any LLM" backbone that lets
-  tool-apps call engines as real services instead of vendoring).
+- ✅ **DONE 2026-08-05 — the Documents platform is COMPLETE.** Copilot ("Ask this document", DEC 008), Draft
+  ("Draft from a document", DEC 009), and Extractor ("Extract fields", DEC 010) all shipped on this same shell —
+  *read · ask · write · pull data*, 4 live tools, 63 tests. Plus: the product defaults to the real model (DEC 011)
+  and long documents are handled via a 200K window + map-reduce (DEC 012). See `DECISIONS.md` + `../_PLATFORM/`.
+- **Next (open):** a new platform, or the **Model/Prompt Gateway** (the "wrap any LLM" backbone that lets tool-apps
+  call engines as real services instead of vendoring — the two-loop endgame in `VISION.md`).

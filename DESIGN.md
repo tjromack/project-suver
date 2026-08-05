@@ -1,4 +1,11 @@
-# DESIGN — Project Suver · the Summarize tool-app (the flagship pilot)
+# DESIGN — Project Suver · the Documents platform
+
+> **📌 Status (2026-08-05): this document is the original spec, written when Summarize was the single pilot.** It
+> still describes the tool-app contract, the pipeline, and the trust posture accurately — those held. What's grown:
+> the **Documents platform is now COMPLETE — 4 live tools** (Summarize · Copilot · Draft · Extractor =
+> *read · ask · write · pull data*), each a small add on this same contract; long docs are handled (200K window +
+> map-reduce); the product defaults to the real model. For per-tool decisions see `DECISIONS.md` (DEC 001–012);
+> for current state see `../_PLATFORM/STATUS.md`. The design below is preserved as the pilot's spec of record.
 
 > **Project Suver** is the *product*: an AI **tool hub that removes the prompt** — click a tool, give only your
 > input, get the output; it wraps any LLM (we manage it) and is safe by construction (the control plane runs
