@@ -216,3 +216,106 @@ def draft_section(heading: str, focus: str, passages: list[Span], provider: str)
     if provider == "anthropic":
         return _anthropic_section(heading, focus, passages)
     return _stub_answer(focus, passages)  # extractive: the top (rotated) salient passage
+
+
+# --- Extractor: pull a list of typed {label, value} items of a field-set kind from the (sanitized) document ------
+
+_EXTRACT_PROMPT = (
+    "Extract structured items from the user's document below.\n{instruction}\n"
+    'Return ONLY a JSON array of objects, each: {{"label": "...", "value": "...", "uncertain": false}}.\n'
+    "- Use ONLY information stated in the document; never invent a value.\n"
+    '- Set "uncertain": true for any item you are unsure about.\n'
+    "- If the document contains none of this, return [].\n"
+    "- Keep bracketed tokens like [EMAIL_1] exactly as written.\n\n"
+    "DOCUMENT:\n{doc}"
+)
+
+_ISO_DATE = _re.compile(r"\b(\d{4}-\d{2}-\d{2})\b")
+_MONEY_RX = _re.compile(r"(?<![\w.])(\(?\$?\s?\d[\d,]*\.\d{2}\)?)(?![\d])")
+_TOKEN_RX = _re.compile(r"\[(EMAIL|PHONE|PERSON_NAME|ADDRESS)_\d+\]")
+_KV_RX = _re.compile(r"^\s*([A-Za-z][\w /&.-]{1,40}?)\s*:\s*(\S.{0,118}?)\s*$")
+_TOKEN_LABEL = {"EMAIL": "Email", "PHONE": "Phone", "PERSON_NAME": "Name", "ADDRESS": "Address"}
+
+
+def _labeled(line: str, at: int) -> str:
+    """A label from the text before the value's colon on this line, else a generic one."""
+    if ":" in line and line.index(":") < at:
+        lab = line.split(":", 1)[0].strip()
+        if 1 < len(lab) <= 40:
+            return lab
+    return ""
+
+
+def _stub_items(safe_text: str, stub_kind: str) -> list[dict]:
+    """Deterministic offline extraction over the sanitized text — for tests/dev. Real output is the model path."""
+    out: list[dict] = []
+    seen: set = set()
+
+    def add(label: str, value: str):
+        key = (label.lower(), value)
+        if value and key not in seen:
+            seen.add(key)
+            out.append({"label": label, "value": value, "uncertain": False})
+
+    if stub_kind == "contact":
+        for m in _TOKEN_RX.finditer(safe_text):
+            add(_TOKEN_LABEL[m.group(1)], m.group(0))
+        return out
+    if stub_kind == "keyvalue":
+        for line in safe_text.splitlines():
+            m = _KV_RX.match(line)
+            if m:
+                add(m.group(1).strip(), m.group(2).strip())
+        return out[:14]
+    rx = _ISO_DATE if stub_kind == "date" else _MONEY_RX
+    generic = "Date" if stub_kind == "date" else "Amount"
+    for line in safe_text.splitlines():
+        for m in rx.finditer(line):
+            add(_labeled(line, m.start()) or generic, m.group(1).strip())
+    return out[:20]
+
+
+def _parse_items(raw: str) -> list[dict]:
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        raw = raw[raw.find("\n") + 1:] if "\n" in raw else raw
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, ValueError):
+        return []
+    items = []
+    for d in data if isinstance(data, list) else []:
+        if isinstance(d, dict) and str(d.get("value", "")).strip():
+            items.append({"label": str(d.get("label") or "Item").strip(),
+                          "value": str(d["value"]).strip(),
+                          "uncertain": bool(d.get("uncertain", False))})
+    return items
+
+
+def _anthropic_items(safe_text: str, instruction: str) -> list[dict]:
+    import truststore
+
+    truststore.inject_into_ssl()
+    from anthropic import Anthropic
+
+    from app.config import settings
+
+    client = Anthropic()
+    prompt = _EXTRACT_PROMPT.format(instruction=instruction, doc=safe_text)
+    msg = client.messages.create(
+        model=settings.anthropic_model,
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    raw = "".join(getattr(b, "text", "") for b in msg.content).strip()
+    return _parse_items(raw)
+
+
+def extract_items(safe_text: str, fieldset, provider: str) -> list[dict]:
+    """Pull `{label, value, uncertain}` items of the field-set's kind from the SANITIZED text. `stub` is
+    deterministic/offline (type regexes + boundary tokens); `anthropic` is a real, schema-shaped extraction. The
+    model only ever sees safe text; the confidence gate downstream validates every value before it's shown."""
+    if provider == "anthropic":
+        return _anthropic_items(safe_text, fieldset.instruction)
+    return _stub_items(safe_text, fieldset.stub_kind)

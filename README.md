@@ -11,13 +11,14 @@ every tool. Pick one tool, or a platform of them.
 This repo is Suver's home: the reusable **tool-app shell**, the **hub launcher**, and the tools. The first tool —
 and this repo's flagship pilot — is **Summarize**.
 
-> **Status — a live Documents platform (3 tools) on one shell.** **Summarize** (drop a file → cited summary),
-> **Copilot** ("Ask this document" → a grounded, cited answer or an honest "not in your document"), and **Draft**
-> (pick a kind → a grounded memo/brief whose every section is cited or omitted — *cite-or-block*, never fabricated).
-> 45 tests (stub-backed, no network); verified end-to-end on real PDFs with both the offline `stub` and the real
-> `anthropic` model. Sensitive data is sanitized before the model and re-hydrated only in the local view — on every
-> tool. The reusable **shell + hub + tool-app contract** make each next tool a small add: Copilot proved it (a tool
-> needing a *question*), Draft proved it again (a tool needing a *pick*). Draft = *read · ask · **write***.
+> **Status — the Documents platform is complete: 4 live tools on one shell.** **Summarize** (drop a file → cited
+> summary), **Copilot** ("Ask this document" → a grounded, cited answer or an honest "not in your document"),
+> **Draft** (pick a kind → a grounded memo, *cite-or-block*, never fabricated), and **Extractor** (pick a field-set
+> → the fields in a **typed table**, the uncertain **flagged**, never guessed). That's *read · ask · write · pull
+> data*. 56 tests (stub-backed, no network); verified end-to-end on real PDFs with both the offline `stub` and the
+> real `anthropic` model. Sensitive data is sanitized before the model and re-hydrated only in the local view — on
+> every tool. The reusable **shell + hub + tool-app contract** made each tool after the first a small add
+> (a *question* for Copilot, a *pick* for Draft & Extractor). Next: a new platform, or the Model/Prompt Gateway.
 
 ## The first tool: Summarize
 **Drop a real document → get a cited summary.** Open Summarize, drop a PDF / DOCX / TXT / MD (or paste text), and

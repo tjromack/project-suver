@@ -38,6 +38,8 @@ class Settings:
     # relevance below which we abstain ("not in your document") rather than answer.
     copilot_top_k: int = int(os.getenv("COPILOT_TOP_K", "4"))
     copilot_min_relevance: float = float(os.getenv("COPILOT_MIN_RELEVANCE", "0.12"))
+    # Extractor: confidence below this (or a value that fails type-validation) → the field is flagged for review.
+    extract_threshold: float = float(os.getenv("EXTRACT_THRESHOLD", "0.75"))
     samples_dir: Path = REPO_ROOT / os.getenv("SAMPLES_DIR", "data/samples")
 
     def provenance(self) -> dict:

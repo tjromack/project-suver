@@ -100,7 +100,8 @@ def all_tools() -> list[Tool]:
 
 def load_builtin() -> None:
     """Import the built-in tools so they self-register. Called once at app startup."""
-    from app.tools import summarize  # noqa: F401  (live — registers on import)
+    from app.tools import summarize  # noqa: F401  (live — the 1st Documents tool)
     from app.tools import copilot  # noqa: F401  (live — the 2nd Documents tool)
     from app.tools import draft  # noqa: F401  (live — the 3rd Documents tool)
-    from app.tools import coming_soon  # noqa: F401  (Extractor, as a 'soon' card)
+    from app.tools import extractor  # noqa: F401  (live — the 4th Documents tool; the platform is complete)
+    from app.tools import coming_soon  # noqa: F401  (no soon cards currently — the Documents platform is fully live)

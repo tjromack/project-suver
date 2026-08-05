@@ -1,21 +1,10 @@
-"""The rest of the Documents platform — registered as 'coming soon' so the hub shows where Suver is going.
+"""Coming-soon tool cards.
 
-These are the other engines the suite already has (Copilot/Converse, Draft, Extractor); once the shell + contract
-+ hub exist (this pilot), each becomes a small add on the same rails. No `run` yet → the hub shows them as cards,
-not openable. See ../../../_PLATFORM/VISION.md (the Documents platform is the flagship).
+The Documents platform is now **complete** — Summarize · Copilot · Draft · Extractor are all live — so there are
+no coming-soon cards at the moment. When the next platform's tools are scoped, register their `Tool`s here with
+`status="soon"` (no `run`) and they'll appear as roadmap cards in the hub. See ../../../_PLATFORM/VISION.md.
 """
 
 from __future__ import annotations
 
-from app.tools import Tool, register
-
-register(Tool(
-    slug="extractor",
-    name="Extract fields",
-    blurb="Pull the fields you need into a clean table — typed, validated, with the uncertain ones flagged.",
-    icon="🧾",
-    accepts="PDF · DOCX · TXT",
-    action_label="Extract",
-    status="soon",
-    tags=("Documents", "Typed extraction"),
-))
+# (no coming-soon tools registered — the Documents platform is fully live)

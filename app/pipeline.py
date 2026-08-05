@@ -15,10 +15,11 @@ from dataclasses import dataclass, field
 
 from app._engines.boundary import BoundaryResult, default_policy, rehydrate, sanitize
 from app._engines.draft import GroundedSection, assemble, default_kind, get_kind
+from app._engines.extract import default_fieldset, get_fieldset, score_item
 from app._engines.summarize import Span, content_tokens, ground, split_document, support
 from app.config import settings
 from app.ingest import IngestResult, extract_text, from_paste
-from app.provider import NOT_IN_DOCUMENT, draft_answer, draft_candidates, draft_section
+from app.provider import NOT_IN_DOCUMENT, draft_answer, draft_candidates, draft_section, extract_items
 
 
 @dataclass(frozen=True)
@@ -375,3 +376,83 @@ def draft_document(filename: str, data: bytes | str, kind_slug: str | None = Non
 def draft_paste(text: str, kind_slug: str | None = None, *, provider: str | None = None) -> DraftOutcome:
     r = from_paste(text)
     return draft_text(r.text, kind_slug, doc_kind=r.kind, provider=provider)
+
+
+# --- Extractor: pull the fields you need into a clean, typed table — flag the uncertain, never guess -------------
+
+
+@dataclass(frozen=True)
+class ExtractOutcome:
+    fieldset_slug: str = ""
+    fieldset_label: str = ""
+    items: list = field(default_factory=list)      # ExtractedItem (re-hydrated label/value + confidence + status)
+    handled_count: int = 0
+    handled_classes: list = field(default_factory=list)
+    decision: str = "clear"
+    provider: str = "stub"
+    doc_kind: str = "text"
+    source_chars: int = 0
+    flagged_count: int = 0
+    empty: bool = False
+    empty_note: str | None = None
+    note: str | None = None
+    blocked: bool = False
+    block_message: str | None = None
+
+    @property
+    def needs_review(self) -> bool:
+        return self.flagged_count > 0
+
+    @property
+    def handled_note(self) -> str:
+        n = self.handled_count
+        if n == 0:
+            return "No sensitive items detected"
+        return f"{n} sensitive {'item' if n == 1 else 'items'} handled before the model"
+
+
+def extract_fields(text: str, fieldset_slug: str | None = None, *, doc_kind: str = "text",
+                   provider: str | None = None) -> ExtractOutcome:
+    """Pull typed items of the chosen field-set from the document into a table. Each value is **type-validated** and
+    **confidence-gated** (`min(validation, model)`); a value that fails validation or scores low is **flagged for
+    review**, never silently trusted or guessed. Same trust posture: the model only sees sanitized text; the
+    extracted values re-hydrate locally."""
+    provider = provider or settings.provider
+    fs = get_fieldset(fieldset_slug) or default_fieldset()
+    doc = sanitize(text, default_policy())
+    base = dict(
+        fieldset_slug=fs.slug, fieldset_label=fs.label, handled_count=len(doc.spans), handled_classes=doc.classes,
+        decision=doc.decision, provider=provider, doc_kind=doc_kind, source_chars=len(text),
+    )
+
+    if doc.safe_text is None:
+        return ExtractOutcome(**base, blocked=True,
+                              block_message=_BLOCK_MSG.format(classes=", ".join(doc.classes) or "restricted content"))
+
+    safe_text, note = doc.safe_text, None
+    if len(safe_text) > settings.max_draft_chars:
+        safe_text = safe_text[: settings.max_draft_chars]
+        note = f"Long document — extracted from the first {len(safe_text):,} of {len(doc.safe_text):,} characters."
+
+    raw_items = extract_items(safe_text, fs, provider)
+    tmap = doc.token_map
+    items = [
+        score_item(rehydrate(it["label"], tmap), rehydrate(it["value"], tmap), fs.item_type,
+                   bool(it.get("uncertain", False)), threshold=settings.extract_threshold)
+        for it in raw_items
+    ]
+    if not items:
+        return ExtractOutcome(**base, empty=True, empty_note=fs.empty_note, note=note)
+    return ExtractOutcome(**base, items=items, flagged_count=sum(1 for it in items if it.status == "flagged"),
+                          note=note)
+
+
+def extract_document(filename: str, data: bytes | str, fieldset_slug: str | None = None, *,
+                     provider: str | None = None) -> ExtractOutcome:
+    r: IngestResult = extract_text(filename, data)
+    return extract_fields(r.text, fieldset_slug, doc_kind=r.kind, provider=provider)
+
+
+def extract_paste(text: str, fieldset_slug: str | None = None, *, provider: str | None = None) -> ExtractOutcome:
+    r = from_paste(text)
+    return extract_fields(r.text, fieldset_slug, doc_kind=r.kind, provider=provider)

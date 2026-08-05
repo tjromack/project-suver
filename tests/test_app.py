@@ -12,8 +12,10 @@ client = TestClient(app)
 def test_hub_lists_tools():
     r = client.get("/")
     assert r.status_code == 200
-    assert "Summarize" in r.text
-    assert "Live" in r.text and "Soon" in r.text          # the live tool + the coming-soon platform
+    # all four Documents tools are live (the platform is complete — no coming-soon cards)
+    for name in ("Summarize", "Ask this document", "Draft from a document", "Extract fields"):
+        assert name in r.text
+    assert "Live" in r.text
     assert "removes the prompt" in r.text or "no prompt" in r.text.lower()
 
 
@@ -28,12 +30,6 @@ def test_tool_shell_renders():
 def test_unknown_tool_404():
     r = client.get("/t/does-not-exist")
     assert r.status_code == 404
-
-
-def test_coming_soon_tool_shows_placeholder():
-    r = client.get("/t/extractor")   # still a roadmap card
-    assert r.status_code == 200
-    assert "Coming soon" in r.text
 
 
 def test_summarize_run_paste_is_cited():
@@ -111,6 +107,28 @@ def test_draft_blocks_do_not_fabricate():
     r = client.post("/t/draft/run", data={"paste": "x y z.", "choice": "memo"})
     assert r.status_code == 200
     assert "Nothing drafted" in r.text
+
+
+def test_extractor_shell_has_a_fieldset_select():
+    r = client.get("/t/extractor")
+    assert r.status_code == 200
+    assert "<select" in r.text and 'name="choice"' in r.text
+    assert "Dates &amp; deadlines" in r.text or "Key facts" in r.text
+
+
+def test_extractor_run_produces_a_typed_table():
+    doc = "Subtotal: $1,200.00\nTax: $96.00\nTotal: $1,296.00"
+    r = client.post("/t/extractor/run", data={"paste": doc, "choice": "amounts"})
+    assert r.status_code == 200
+    assert "<table" in r.text
+    assert "Confidence" in r.text
+    assert "🛡" in r.text
+
+
+def test_extractor_empty_is_honest():
+    r = client.post("/t/extractor/run", data={"paste": "The sky is blue.", "choice": "dates"})
+    assert r.status_code == 200
+    assert "No dates" in r.text
 
 
 def test_healthz():

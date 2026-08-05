@@ -1,0 +1,66 @@
+<style>
+  .res{padding:22px}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:999px;font-size:13px;
+    font-weight:600;background:var(--good-soft);color:var(--good)}
+  .chip.none{background:var(--accent-soft);color:var(--accent)}
+  .metaline{color:var(--faint);font-size:12.5px;margin-top:10px}
+  .note{margin-top:12px;padding:10px 13px;border-radius:10px;background:var(--warn-soft);color:var(--warn);font-size:13px}
+  .review{margin-top:14px;padding:11px 14px;border-radius:10px;background:var(--warn-soft);color:var(--warn);font-size:13px;font-weight:600}
+  .tablewrap{margin-top:16px;overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{text-align:left;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);
+    padding:10px 14px;border-bottom:1px solid var(--line);background:var(--accent-soft)}
+  td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  td.label{color:var(--muted);white-space:nowrap}
+  td.value{color:var(--ink);font-weight:500}
+  tr.flagged td.value{color:var(--warn)}
+  .conf{display:inline-flex;align-items:center;gap:7px;font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
+  .bar{width:46px;height:6px;border-radius:3px;background:var(--line);overflow:hidden;flex:none}
+  .bar i{display:block;height:100%;background:var(--good)}
+  tr.flagged .bar i{background:var(--warn)}
+  .flag{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;
+    background:var(--warn-soft);color:var(--warn)}
+  .empty{margin-top:14px;padding:18px;border-radius:12px;background:var(--accent-soft);color:var(--muted)}
+  .blocked{padding:20px;border-radius:12px;background:var(--warn-soft);color:var(--warn)}
+  .blocked strong{display:block;margin-bottom:4px;font-size:15px}
+</style>
+
+<div class="panel res">
+  {% if r.handled_count > 0 %}
+    <span class="chip">🛡 {{ r.handled_note }}</span>
+  {% else %}
+    <span class="chip none">🛡 {{ r.handled_note }}</span>
+  {% endif %}
+  <div class="metaline">
+    {{ r.fieldset_label }} · boundary: <strong>{{ r.decision }}</strong>
+    {% if r.handled_classes %}· handled: {{ r.handled_classes | join(", ") }}{% endif %}
+    · source: {{ r.doc_kind }} ({{ "{:,}".format(r.source_chars) }} chars) · extracted by: {{ r.provider }}
+  </div>
+
+  {% if r.blocked %}
+    <div class="blocked" style="margin-top:14px"><strong>Nothing extracted.</strong> {{ r.block_message }}</div>
+  {% elif r.empty %}
+    <div class="empty">{{ r.empty_note }} <span class="faint">— nothing was invented to fill the table.</span></div>
+  {% else %}
+    {% if r.note %}<div class="note">{{ r.note }}</div>{% endif %}
+    {% if r.needs_review %}
+      <div class="review">⚠ {{ r.flagged_count }} field{{ "" if r.flagged_count == 1 else "s" }} flagged for review —
+        the value couldn’t be validated or the confidence was low. Shown, but not trusted; nothing was guessed.</div>
+    {% endif %}
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Field</th><th>Value</th><th>Confidence</th></tr></thead>
+        <tbody>
+          {% for it in r.items %}
+            <tr class="{{ 'flagged' if it.status == 'flagged' else '' }}">
+              <td class="label">{{ it.label }}</td>
+              <td class="value">{{ it.value }}{% if it.status == "flagged" %} <span class="flag">review</span>{% endif %}</td>
+              <td><span class="conf"><span class="bar"><i style="width:{{ (it.confidence*100)|int }}%"></i></span>{{ "%.0f"|format(it.confidence*100) }}%</span></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</div>

@@ -156,3 +156,28 @@ heavy per-section retriever.
 `_draft_result.html`, `tests/test_draft.py`. **Live-verified** with `anthropic`: clean, correctly-scoped sections
 each cited; a doc with no next-steps → the "Next Steps" section **omitted** (not fabricated); a contentless doc →
 **blocked**. The Documents platform now has **3 live tools**.
+
+### DEC 010 — Extractor ("Extract fields"): the 4th/last tool; typed-list extraction, confidence = min(validation, model)
+**Decision.** Add **Extractor** — drop a document, **pick a field-set** (Key facts · Dates & deadlines · People &
+contacts · Amounts & totals) → the fields in a **clean, typed table**, the **uncertain ones flagged**. Because
+consumer docs are arbitrary (not a known invoice/claim schema), it does **typed-list extraction**: a field-set is
+a *type of thing to pull*, and the tool extracts a list of `{label, value}` items of that type. Composed from the
+`document-structured-extractor` engine — vendored the **type parsers** (`parse_money`/`parse_number`/`parse_date`)
+and the **confidence gate** into `app/_engines/extract/`, slimmed to a **per-item** score: **confidence =
+min(validation_score, model_score)** where validation is the deterministic *type-validity* of the value and the
+model signal is its uncertainty flag. A value that **fails type-validation or scores below threshold is flagged
+for review — never guessed or silently trusted** (the engine's guardrail: confidence is anchored in validation,
+not the model's self-report). Reuses the contract's `choice`/`options` (from Draft) — **no new plumbing.** Same
+trust posture: the model only sees sanitized text (tested); values re-hydrate locally — which means the People &
+contacts set naturally reads the boundary's own `[EMAIL_1]`/`[PHONE_1]` tokens and re-hydrates them.
+**Why.** It's the *pull data* leg — the 4th tool completes the Documents platform (read · ask · write · pull data)
+and is the **4th proof of the rails** (a tool needing a *pick*, like Draft, reusing the exact same contract field).
+Typed-list extraction (vs filling a named schema) is the one adaptation that makes a schema-based engine work on
+*any* document.
+**Rules out.** Filling a fixed domain schema on arbitrary docs (mostly "not found"); trusting a value that doesn't
+validate; guessing/fabricating a missing field; a prompt box (the field-set is a pick).
+**Status.** Accepted. `app/_engines/extract/{types,confidence,fieldsets}.py`, `app/pipeline.py` (`extract_fields`),
+`app/provider.py` (`extract_items` + offline stub), `app/tools/extractor.py`, `_extract_result.html`,
+`tests/test_extractor.py`. **Live-verified** with `anthropic`: dates pulled from prose and **normalized to ISO**
+(`"June 30, 2026" → 2026-06-30`); a no-dates doc returns **empty (honest)**; the confidence gate **flags** a
+type-invalid or model-uncertain value. **The Documents platform is complete — 4 live tools.**
