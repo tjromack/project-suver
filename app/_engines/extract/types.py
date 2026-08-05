@@ -1,8 +1,12 @@
 """Typed values — the field types and their parsers.
 
 ORIGIN: c:/ai/document-structured-extractor/app/schemas.py (the `FieldType` enum + `parse_money`/`parse_number`/
-`parse_date`/`normalize_string`), verbatim. How a value canonicalizes is a property of its type; these are the
-deterministic parsers the confidence gate uses to decide whether an extracted value is *valid* for its type.
+`parse_date`/`normalize_string`). How a value canonicalizes is a property of its type; these are the deterministic
+parsers the confidence gate uses to decide whether an extracted value is *valid* for its type.
+
+Suver adaptation (Trevor's 2026-08-05 Demo): consumer/report documents state money in **magnitude words**
+("$29 trillion", "$1.5M"), which the engine's strict decimal parser rejected — flagging legitimate amounts.
+`parse_money` here also accepts a trailing magnitude word/abbrev, so narrative amounts validate.
 """
 
 from __future__ import annotations
@@ -13,6 +17,19 @@ from decimal import Decimal, InvalidOperation
 from enum import Enum
 
 MONEY_TOLERANCE = Decimal("0.01")
+
+# Magnitude words/abbreviations for narrative money ("$29 trillion", "$1.5M", "€3 bn").
+_MAGNITUDE = {
+    "thousand": Decimal("1e3"), "k": Decimal("1e3"),
+    "million": Decimal("1e6"), "mn": Decimal("1e6"), "m": Decimal("1e6"),
+    "billion": Decimal("1e9"), "bn": Decimal("1e9"), "b": Decimal("1e9"),
+    "trillion": Decimal("1e12"), "tn": Decimal("1e12"), "t": Decimal("1e12"),
+}
+# Searched (not anchored) so a qualifier survives — "over $29 trillion", "nearly $1 trillion" still validate.
+_MONEY_MAG = re.compile(
+    r"[\$€£]?\s*([\d,]+(?:\.\d+)?)\s*(thousand|million|billion|trillion|mn|bn|tn|[kmbt])\b", re.IGNORECASE
+)
+_MONEY_PLAIN = re.compile(r"[\$€£]?\s*\d[\d,]*(?:\.\d+)?")
 
 
 class FieldType(str, Enum):
@@ -39,14 +56,23 @@ def parse_money(raw: object) -> Decimal | None:
     negative = False
     if s.startswith("(") and s.endswith(")"):
         negative, s = True, s[1:-1]
-    s = _MONEY_STRIP.sub("", s)
+    mag = _MONEY_MAG.search(s)                  # "over $29 trillion" / "$1.5M" — narrative amounts (Suver adaptation)
+    if mag:
+        value = Decimal(mag.group(1).replace(",", "")) * _MAGNITUDE[mag.group(2).lower()]
+        return (-value if negative else value).quantize(Decimal("0.01"))
+    stripped = _MONEY_STRIP.sub("", s)
     try:
-        value = Decimal(s)
+        return (-Decimal(stripped) if negative else Decimal(stripped)).quantize(Decimal("0.01"))
     except InvalidOperation:
-        return None
-    if negative:
-        value = -value
-    return value.quantize(Decimal("0.01"))
+        pass
+    plain = _MONEY_PLAIN.search(s)              # a money amount embedded in text ("about $1,296.00 total")
+    if plain:
+        try:
+            value = Decimal(_MONEY_STRIP.sub("", plain.group(0)))
+            return (-value if negative else value).quantize(Decimal("0.01"))
+        except InvalidOperation:
+            return None
+    return None
 
 
 def parse_number(raw: object) -> Decimal | None:

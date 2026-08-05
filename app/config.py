@@ -25,8 +25,12 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 @dataclass(frozen=True)
 class Settings:
-    # Provider for the DRAFTING step only: "stub" (deterministic, offline) | "anthropic".
-    provider: str = os.getenv("PROVIDER", "stub").strip().lower()
+    # Model provider: "anthropic" (the real product) | "stub" (deterministic, offline — tests/CI/no-key).
+    # Default to the REAL model when a key is present (this is a product; the stub is only a fallback); an explicit
+    # PROVIDER always wins (tests force PROVIDER=stub via tests/conftest.py to stay offline).
+    provider: str = (
+        os.getenv("PROVIDER") or ("anthropic" if os.getenv("ANTHROPIC_API_KEY") else "stub")
+    ).strip().lower()
     anthropic_model: str = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5")
     # Max size (bytes) of a dropped document (real reports run large — 20 MB default).
     max_doc_bytes: int = int(os.getenv("MAX_DOC_BYTES", "20000000"))

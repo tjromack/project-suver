@@ -181,3 +181,25 @@ validate; guessing/fabricating a missing field; a prompt box (the field-set is a
 `tests/test_extractor.py`. **Live-verified** with `anthropic`: dates pulled from prose and **normalized to ISO**
 (`"June 30, 2026" → 2026-06-30`); a no-dates doc returns **empty (honest)**; the confidence gate **flags** a
 type-invalid or model-uncertain value. **The Documents platform is complete — 4 live tools.**
+
+### DEC 011 — The product defaults to the real model; graceful fallback; narrative-money validation *(Trevor's 2026-08-05 Demo)*
+**Decision.** Three fixes from the first full Demo of all 4 tools (which ran on the `stub` because `.env` pinned
+`PROVIDER=stub`, making Copilot return a raw fragment and Extractor miss/flag amounts):
+1. **Default to the real model.** `settings.provider` now resolves to **`anthropic` when an `ANTHROPIC_API_KEY`
+   is present** (an explicit `PROVIDER` still wins). The stub is a *fallback/test* path, not the product's default
+   — this is a product; we manage the LLM. `tests/conftest.py` forces `PROVIDER=stub` so the suite stays
+   deterministic/offline regardless of a local `.env`.
+2. **Graceful degradation.** Each provider dispatch (`draft_candidates`/`draft_answer`/`draft_section`/
+   `extract_items`) wraps the `anthropic` call in `try/except` → the offline stub, so an API error degrades to a
+   result instead of a 500 (production posture — no crash).
+3. **Narrative-money validation.** `parse_money` now accepts **magnitude words/abbrevs** ("$29 trillion", "$1.5M")
+   and finds an amount embedded in text ("over $29 trillion") — report amounts validate (ok) instead of flagging.
+**Why.** The Demo's "quality problems" were mostly *the stub misrepresenting the product* — the real model answers
+Copilot properly ("Carthage … fell in 698 …", cited S61 0.88) and extracts clean amounts. A consumer product must
+default to real quality, never crash on a provider hiccup, and not flag legitimate values.
+**Rules out.** Shipping the extractive stub as the default face; a raw 500 when the model is unavailable; flagging
+every narrative amount as invalid.
+**Status.** Accepted. `app/config.py`, `tests/conftest.py`, `app/provider.py` (fallbacks),
+`app/_engines/extract/types.py` (`parse_money` magnitude/search). 57 tests. Live-verified with `anthropic`:
+Copilot answers, FSOC amounts validate (0 flagged). *Open (BACKLOG): long-document handling — the 40 K cap only
+processes the start of a long doc (Summarize + Extractor).*

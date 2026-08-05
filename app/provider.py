@@ -102,9 +102,13 @@ def _parse_points(raw: str) -> list[str]:
 
 
 def draft_candidates(safe_text: str, spans: list[Span], provider: str) -> list[Candidate]:
-    """Draft candidate key-points from the SANITIZED text. `stub` is extractive/offline; `anthropic` is a real draft."""
+    """Draft candidate key-points from the SANITIZED text. `stub` is extractive/offline; `anthropic` is a real draft.
+    On any model error the call degrades to the offline stub (production posture — no crash)."""
     if provider == "anthropic":
-        return _anthropic_candidates(safe_text)
+        try:
+            return _anthropic_candidates(safe_text)
+        except Exception:
+            return _stub_candidates(spans)
     return _stub_candidates(spans)
 
 
@@ -157,9 +161,13 @@ def _anthropic_answer(safe_query: str, retrieved: list[Span]) -> str:
 
 def draft_answer(safe_query: str, retrieved: list[Span], provider: str) -> str:
     """Answer the question from the retrieved (sanitized) passages, or return NOT_IN_DOCUMENT. The model only ever
-    sees safe passages + the safe question; grounding downstream still verifies before anything is shown."""
+    sees safe passages + the safe question; grounding downstream still verifies before anything is shown. On any
+    model error, degrade to the offline stub."""
     if provider == "anthropic":
-        return _anthropic_answer(safe_query, retrieved)
+        try:
+            return _anthropic_answer(safe_query, retrieved)
+        except Exception:
+            return _stub_answer(safe_query, retrieved)
     return _stub_answer(safe_query, retrieved)
 
 
@@ -212,9 +220,13 @@ def _anthropic_section(heading: str, focus: str, passages: list[Span]) -> str:
 
 def draft_section(heading: str, focus: str, passages: list[Span], provider: str) -> str:
     """Write one memo section from the sanitized salient passages, or NOT_IN_DOCUMENT. `stub` is extractive (the
-    top passage). The model only ever sees the safe passages; grounding still verifies before the section shows."""
+    top passage). The model only ever sees the safe passages; grounding still verifies before the section shows.
+    On any model error, degrade to the offline stub."""
     if provider == "anthropic":
-        return _anthropic_section(heading, focus, passages)
+        try:
+            return _anthropic_section(heading, focus, passages)
+        except Exception:
+            return _stub_answer(focus, passages)
     return _stub_answer(focus, passages)  # extractive: the top (rotated) salient passage
 
 
@@ -315,7 +327,11 @@ def _anthropic_items(safe_text: str, instruction: str) -> list[dict]:
 def extract_items(safe_text: str, fieldset, provider: str) -> list[dict]:
     """Pull `{label, value, uncertain}` items of the field-set's kind from the SANITIZED text. `stub` is
     deterministic/offline (type regexes + boundary tokens); `anthropic` is a real, schema-shaped extraction. The
-    model only ever sees safe text; the confidence gate downstream validates every value before it's shown."""
+    model only ever sees safe text; the confidence gate downstream validates every value before it's shown. On any
+    model error, degrade to the offline stub."""
     if provider == "anthropic":
-        return _anthropic_items(safe_text, fieldset.instruction)
+        try:
+            return _anthropic_items(safe_text, fieldset.instruction)
+        except Exception:
+            return _stub_items(safe_text, fieldset.stub_kind)
     return _stub_items(safe_text, fieldset.stub_kind)

@@ -2,8 +2,18 @@
 
 from __future__ import annotations
 
-from app._engines.extract import FieldType, score_item
+from app._engines.extract import FieldType, parse_money, score_item
 from app.pipeline import extract_fields
+
+
+def test_narrative_money_validates_not_flagged():
+    """Report/consumer docs state money as magnitude words ('$29 trillion') — they must validate, not flag."""
+    assert parse_money("$29 trillion") is not None
+    assert parse_money("$1.5M") is not None
+    assert parse_money("1,200 billion") is not None
+    assert parse_money("not money") is None
+    it = score_item("Market size", "$29 trillion", FieldType.MONEY, False)
+    assert it.valid and it.status == "ok"
 
 
 def test_confidence_gate_flags_invalid_and_uncertain():
