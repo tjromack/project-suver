@@ -250,18 +250,20 @@ def _retrieve(safe_query: str, spans: list[Span]) -> list[tuple[Span, float]]:
 
 
 def _answer_over_spans(spans: list[Span], safe_query: str, tmap: dict, provider: str,
-                       *, fallback_query: str | None = None):
+                       *, fallback_query: str | None = None, context: list[str] | None = None):
     """Answer `safe_query` from already-sanitized spans → (answered, answer_text, citations). Retrieve on the
     question alone first; only if that finds nothing (an **elliptical** follow-up) fall back to `fallback_query`
-    (the question + prior-question context — *history resolves the query*). The model answers from the retrieved
-    passages or we abstain. Shared by Copilot (one-shot) and Converse (multi-turn)."""
+    (the question + prior-question context — *history resolves the query*). `context` (recent prior questions,
+    already sanitized) is handed to the model so a referential follow-up's pronoun resolves — retrieval finds the
+    right passage, context lets the model understand the question. The model answers from the retrieved passages or
+    we abstain. Shared by Copilot (one-shot, no context) and Converse (multi-turn)."""
     retrieved = _retrieve(safe_query, spans)
     if not retrieved and fallback_query:
         retrieved = _retrieve(fallback_query, spans)   # elliptical follow-up → resolve with prior questions
     if not retrieved:
         return False, _ABSTAIN, []                     # no vocabulary match → abstain (over hallucination)
     ranked = [sp for sp, _ in retrieved]
-    raw = draft_answer(safe_query, ranked, provider)
+    raw = draft_answer(safe_query, ranked, provider, context=context)
     if raw == NOT_IN_DOCUMENT or support(raw, " ".join(sp.text for sp in ranked)) < settings.ground_threshold:
         return False, _ABSTAIN, []
     cites = [
@@ -374,10 +376,13 @@ def _salient_spans(spans: list[Span]) -> list[Span]:
     return sorted(top, key=lambda sp: sp.index)  # emit in document order
 
 
-def _section_grounder(salient: list[Span], tmap: dict, provider: str):
-    """Return a `ground(section, index) -> GroundedSection | None`. Both providers go through `draft_answer`
-    (so the model-only-sees-safe-text invariant is uniform and testable); the passages are rotated per section so
-    the offline stub yields a distinct salient passage per section. A section that can't ground returns None."""
+def _section_grounder(salient: list[Span], all_spans: list[Span], tmap: dict, provider: str):
+    """Return a `ground(section, index) -> GroundedSection | None`. The model **reads** the salient passages
+    (bounded, safe context — rotated per section so the offline stub yields a distinct span each time), but the
+    section is then grounded and cited against the **whole document**. A synthesis section (e.g. an Overview) whose
+    support is spread across the doc still grounds — while a section the document truly doesn't support is still
+    omitted/blocked (cite-or-block). Both providers go through `draft_section` (so the model-only-sees-safe-text
+    invariant is uniform and testable). A section that can't ground returns None."""
 
     def ground(sec, i: int) -> GroundedSection | None:
         if not salient:
@@ -387,15 +392,15 @@ def _section_grounder(salient: list[Span], tmap: dict, provider: str):
         raw = draft_section(sec.heading, sec.query, rotated, provider)
         if raw == NOT_IN_DOCUMENT:
             return None
-        if support(raw, " ".join(sp.text for sp in salient)) < settings.ground_threshold:
+        if support(raw, " ".join(sp.text for sp in all_spans)) < settings.ground_threshold:
             return None
+        scored = sorted(((support(raw, sp.text), sp) for sp in all_spans), key=lambda t: -t[0])
         cites = [
-            Claim(text=rehydrate(sp.text, tmap), span_id=sp.id, span_text=rehydrate(sp.text, tmap),
-                  support=round(support(raw, sp.text), 4))
-            for sp in salient if support(raw, sp.text) > 0
+            Claim(text=rehydrate(sp.text, tmap), span_id=sp.id, span_text=rehydrate(sp.text, tmap), support=round(sc, 4))
+            for sc, sp in scored if sc > 0
         ][:3]
         if not cites:  # grounded overall but nothing single-span attributable → cite the best-supporting span
-            best = max(salient, key=lambda sp: support(raw, sp.text))
+            best = scored[0][1]
             cites = [Claim(text=rehydrate(best.text, tmap), span_id=best.id, span_text=rehydrate(best.text, tmap),
                            support=round(support(raw, best.text), 4))]
         return GroundedSection(text=rehydrate(raw, tmap), citations=cites)
@@ -422,7 +427,7 @@ def draft_text(text: str, kind_slug: str | None = None, *, doc_kind: str = "text
 
     spans = split_document(doc.safe_text)
     salient = _salient_spans(spans)
-    ground = _section_grounder(salient, doc.token_map, provider)
+    ground = _section_grounder(salient, spans, doc.token_map, provider)
     result = assemble(kind, _doc_title(doc.safe_text, doc.token_map), ground)
 
     if result.blocked:
@@ -721,10 +726,11 @@ def _converse_answer(session, raw_question: str, ques) -> ConverseResult:
     session.token_map.update(ques.token_map)         # merge this question's reversible tokens (local only)
     session.handled_count += len(ques.spans)
     safe_query = ques.safe_text
-    context = session.safe_questions[-1] if session.safe_questions else ""   # the most recent question is the referent
-    fallback = (safe_query + " " + context).strip() if context else None
+    prior = session.safe_questions[-2:]              # recent prior questions — the referent + conversation context
+    fallback = (safe_query + " " + prior[-1]).strip() if prior else None
     answered, answer_text, cites = _answer_over_spans(
-        session.spans, safe_query, session.token_map, session.provider, fallback_query=fallback)
+        session.spans, safe_query, session.token_map, session.provider,
+        fallback_query=fallback, context=(prior or None))
     session.safe_questions.append(safe_query)
     session.turns.append(ConverseTurn(question=rehydrate(safe_query, session.token_map),
                                       answer=answer_text, citations=cites, answered=answered))

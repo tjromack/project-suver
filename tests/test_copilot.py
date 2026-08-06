@@ -33,10 +33,10 @@ def test_model_only_sees_safe_text_on_the_qa_path():
 
     real = pipeline.draft_answer
 
-    def spy(safe_query, retrieved, provider):
+    def spy(safe_query, retrieved, provider, **kw):
         captured["passages"] = " ".join(sp.text for sp in retrieved)
         captured["query"] = safe_query
-        return real(safe_query, retrieved, provider)
+        return real(safe_query, retrieved, provider, **kw)
 
     pipeline.draft_answer = spy
     try:

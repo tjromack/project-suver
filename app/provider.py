@@ -122,13 +122,25 @@ _ANSWER_PROMPT = (
     "Rules:\n"
     "- Answer in 1–4 sentences using ONLY facts stated in the passages. Do not use outside knowledge.\n"
     "- If the passages do not contain the answer, reply with EXACTLY this and nothing else: {sentinel}\n"
-    "- Some names/identifiers may appear as bracketed tokens like [PERSON_NAME_1]; keep such tokens exactly.\n\n"
+    "- Some names/identifiers may appear as bracketed tokens like [PERSON_NAME_1]; keep such tokens exactly.\n"
+    "{history}\n"
     "QUESTION: {q}\n\nPASSAGES:\n{passages}"
 )
 
 
 def _passages(spans: list[Span]) -> str:
     return "\n".join(f"[{sp.id}] {sp.text}" for sp in spans)
+
+
+def _history_block(context: list[str] | None) -> str:
+    """A short conversation-history preamble so a follow-up's references ('that', 'it', 'they') resolve to what
+    the user meant. The prior questions are already sanitized (safe). Empty for one-shot Copilot."""
+    if not context:
+        return ""
+    lines = "\n".join(f"- {c}" for c in context)
+    return ("- This question continues a conversation. Use the earlier questions below ONLY to resolve what the\n"
+            "  current question refers to (e.g. \"that\", \"it\", \"they\"), then answer it from the passages.\n"
+            f"EARLIER QUESTIONS:\n{lines}\n")
 
 
 def _stub_answer(safe_query: str, retrieved: list[Span]) -> str:
@@ -139,7 +151,7 @@ def _stub_answer(safe_query: str, retrieved: list[Span]) -> str:
     return retrieved[0].text
 
 
-def _anthropic_answer(safe_query: str, retrieved: list[Span]) -> str:
+def _anthropic_answer(safe_query: str, retrieved: list[Span], context: list[str] | None = None) -> str:
     import truststore
 
     truststore.inject_into_ssl()
@@ -150,22 +162,28 @@ def _anthropic_answer(safe_query: str, retrieved: list[Span]) -> str:
     if not retrieved:
         return NOT_IN_DOCUMENT
     client = Anthropic()
-    prompt = _ANSWER_PROMPT.format(sentinel=NOT_IN_DOCUMENT, q=safe_query, passages=_passages(retrieved))
+    prompt = _ANSWER_PROMPT.format(sentinel=NOT_IN_DOCUMENT, q=safe_query, passages=_passages(retrieved),
+                                   history=_history_block(context))
     msg = client.messages.create(
         model=settings.anthropic_model,
         max_tokens=512,
         messages=[{"role": "user", "content": prompt}],
     )
-    return "".join(getattr(b, "text", "") for b in msg.content).strip()
+    raw = "".join(getattr(b, "text", "") for b in msg.content).strip()
+    # Drop any inline [S#] citation markers the model echoes from the labeled passages (citations show separately);
+    # boundary tokens like [PERSON_NAME_1] are left untouched.
+    return raw if raw == NOT_IN_DOCUMENT else _re.sub(r"\s*\[S\d+\]", "", raw).strip()
 
 
-def draft_answer(safe_query: str, retrieved: list[Span], provider: str) -> str:
-    """Answer the question from the retrieved (sanitized) passages, or return NOT_IN_DOCUMENT. The model only ever
-    sees safe passages + the safe question; grounding downstream still verifies before anything is shown. On any
-    model error, degrade to the offline stub."""
+def draft_answer(safe_query: str, retrieved: list[Span], provider: str, *, context: list[str] | None = None) -> str:
+    """Answer the question from the retrieved (sanitized) passages, or return NOT_IN_DOCUMENT. `context` is the
+    recent prior questions of a conversation (Converse follow-ups) — already sanitized — so the model can resolve a
+    referential follow-up ("what did that force?"); Copilot passes none. The model only ever sees safe passages +
+    the safe question + the safe prior questions; grounding downstream still verifies before anything is shown. On
+    any model error, degrade to the offline stub."""
     if provider == "anthropic":
         try:
-            return _anthropic_answer(safe_query, retrieved)
+            return _anthropic_answer(safe_query, retrieved, context)
         except Exception:
             return _stub_answer(safe_query, retrieved)
     return _stub_answer(safe_query, retrieved)

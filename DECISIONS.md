@@ -295,3 +295,39 @@ content-token retrieval — a known vocabulary-match limitation, honest abstenti
 · the-model-only-sees-safe-text · reproducible). **Live-verified** with `anthropic`: a multi-turn conversation
 with a correctly-resolved **elliptical** follow-up ("what did that force?" → the navy decline → cited). **6 live
 Documents tools.**
+
+
+### DEC 016 — Demo-triage: fix the two regressions Trevor's real Demo pass surfaced
+**Context.** Trevor ran the manual Demo pass across all 6 tools on the **real model** (see `DEMO.md`). All
+81 tests were green and it still caught two real bugs (a manual Demo beats a green suite again). Two fixes + one
+polish, all live-verified on `anthropic`.
+
+**1 — Converse elliptical follow-up abstained (the flagship break).** "What did that force?" (after "When did the
+navy decline?") returned "not in your document." **Root cause:** the model was handed *only* the bare question +
+passages — it never saw the conversation, so it couldn't resolve "that" and correctly abstained. The `fallback_query`
+from DEC 015 fixes *retrieval* (finds the right passage) but not the model's *comprehension* of the pronoun.
+**Fix:** thread the **recent prior questions (already sanitized/safe)** into the model call as conversation context
+(`draft_answer(..., context=...)` → `_history_block` in the answer prompt: "use these ONLY to resolve what the
+current question refers to, then answer from the passages"). Retrieval finds the passage; context lets the model
+understand the question. Copilot (one-shot) passes no context → unchanged. The invariant holds — the context is the
+prior *sanitized* questions; the spy test now also asserts the context carries no sensitive value.
+⚠️ **Corrects DEC 015's overclaim:** DEC 015 said the elliptical case was "live-verified"; it was not truly exercised
+(the stub returns the passage regardless, masking the real-model gap). This is the actual fix.
+
+**2 — Draft blocked a normal document.** "Summary memo" on a NASA press release (7K) blocked: "the document doesn't
+support the required Overview section." **Root cause:** a required section was grounded against only the **8 densest
+spans**, but a synthesis section (Overview) draws support from across the whole doc. **Fix:** the model still *reads*
+the salient spans (bounded, safe context), but grounding + citations run against **all** spans — a genuinely-supported
+section grounds; a truly-unsupported one still blocks (cite-or-block intact; the change strictly widens grounding to
+a superset, so nothing the model didn't see can slip in). Live: the NASA release now drafts all three sections, cited.
+
+**3 — polish.** The answer path leaked inline `[S#]` citation markers (citations show separately); Draft already
+strips them. Added the same strip to the answer path (`_anthropic_answer`) — matches `[S<digits>]` only, leaves
+boundary tokens like `[PERSON_NAME_1]` untouched. Also cleans the text grounding scores on.
+
+**Status.** Accepted. `app/provider.py` (`draft_answer` context + `_history_block` + answer marker-strip),
+`app/pipeline.py` (`_answer_over_spans` context; `_converse_answer` passes recent prior questions;
+`_section_grounder` grounds/cites against all spans). Tests: `test_converse.py` +elliptical-resolves regression
+(and the safe-text spy now covers context); copilot/converse spies accept the `context` kwarg. **81 → 82 tests**,
+all live-verified on `anthropic`. Tuning items (Summarize lead-fact over-withhold; Extractor 50%-flags on
+well-stated amounts) + a cost baseline logged to `../_PLATFORM/BACKLOG.md`, not fixed here.

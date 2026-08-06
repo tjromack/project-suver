@@ -23,6 +23,22 @@ def test_followup_continues_the_same_conversation():
     assert "finance" in r2.turns[1].answer.lower()
 
 
+NAVY = ("Greek fire saved Constantinople from several Arab sieges. "
+        "The navy declined in the 11th century, forcing the empire to rely on the fleets of Venice and Genoa.")
+
+
+def test_elliptical_followup_resolves_via_prior_question():
+    """⭐ the Demo regression: a referential follow-up ('what did that force?') must resolve to the prior topic and
+    answer from the document — not abstain. Retrieval falls back to the prior question so the right passage is
+    found; the model is handed the prior questions so the pronoun resolves (checked live on `anthropic`)."""
+    r1 = converse_start(NAVY, "When did the navy decline?")
+    assert r1.turns[0].answered and "11th century" in r1.turns[0].answer
+    r2 = converse_followup(r1.session_id, "What did that force?")
+    assert r2.turns[1].answered, "an elliptical follow-up should resolve, not abstain"
+    ans = r2.turns[1].answer.lower()
+    assert "venice" in ans or "genoa" in ans
+
+
 def test_abstains_out_of_document():
     r = converse_start(DOC, "What is the CEO's salary?")
     assert not r.turns[0].answered
@@ -42,9 +58,10 @@ def test_model_only_sees_safe_text():
 
     real = pipeline.draft_answer
 
-    def spy(safe_query, retrieved, provider):
-        captured["seen"] = safe_query + " " + " ".join(sp.text for sp in retrieved)
-        return real(safe_query, retrieved, provider)
+    def spy(safe_query, retrieved, provider, **kw):
+        seen = safe_query + " " + " ".join(sp.text for sp in retrieved) + " " + " ".join(kw.get("context") or [])
+        captured["seen"] = seen
+        return real(safe_query, retrieved, provider, **kw)
 
     pipeline.draft_answer = spy
     try:
