@@ -1,8 +1,8 @@
-# DEMO — a manual verification pass (Project Suver · the Documents platform)
+# DEMO — a manual verification pass (Project Suver · a multi-platform hub)
 
-A 10–15 min walk of all 6 tools + the things fixed/built on faith (long-doc coverage, Compare, Converse, the hub).
-Everything below is **live-verified in code** already; this is the human eyeball pass. Report anything that looks
-wrong, awkward, or off and it gets fixed + regression-tested.
+A walk of all **9 tools across 2 platforms** (Documents ×6 · Communications ×3) + the tuning fixes. Everything below
+is **live-verified in code** already; this is the human eyeball pass. Report anything that looks wrong, awkward, or
+off and it gets fixed + regression-tested.
 
 ## 0. Start it up
 From `c:\ai\project-suver` (PowerShell — one command per line, no `&&`):
@@ -18,9 +18,9 @@ Open **http://127.0.0.1:8000**.
   (~326K chars), and `data\samples\sample.txt` (has a **planted SSN** for the trust check).
 
 ## 1. The hub (the product front door) — `/`
-Look for: hero **"Tools, not prompts."** · a 3-step **how it works** · **"The Documents platform"** with **6 tool
-cards** each showing a lane chip (Read · Ask · Write · Pull data · Compare · Chat) · a **"🛡 Governed by design"**
-trust band at the bottom.
+Look for: hero **"Tools, not prompts."** · a 3-step **how it works** · two platform sections — **"🗂 The Documents
+platform"** (6 cards: Read · Ask · Write · Pull data · Compare · Chat) and **"✉️ The Communications platform"** (3
+cards: Meetings · Triage · Reply) · a **"🛡 Governed by design"** trust band at the bottom.
 
 ## 2. Summarize  *(long-doc coverage + citations + the trust re-hydration)*
 - Drop **`Byzantine_navy.pdf`** → a list of **cited** key points. The note should say **"Summarized across the
@@ -67,9 +67,52 @@ in B"** — each difference with a plain note, and the line **"the tool never pi
 - *(If you restart the server mid-chat, a follow-up will say "conversation expired — re-add the document." That's
   expected — state is in-memory.)*
 
+---
+
+# Platform #2 — Communications *(added 2026-08-06)*
+
+The hub now has a second section, **🗣 The Communications platform** (3 cards). Same trust posture as Documents.
+
+## 8. Meeting notes → actions  *(grounded action items — who · what · by when)*
+Paste a short meeting note, e.g.:
+`Weekly sync. Sarah will circulate the roadmap by Friday. Dana agreed to deliver the mockups by March 20. We debated dark mode — no decision. Everyone said the demo went well.`
+→ a table of **actions** with **Owner** and **Due**. Expect *Sarah / Friday* and *Dana / March 20*; the "no decision"
+and "demo went well" lines are **not** actions. Owner/due show **only when stated** (blank otherwise) — never guessed;
+each action cites the line it came from.
+
+## 9. Triage messages  *(sort by what each needs; ambiguous → Review)*
+Paste a few messages separated by blank lines, e.g.:
+```
+Can you send me the Q2 numbers by end of day? Thanks, Priya
+
+FLASH SALE — 40% off ends tonight! Unsubscribe here.
+
+Please review and approve the vendor contract before Friday.
+
+FYI — the office will be closed next Monday.
+```
+→ sorted into **Needs reply · Action needed · FYI · Can ignore** (important buckets first), each with a **WHY** drawn
+from the message. Anything the tool isn't sure about shows as **Review** — never a confident wrong bucket.
+
+## 10. Draft a reply  *(grounded reply; [placeholders], never invented specifics)*
+Paste a message, e.g.: `Hi — could you join a 30-min call next week to walk through the Q2 forecast? Do you have the regional breakdown, or should I pull it? — Priya`
+Pick an intent (**Answer** / **Ask for more detail** / **Politely decline**) → a grounded reply. Expect **[placeholders]**
+for anything it doesn't know (a day/time, your name) listed under "things to fill in", and **no invented specifics**.
+Try each intent — the reply changes. *(It never makes up a date/number on your behalf.)*
+
+---
+
+# Re-verify the 08-06 tuning fixes *(DEC 020)*
+- **Summarize** the Byzantine PDF again → the lead fact **"…the naval force of the Byzantine Empire, active from 330
+  to 1453…"** should now appear as a **kept, cited** point (it used to be in the "withheld" panel). Withheld count
+  should be ~1, not 2.
+- **Extract → Amounts & totals** on the FSOC PDF → the large clearly-stated figures ($1 trillion, $29 trillion, $38
+  trillion, etc.) should read **95% · ok** with **0 flagged** (they used to show a batch flagged at 50% · review).
+
 ## What to look for across everything
 - Every result shows **"by: anthropic"** + the **🛡** trust chip.
-- Answers/points **cite** the document (or honestly **abstain / omit / block** — never a confident guess).
+- Answers/points **cite** the source (or honestly **abstain / omit / block / Review / [placeholder]** — never a
+  confident guess).
 - Nothing crashes on a real file; friendly messages on odd input.
 
 **Report back** anything that reads wrong, looks off, or feels awkward — that's exactly the feedback that makes the
