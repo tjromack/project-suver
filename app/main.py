@@ -21,7 +21,7 @@ from fastapi.templating import Jinja2Templates
 
 from app import __version__
 from app.config import settings
-from app.tools import ToolError, ToolInput, all_tools, get, load_builtin
+from app.tools import ToolError, ToolInput, all_tools, by_platform, get, load_builtin
 
 BASE = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE / "shell" / "templates"))
@@ -40,7 +40,8 @@ def _ctx(request: Request, **extra) -> dict:
 
 @app.get("/", response_class=HTMLResponse)
 def hub(request: Request):
-    return templates.TemplateResponse(request, "hub.html", _ctx(request, tools=all_tools()))
+    return templates.TemplateResponse(request, "hub.html",
+                                      _ctx(request, tools=all_tools(), platforms=by_platform()))
 
 
 @app.get("/t/{slug}", response_class=HTMLResponse)

@@ -54,32 +54,40 @@
   </div>
 
   <div class="how">
-    <div class="step"><span class="n">1</span><span class="t"><b>Pick a tool</b>from the platform below</span></div>
+    <div class="step"><span class="n">1</span><span class="t"><b>Pick a tool</b>from a platform below</span></div>
     <div class="step"><span class="n">2</span><span class="t"><b>Bring your input</b>a document — at most a plain question or a pick</span></div>
     <div class="step"><span class="n">3</span><span class="t"><b>Get the output</b>cited to your source, or an honest “it isn’t there”</span></div>
   </div>
 
-  <div class="sec">
-    <h2>🗂 The Documents platform</h2>
-    <span class="tally">{{ tools | selectattr("is_live") | list | length }} tools · read · ask · write · pull data · compare · chat</span>
-  </div>
-  <p class="sec-sub">Everything you need to do with a document — read it, ask it, write from it, pull data from it,
-    compare two of them, chat with one — grounded, cited, no prompting required.</p>
-
   {% set lanes = {"summarize":"Read","copilot":"Ask","draft":"Write","extractor":"Pull data","compare":"Compare","converse":"Chat"} %}
-  <div class="grid">
-    {% for t in tools %}
-      <{{ "a" if t.is_live else "div" }} class="card {{ '' if t.is_live else 'soon' }}"{% if t.is_live %} href="/t/{{ t.slug }}"{% endif %}>
-        <div class="top">
-          <span class="ic">{{ t.icon }}</span>
-          {% if t.is_live %}<span class="lane">{{ lanes.get(t.slug, "Tool") }}</span>{% else %}<span class="badge">Soon</span>{% endif %}
-        </div>
-        <h3>{{ t.name }}</h3>
-        <p>{{ t.blurb }}</p>
-        <div class="accepts">{{ t.accepts }}</div>
-      </{{ "a" if t.is_live else "div" }}>
-    {% endfor %}
-  </div>
+  {% set meta = {
+    "Documents": {"icon":"🗂","tally":"read · ask · write · pull data · compare · chat",
+      "sub":"Everything you need to do with a document — read it, ask it, write from it, pull data from it, compare two of them, chat with one — grounded, cited, no prompting required."},
+    "Communications": {"icon":"✉️","tally":"meetings → action",
+      "sub":"Turn everyday communication into something you can act on — starting with meetings: drop the notes, get owner-tagged action items grounded in what was actually said."}
+  } %}
+
+  {% for platform, ptools in platforms %}
+    {% set m = meta.get(platform, {"icon":"🧰","tally":"","sub":""}) %}
+    <div class="sec" style="{{ 'margin-top:34px' if not loop.first else '' }}">
+      <h2>{{ m.icon }} The {{ platform }} platform</h2>
+      <span class="tally">{{ ptools | selectattr("is_live") | list | length }} tool{{ "" if (ptools | selectattr("is_live") | list | length) == 1 else "s" }}{% if m.tally %} · {{ m.tally }}{% endif %}</span>
+    </div>
+    {% if m.sub %}<p class="sec-sub">{{ m.sub }}</p>{% endif %}
+    <div class="grid">
+      {% for t in ptools %}
+        <{{ "a" if t.is_live else "div" }} class="card {{ '' if t.is_live else 'soon' }}"{% if t.is_live %} href="/t/{{ t.slug }}"{% endif %}>
+          <div class="top">
+            <span class="ic">{{ t.icon }}</span>
+            {% if t.is_live %}<span class="lane">{{ t.lane or lanes.get(t.slug, "Tool") }}</span>{% else %}<span class="badge">Soon</span>{% endif %}
+          </div>
+          <h3>{{ t.name }}</h3>
+          <p>{{ t.blurb }}</p>
+          <div class="accepts">{{ t.accepts }}</div>
+        </{{ "a" if t.is_live else "div" }}>
+      {% endfor %}
+    </div>
+  {% endfor %}
 
   <div class="trust">
     <span class="shield">🛡</span>

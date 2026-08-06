@@ -71,6 +71,10 @@ class Tool:
     run: Callable[[ToolInput], ToolOutput] | None = None
     status: str = "live"  # "live" | "soon"
     tags: tuple[str, ...] = field(default_factory=tuple)
+    # Which platform this tool belongs to in the hub (the hub groups tools by platform). Suver is a multi-platform
+    # hub, not one app — Documents is the first platform; Communications is the second.
+    platform: str = "Documents"
+    lane: str = ""        # the hub card's lane chip (e.g. "Read", "Meetings"); falls back to a per-slug map
     # Some tools ask a plain-language question about the document (Copilot). The shell renders one question field
     # when needs_query is set — still no prompt craft, just the user's information need.
     needs_query: bool = False
@@ -114,6 +118,20 @@ def all_tools() -> list[Tool]:
     return [t for t in tools if t.is_live] + [t for t in tools if not t.is_live]
 
 
+# Platform display order in the hub (unknown platforms sort after these, alphabetically).
+_PLATFORM_ORDER = ("Documents", "Communications")
+
+
+def by_platform() -> list[tuple[str, list[Tool]]]:
+    """Group the registered tools by `platform`, in a stable hub order — so the hub reads as a multi-platform
+    product. Within a platform, live tools come first (registration order), then any 'coming soon'."""
+    order = {p: i for i, p in enumerate(_PLATFORM_ORDER)}
+    seen: dict[str, list[Tool]] = {}
+    for t in all_tools():
+        seen.setdefault(t.platform, []).append(t)
+    return sorted(seen.items(), key=lambda kv: (order.get(kv[0], len(order)), kv[0]))
+
+
 def load_builtin() -> None:
     """Import the built-in tools so they self-register. Called once at app startup."""
     from app.tools import summarize  # noqa: F401  (live — the 1st Documents tool)
@@ -122,4 +140,5 @@ def load_builtin() -> None:
     from app.tools import extractor  # noqa: F401  (live — the 4th Documents tool)
     from app.tools import compare  # noqa: F401  (live — the 5th Documents tool; first two-document tool)
     from app.tools import converse  # noqa: F401  (live — the 6th Documents tool; first multi-turn/chat tool)
-    from app.tools import coming_soon  # noqa: F401  (no soon cards currently — the Documents platform is fully live)
+    from app.tools import meeting_actions  # noqa: F401  (live — platform #2: Communications, 1st tool)
+    from app.tools import coming_soon  # noqa: F401  (no soon cards currently)

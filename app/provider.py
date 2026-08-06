@@ -361,3 +361,110 @@ def extract_items(safe_text: str, fieldset, provider: str) -> list[dict]:
         except Exception:
             return _stub_items(safe_text, fieldset.stub_kind)
     return _stub_items(safe_text, fieldset.stub_kind)
+
+
+# --- Communications · Meeting notes → action items: pull {task, owner, due} the notes actually state -------------
+
+_ACTIONS_PROMPT = (
+    "Extract the ACTION ITEMS from the user's meeting notes or transcript below — the concrete tasks, to-dos, "
+    "commitments, or follow-ups it states.\n"
+    'Return ONLY a JSON array of objects, each: {{"task": "...", "owner": "...", "due": "...", "uncertain": false}}.\n'
+    "- task: the action as a short imperative phrase (e.g. \"Send the revised budget\"). Use ONLY what the notes say.\n"
+    "- owner: the person or team responsible IF the notes state one, else \"\". Names may appear as bracketed tokens\n"
+    "  like [PERSON_NAME_1] — keep them EXACTLY; never guess an owner.\n"
+    "- due: the deadline or date IF stated (e.g. \"Friday\", \"June 30\"), else \"\". Never invent a date.\n"
+    "- Include ONLY actions explicitly stated; do not infer tasks nobody asked for. If there are none, return [].\n"
+    "- Return the most important ~25 at most.\n\n"
+    "NOTES:\n{doc}"
+)
+
+_ACTION_CUE_RX = _re.compile(r"\b(will|must|should|need(?:s)? to|to-?do|action item|follow[- ]?up|due|by \w)", _re.I)
+_ACTION_OWNER_TOKEN_RX = _re.compile(r"\[PERSON_NAME_\d+\]")
+_ACTION_SUBJECT_RX = _re.compile(r"^([A-Z][\w .&/]{1,30}?)\s+(?:will|must|should|needs? to|to)\b")
+_ACTION_DUE_RX = _re.compile(r"\b(?:by|due|before)\s+(\d{4}-\d{2}-\d{2}|[A-Z][a-z]+(?:\s+\d{1,2})?|\w+day)", _re.I)
+_ACTION_SPLIT_RX = _re.compile(r"(?<=[.!?])\s+|\n+|(?:^|\s)[-*•]\s+")
+
+
+def _stub_action_items(safe_text: str) -> list[dict]:
+    """Deterministic offline extraction — sentences that read like commitments become tasks (task = the sentence, so
+    it grounds trivially downstream). Owner = a boundary name-token or the subject before 'will/must/should'; due =
+    a 'by/due <date>' capture. Real output is the model path; this keeps tests/dev offline."""
+    out: list[dict] = []
+    seen: set[str] = set()
+    for raw in _ACTION_SPLIT_RX.split(safe_text):
+        s = (raw or "").strip(" -*•\t")
+        if len(s) < 8 or not _ACTION_CUE_RX.search(s):
+            continue
+        key = s.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        owner_m = _ACTION_OWNER_TOKEN_RX.search(s)
+        if owner_m:
+            owner = owner_m.group(0)
+        else:
+            subj = _ACTION_SUBJECT_RX.match(s)
+            owner = subj.group(1).strip() if subj else ""
+        due_m = _ACTION_DUE_RX.search(s)
+        out.append({"task": s, "owner": owner, "due": due_m.group(1).strip() if due_m else "", "uncertain": False})
+        if len(out) >= 25:
+            break
+    return out
+
+
+def _parse_actions(raw: str) -> list[dict]:
+    """Parse the model's reply into {task, owner, due, uncertain}. Tolerant + salvages a truncated JSON array."""
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        raw = raw[raw.find("\n") + 1:] if "\n" in raw else raw
+    data = None
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, ValueError):
+        cut = raw.rfind("}")
+        if cut != -1:
+            try:
+                data = json.loads(raw[: cut + 1] + "]")
+            except (json.JSONDecodeError, ValueError):
+                data = None
+    items = []
+    for d in data if isinstance(data, list) else []:
+        if isinstance(d, dict) and str(d.get("task", "")).strip():
+            items.append({"task": str(d["task"]).strip(),
+                          "owner": str(d.get("owner") or "").strip(),
+                          "due": str(d.get("due") or "").strip(),
+                          "uncertain": bool(d.get("uncertain", False))})
+    return items
+
+
+def _anthropic_action_items(safe_text: str) -> list[dict]:
+    import truststore
+
+    truststore.inject_into_ssl()
+    from anthropic import Anthropic
+
+    from app.config import settings
+
+    client = Anthropic()
+    prompt = _ACTIONS_PROMPT.format(doc=safe_text)
+    msg = client.messages.create(
+        model=settings.anthropic_model,
+        max_tokens=2048,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    raw = "".join(getattr(b, "text", "") for b in msg.content).strip()
+    return _parse_actions(raw)
+
+
+def extract_action_items(safe_text: str, provider: str) -> list[dict]:
+    """Pull `{task, owner, due, uncertain}` action items from the SANITIZED notes. `stub` is deterministic/offline;
+    `anthropic` is a real extraction. The model only ever sees safe text (names arrive as boundary tokens); the
+    cite-or-drop + owner/due-must-be-stated gates downstream verify before anything shows. Degrades to the stub on
+    any model error."""
+    if provider == "anthropic":
+        try:
+            return _anthropic_action_items(safe_text)
+        except Exception:
+            return _stub_action_items(safe_text)
+    return _stub_action_items(safe_text)

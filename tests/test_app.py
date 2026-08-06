@@ -12,7 +12,7 @@ client = TestClient(app)
 def test_hub_lists_tools():
     r = client.get("/")
     assert r.status_code == 200
-    # all four Documents tools are listed on the platform front door
+    # the Documents tools are listed on the platform front door
     for name in ("Summarize", "Ask this document", "Draft from a document", "Extract fields"):
         assert name in r.text
     assert "Documents platform" in r.text            # the product framing
@@ -21,6 +21,16 @@ def test_hub_lists_tools():
     # the read · ask · write · pull-data lanes
     for lane in ("Read", "Ask", "Write", "Pull data"):
         assert lane in r.text
+
+
+def test_hub_shows_a_second_platform():
+    """⭐ Suver is a multi-platform HUB, not one Documents app — the hub groups tools by platform."""
+    r = client.get("/")
+    assert r.status_code == 200
+    assert "Communications platform" in r.text       # platform #2
+    assert "Meeting notes" in r.text                  # its first tool
+    # the Documents platform still renders before Communications (stable order)
+    assert r.text.index("Documents platform") < r.text.index("Communications platform")
 
 
 def test_tool_shell_renders():
@@ -178,6 +188,26 @@ def test_converse_shell_is_a_chat():
     assert r.status_code == 200
     assert "Chat with a document" in r.text
     assert "isChat=true" in r.text                          # the shell renders the chat behaviour
+
+
+def test_meeting_actions_run_produces_a_grounded_table():
+    notes = ("Standup — Tuesday.\n"
+             "Finance will send the revised budget by Friday.\n"
+             "We chatted about the new mugs.\n"
+             "Action item: book the venue.\n")
+    r = client.post("/t/meeting-actions/run", data={"paste": notes})
+    assert r.status_code == 200
+    assert "<table" in r.text
+    assert "budget" in r.text.lower()
+    assert "Finance" in r.text                              # owner shown when stated
+    assert "source ·" in r.text                             # each action cites its line (cite-or-drop)
+    assert "🛡" in r.text                                    # the trust chip
+
+
+def test_meeting_actions_empty_is_honest():
+    r = client.post("/t/meeting-actions/run", data={"paste": "It was a lovely, uneventful afternoon."})
+    assert r.status_code == 200
+    assert "No action items" in r.text
 
 
 def test_healthz():

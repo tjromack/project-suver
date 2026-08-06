@@ -331,3 +331,29 @@ boundary tokens like `[PERSON_NAME_1]` untouched. Also cleans the text grounding
 (and the safe-text spy now covers context); copilot/converse spies accept the `context` kwarg. **81 → 82 tests**,
 all live-verified on `anthropic`. Tuning items (Summarize lead-fact over-withhold; Extractor 50%-flags on
 well-stated amounts) + a cost baseline logged to `../_PLATFORM/BACKLOG.md`, not fixed here.
+
+### DEC 017 — Platform #2: Communications — "Meeting notes → actions" (the 7th tool; proves the hub)
+**Decision.** Open a **second platform** — **Communications** — with its first tool, **"Meeting notes → actions"**:
+drop meeting notes or a transcript → a clean list of **action items** (*who · what · by when*), grounded in the notes.
+Signature discipline: **cite-or-drop the action** (an action that doesn't ground to a source span is withheld, never
+invented) and an **owner or due is shown only if the notes state it** (`_stated` — a boundary name-token must appear
+verbatim; any other value needs ≥60% of its words present in the sanitized doc), so who/when is never guessed. Same
+trust posture as every tool: the model only ever sees Data-Boundary-safe text (names arrive as tokens); values
+re-hydrate locally. Long transcripts map-reduce.
+**Why.** Deepening the Documents platform was done (6 tools); the one unproven claim was that **Suver is a
+multi-platform *hub*, not one Documents app**. A second *named* platform in the hub proves it. "Meetings → action" is
+a universal, high-value job and the natural head of a Communications platform (message triage, reply drafting are the
+next tools). ⭐ **The strongest rails proof yet — it needed NO new contract field** (one document, no query/pick/second
+doc), and it **composes** the extraction + grounding machinery the Documents tools already use. The hub grew a
+`platform`/`lane` concept (`by_platform()` groups tools into ordered sections) so it reads as a product with more than
+one platform.
+**Rules out.** An LLM that invents tasks nobody asked for (cite-or-drop); a guessed owner/deadline (`_stated` gate);
+a prompt box; a whole new app (it's a small add on the existing shell + pipeline).
+**Status.** Accepted. `app/provider.py` (`extract_action_items` + stub/`_parse_actions`), `app/pipeline.py`
+(`ActionItem`/`ActionsOutcome`, `extract_actions`, `_stated`), `app/tools/meeting_actions.py`,
+`app/shell/templates/_actions_result.html`, the hub grouped by platform (`Tool.platform`/`lane`, `by_platform()`),
+`app/tools/__init__.py` registration. `tests/test_actions.py` (grounded + cited · non-action excluded · owner/due
+only-if-stated · owner re-hydrated from a token · `_stated` guards a guessed value · honest empty · the-model-only-
+sees-safe-text · reproducible) + `test_app.py` (2nd platform on the hub · the tool over the route). **82 → 93 tests**;
+**live-verified** with `anthropic` (a product-sync transcript → 4 grounded actions with owners re-hydrated from
+tokens + correct dues; "no decision was made" / "demo went well" correctly excluded). **7 live tools · 2 platforms.**

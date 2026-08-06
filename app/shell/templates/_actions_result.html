@@ -1,0 +1,74 @@
+<style>
+  .res{padding:22px}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:999px;font-size:13px;
+    font-weight:600;background:var(--good-soft);color:var(--good)}
+  .chip.none{background:var(--accent-soft);color:var(--accent)}
+  .metaline{color:var(--faint);font-size:12.5px;margin-top:10px}
+  .note{margin-top:12px;padding:10px 13px;border-radius:10px;background:var(--warn-soft);color:var(--warn);font-size:13px}
+  .tablewrap{margin-top:16px;overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{text-align:left;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);
+    padding:10px 14px;border-bottom:1px solid var(--line);background:var(--accent-soft)}
+  td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  td.task{color:var(--ink);font-weight:500}
+  td.who,td.when{color:var(--muted);white-space:nowrap}
+  td.who .unset,td.when .unset{color:var(--faint);font-style:italic}
+  details.src{margin:7px 0 0}
+  details.src summary{cursor:pointer;color:var(--accent);font-size:12px;font-weight:600;list-style:none}
+  details.src summary::-webkit-details-marker{display:none}
+  details.src summary::before{content:"› ";}
+  details.src[open] summary::before{content:"⌄ ";}
+  .span{margin-top:7px;padding:10px 12px;border-left:3px solid var(--accent);background:var(--accent-soft);
+    border-radius:0 8px 8px 0;font-size:13px;color:var(--muted)}
+  .span .lbl{display:block;color:var(--faint);font-size:11px;font-weight:700;letter-spacing:.03em;margin-bottom:4px}
+  .empty{margin-top:14px;padding:18px;border-radius:12px;background:var(--accent-soft);color:var(--muted)}
+  .blocked{padding:20px;border-radius:12px;background:var(--warn-soft);color:var(--warn)}
+  .blocked strong{display:block;margin-bottom:4px;font-size:15px}
+</style>
+
+<div class="panel res">
+  {% if r.handled_count > 0 %}
+    <span class="chip">🛡 {{ r.handled_note }}</span>
+  {% else %}
+    <span class="chip none">🛡 {{ r.handled_note }}</span>
+  {% endif %}
+  <div class="metaline">
+    Action items · boundary: <strong>{{ r.decision }}</strong>
+    {% if r.handled_classes %}· handled: {{ r.handled_classes | join(", ") }}{% endif %}
+    · source: {{ r.doc_kind }} ({{ "{:,}".format(r.source_chars) }} chars) · found by: {{ r.provider }}
+  </div>
+
+  {% if r.blocked %}
+    <div class="blocked" style="margin-top:14px"><strong>Nothing sent.</strong> {{ r.block_message }}</div>
+  {% elif r.empty %}
+    <div class="empty">{{ r.empty_note }} <span class="faint">— nothing was invented to fill the list.</span></div>
+  {% else %}
+    {% if r.note %}<div class="note">{{ r.note }}</div>{% endif %}
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Action</th><th>Owner</th><th>Due</th></tr></thead>
+        <tbody>
+          {% for a in r.items %}
+            <tr>
+              <td class="task">
+                {{ a.task }}
+                <details class="src">
+                  <summary>source · {{ a.span_id }} · support {{ "%.0f"|format(a.support*100) }}%</summary>
+                  <div class="span"><span class="lbl">FROM YOUR NOTES — {{ a.span_id }}</span>{{ a.span_text }}</div>
+                </details>
+              </td>
+              <td class="who">{% if a.owner %}{{ a.owner }}{% else %}<span class="unset">—</span>{% endif %}</td>
+              <td class="when">{% if a.due %}{{ a.due }}{% else %}<span class="unset">—</span>{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="metaline" style="margin-top:12px">
+      Every action cites the line it came from; an owner or due is shown only when the notes state it — never guessed.
+      {% if r.withheld_count %}· {{ r.withheld_count }} candidate{{ "" if r.withheld_count == 1 else "s" }} withheld
+      (couldn’t be grounded to the notes).{% endif %}
+    </div>
+  {% endif %}
+</div>

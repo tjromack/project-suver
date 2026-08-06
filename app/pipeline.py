@@ -11,6 +11,7 @@ Fail-closed: if the boundary decides `route_local`/`block`, `safe_text` is `None
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from difflib import SequenceMatcher
@@ -24,7 +25,14 @@ from app._engines.extract import default_fieldset, get_fieldset, score_item
 from app._engines.summarize import Span, content_tokens, ground, split_document, support
 from app.config import settings
 from app.ingest import IngestResult, extract_text, from_paste
-from app.provider import NOT_IN_DOCUMENT, draft_answer, draft_candidates, draft_section, extract_items
+from app.provider import (
+    NOT_IN_DOCUMENT,
+    draft_answer,
+    draft_candidates,
+    draft_section,
+    extract_action_items,
+    extract_items,
+)
 from app.sessions import ConverseTurn, create_session, get_session
 
 
@@ -788,3 +796,132 @@ def converse_document(filename: str, data: bytes | str, question: str, *, provid
 def converse_paste(text: str, question: str, *, provider: str | None = None) -> ConverseResult:
     r = from_paste(text)
     return converse_start(r.text, question, doc_kind=r.kind, provider=provider)
+
+
+# --- Communications · Meeting notes → action items: cite-or-drop the action; owner/due only if stated ------------
+
+
+@dataclass(frozen=True)
+class ActionItem:
+    task: str            # the action, re-hydrated for local display
+    owner: str = ""      # who is responsible — only if the notes state it (re-hydrated; may be a real name)
+    due: str = ""        # the deadline — only if the notes state it
+    span_id: str = ""    # the cited source span
+    span_text: str = ""  # the cited span's text, re-hydrated
+    support: float = 0.0
+
+
+@dataclass(frozen=True)
+class ActionsOutcome:
+    items: list = field(default_factory=list)      # ActionItem
+    withheld_count: int = 0                         # actions dropped because they didn't ground (cite-or-drop)
+    handled_count: int = 0
+    handled_classes: list = field(default_factory=list)
+    decision: str = "clear"
+    provider: str = "stub"
+    doc_kind: str = "text"
+    source_chars: int = 0
+    empty: bool = False
+    empty_note: str | None = None
+    note: str | None = None
+    blocked: bool = False
+    block_message: str | None = None
+
+    @property
+    def handled_note(self) -> str:
+        n = self.handled_count
+        if n == 0:
+            return "No sensitive items detected"
+        return f"{n} sensitive {'item' if n == 1 else 'items'} handled before the model"
+
+
+_WORD_RX = re.compile(r"[A-Za-z0-9]+")
+
+
+def _stated(value: str, safe_text_lower: str) -> str:
+    """Return `value` only if the document actually states it — else "". Guards against a **guessed** owner or
+    deadline: a boundary name-token must appear verbatim; any other value must have ≥60% of its words present in
+    the (sanitized) document. So an owner/due is shown only when the notes contain it, never inferred."""
+    v = (value or "").strip()
+    if not v:
+        return ""
+    if v.startswith("[") and v.endswith("]"):            # a boundary token (e.g. a name) — must be present verbatim
+        return v if v.lower() in safe_text_lower else ""
+    words = _WORD_RX.findall(v.lower())
+    if not words:
+        return ""
+    hits = sum(1 for w in words if w in safe_text_lower)
+    return v if hits / len(words) >= 0.6 else ""
+
+
+def extract_actions(text: str, *, doc_kind: str = "text", provider: str | None = None) -> ActionsOutcome:
+    """Turn meeting notes / a transcript into a clean list of action items — **who, what, by when** — grounded in the
+    notes. Trust posture: the model only ever sees sanitized text (names arrive as boundary tokens); every action is
+    **cite-or-drop** (it must ground to a source span, or it's withheld — never invented); an **owner or due is shown
+    only if the notes state it** (`_stated`), never guessed; values re-hydrate locally. Map-reduces a long transcript."""
+    provider = provider or settings.provider
+    doc = sanitize(text, default_policy())
+    base = dict(
+        handled_count=len(doc.spans), handled_classes=doc.classes, decision=doc.decision,
+        provider=provider, doc_kind=doc_kind, source_chars=len(text),
+    )
+
+    if doc.safe_text is None:
+        return ActionsOutcome(**base, blocked=True,
+                              block_message=_BLOCK_MSG.format(classes=", ".join(doc.classes) or "restricted content"))
+
+    safe_text = doc.safe_text
+    safe_lower = safe_text.lower()
+    spans = split_document(safe_text)
+
+    # One pass for short notes; MAP-REDUCE over windows for a long transcript so actions from the WHOLE thing are caught.
+    windows = _text_windows(safe_text, settings.max_draft_chars)
+    truncated = len(windows) > settings.max_chunks
+    windows = windows[: settings.max_chunks]
+    raw_items: list[dict] = []
+    for w in windows:
+        raw_items += extract_action_items(w, provider)
+    covered = sum(len(w) for w in windows)
+    note = _long_doc_note("scanned", covered, len(safe_text), len(windows), truncated)
+
+    tmap = doc.token_map
+    seen: set[str] = set()
+    items, withheld = [], 0
+    for it in raw_items:
+        task = (it.get("task") or "").strip()
+        if not task:
+            continue
+        best, best_s = None, 0.0
+        for sp in spans:                                  # cite-or-drop: the action must ground to a source span
+            s = support(task, sp.text)
+            if s > best_s:
+                best_s, best = s, sp
+        if best is None or best_s < settings.ground_threshold:
+            withheld += 1
+            continue
+        key = task.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        items.append(ActionItem(
+            task=rehydrate(task, tmap),
+            owner=rehydrate(_stated(it.get("owner", ""), safe_lower), tmap),
+            due=rehydrate(_stated(it.get("due", ""), safe_lower), tmap),
+            span_id=best.id, span_text=rehydrate(best.text, tmap), support=round(best_s, 4)))
+        if len(items) >= settings.extract_max_items:
+            break
+
+    if not items:
+        return ActionsOutcome(**base, empty=True,
+                              empty_note="No action items were stated in these notes.", note=note)
+    return ActionsOutcome(**base, items=items, withheld_count=withheld, note=note)
+
+
+def actions_document(filename: str, data: bytes | str, *, provider: str | None = None) -> ActionsOutcome:
+    r: IngestResult = extract_text(filename, data)
+    return extract_actions(r.text, doc_kind=r.kind, provider=provider)
+
+
+def actions_paste(text: str, *, provider: str | None = None) -> ActionsOutcome:
+    r = from_paste(text)
+    return extract_actions(r.text, doc_kind=r.kind, provider=provider)

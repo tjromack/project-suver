@@ -5,10 +5,10 @@ suite becomes: an AI **tool hub that removes the prompt.** This repo is Suver's 
 the hub launcher, and the tools). `DESIGN.md` holds the original spec (written when Summarize was the pilot); this
 file is the *how we work* contract. Product North Star: `../_PLATFORM/VISION.md`.
 
-## What this is  *(status: the Documents platform is 6 live tools, 2026-08-05)*
-A **consumer-grade tool platform** on one shell — *read · ask · write · pull data · compare · chat* — each tool: bring
-only your input (one or two documents; at most a plain **question** or a **pick**), get the output; **no prompt, no
-config**; sensitive data **sanitized before the model** and re-hydrated locally.
+## What this is  *(status: a multi-platform hub — 7 live tools across 2 platforms, 2026-08-06)*
+A **consumer-grade tool hub** on one shell — each tool: bring only your input (one or two documents; at most a plain
+**question** or a **pick**), get the output; **no prompt, no config**; sensitive data **sanitized before the model**
+and re-hydrated locally. **Platform #1 — Documents** (*read · ask · write · pull data · compare · chat*):
 - **Summarize** — drop a document → a **cited** summary (every claim cites a source span; unsupported ones withheld).
 - **Copilot ("Ask this document")** — ask a plain question → a grounded, **cited** answer, or an honest "not in
   your document" (**abstention** over hallucination).
@@ -19,13 +19,18 @@ config**; sensitive data **sanitized before the model** and re-hydrated locally.
 - **Compare ("Compare two documents")** — drop two docs, pick a field-set → every difference, **type-aware** (money
   tolerance · dates normalized · fuzzy strings), grounded in both; the tool **never picks a winner** (first two-document tool).
 - **Converse ("Chat with a document")** — add a document, then **ask questions in a conversation** (follow-ups and all);
-  grounded or an honest "not in your document" (the platform's first **multi-turn** tool — conversation state).
+  grounded or an honest "not in your document" (the Documents platform's first **multi-turn** tool — conversation state).
+
+**Platform #2 — Communications** (the hub is not one Documents app):
+- **Meeting notes → actions** — drop meeting notes or a transcript → a list of **action items** (*who · what · by
+  when*), grounded in the notes; **cite-or-drop the action** (never invented) and an **owner or due only if the notes
+  state it** (never guessed). The first Communications tool.
 
 It **composes built engines** (vendored lean cores, not forks): `phi-pii-data-boundary` (sanitize, under every
 tool) · `summarize-brief-generator` (split + cite-or-drop) · `draft-template-responder` (template + cite-or-block)
 · `document-structured-extractor` (type parsers + confidence gate) · `two-source-comparator` (type-aware compare
 rules + the "explain, never decide" coherence guard). It also fixes the **tool-app contract**
-(`input → [sanitize] → engine → output` + one shared shell + hub) that every tool reuses — proven ×6 (a *question* → `query`; two *picks* → `choice`; a *second document* → `data2`; a *conversation* → `session`/`is_chat`). Long
+(`input → [sanitize] → engine → output` + one shared shell + hub) that every tool reuses — proven ×7 (a *question* → `query`; two *picks* → `choice`; a *second document* → `data2`; a *conversation* → `session`/`is_chat`; and a **second platform** that needed **no new field at all** — Meeting-actions is one document + the shared extract/ground machinery). The hub groups tools by `platform` (`by_platform()`). Long
 docs are handled (200K single-call window + map-reduce). Provider `anthropic | stub`; the **product defaults to
 the real model** when a key is present.
 
