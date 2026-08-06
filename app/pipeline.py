@@ -1163,8 +1163,9 @@ class AskTableOutcome:
     query: str = ""
     answer: str | None = None                       # the computed answer, in words
     operation: str = ""                             # a plain description of what was computed (auditable)
-    columns: list = field(default_factory=list)     # header row of the supporting rows
+    columns: list = field(default_factory=list)     # header row of the supporting rows (or the grouped table)
     rows: list = field(default_factory=list)        # the supporting rows (the cells the answer came from)
+    grouped: bool = False                           # True → rows are group→value results, not raw source rows
     n_matched: int = 0                              # how many rows the operation covered
     handled_count: int = 0
     handled_classes: list = field(default_factory=list)
@@ -1213,9 +1214,16 @@ def _filter_indices(table: TableData, filt: dict | None) -> list[int]:
     return out
 
 
+def _aggregate(nums: list[float], agg: str):
+    if not nums:
+        return None
+    return {"sum": sum(nums), "avg": sum(nums) / len(nums), "min": min(nums), "max": max(nums)}.get(agg)
+
+
 def _execute_plan(table: TableData, plan: dict):
-    """Run the model's PLAN deterministically over the local data → (answer, operation, matched_indices) or None to
-    abstain. The arithmetic happens here, never in the model — so the number is exact and traces to real rows."""
+    """Run the model's PLAN deterministically over the local data → (answer, operation, matched_indices, grouped) or
+    None to abstain. `grouped` is None for row ops, or (columns, rows) for a group-by result. The arithmetic happens
+    here, never in the model — so the number is exact and traces to real rows."""
     if not isinstance(plan, dict) or plan.get("answerable") is False:
         return None
     op = str(plan.get("op") or "").lower()
@@ -1226,28 +1234,64 @@ def _execute_plan(table: TableData, plan: dict):
     idx = _filter_indices(table, filt)
 
     if op == "count":
-        return (f"{len(idx):,}", f"Count of rows{where}", idx)
+        return (f"{len(idx):,}", f"Count of rows{where}", idx, None)
 
     if op == "aggregate":
         ci = table.col_index(str(plan.get("column", "")))
         if ci < 0 or ci not in table.numeric_cols:
             return None
         agg = str(plan.get("agg") or "sum").lower()
-        nums = [table.numbers(ci)[i] for i in idx]
-        nums = [n for n in nums if n is not None]
-        if not nums:
-            return None
-        val = {"sum": sum(nums), "avg": sum(nums) / len(nums), "min": min(nums), "max": max(nums)}.get(agg)
+        val = _aggregate([n for i in idx if (n := table.numbers(ci)[i]) is not None], agg)
         if val is None:
             return None
         label = _AGG_LABEL.get(agg, agg.capitalize())
+        n = sum(1 for i in idx if table.numbers(ci)[i] is not None)
         return (f"{label} of {table.headers[ci]}{where}: {_fmt_num(val)}",
-                f"{label} of “{table.headers[ci]}”{where} — over {len(nums)} value(s)", idx)
+                f"{label} of “{table.headers[ci]}”{where} — over {n} value(s)", idx, None)
+
+    if op == "groupby":
+        gci = table.col_index(str(plan.get("group_column", "")))
+        agg = str(plan.get("agg") or "sum").lower()
+        if gci < 0:
+            return None
+        nci = table.col_index(str(plan.get("column", "")))
+        if agg != "count" and (nci < 0 or nci not in table.numeric_cols):
+            return None
+        groups: dict[str, list[int]] = {}
+        for i in idx:
+            key = (table.rows[i][gci] if gci < len(table.rows[i]) else "").strip() or "(blank)"
+            groups.setdefault(key, []).append(i)
+        results = []
+        for key, members in groups.items():
+            val = float(len(members)) if agg == "count" else \
+                _aggregate([n for m in members if (n := table.numbers(nci)[m]) is not None], agg)
+            if val is not None:
+                results.append((key, val))
+        if not results:
+            return None
+        order = str(plan.get("order") or "desc").lower()
+        results.sort(key=lambda t: t[1], reverse=(order != "asc"))
+        top = plan.get("top")
+        num_name = "rows" if agg == "count" else table.headers[nci]
+        gname = table.headers[gci]
+        label = "Count" if agg == "count" else _AGG_LABEL.get(agg, agg.capitalize())
+        cols = [gname, f"{label} of {num_name}"]
+        grouped = (cols, [[k, _fmt_num(v)] for k, v in results])
+        if top == 1:
+            k, v = results[0]
+            sup = "highest" if order != "asc" else "lowest"
+            answer = f"{k} — {label.lower()} of {num_name} is {_fmt_num(v)} (the {sup} of {len(results)} {gname} groups)"
+            operation = f"{label} of “{num_name}” by “{gname}”{where}, ranked {order} — top group"
+            grouped = (cols, [[k, _fmt_num(v)]])
+        else:
+            answer = f"{label} of {num_name} by {gname}{where} — {len(results)} groups (see below)"
+            operation = f"{label} of “{num_name}” grouped by “{gname}”{where}"
+        return (answer, operation, idx, grouped)
 
     if op == "filter":
         if not idx:
             return None
-        return (f"{len(idx):,} row(s) match{where}.", f"Rows{where}", idx)
+        return (f"{len(idx):,} row(s) match{where}.", f"Rows{where}", idx, None)
 
     return None
 
@@ -1284,7 +1328,12 @@ def ask_table(text: str, query: str, *, doc_kind: str = "text", provider: str | 
     if result is None:
         return AskTableOutcome(**base, answered=False, abstained=True, answer=_SPREADSHEET_ABSTAIN)
 
-    answer, operation, idx = result
+    answer, operation, idx, grouped = result
+    if grouped is not None:                                # a group-by result → show the grouped table, not raw rows
+        columns, rows = grouped
+        return AskTableOutcome(**base, answered=True, answer=answer, operation=operation,
+                               columns=columns, rows=rows[: settings.table_max_rows_shown],
+                               n_matched=len(idx), grouped=True)
     show = idx[: settings.table_max_rows_shown]
     rows = [table.rows[i] for i in show]
     return AskTableOutcome(**base, answered=True, answer=answer, operation=operation,

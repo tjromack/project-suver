@@ -454,3 +454,20 @@ the hub · the route). **113 → 130 tests**; **live-verified** with `anthropic`
 West region" = 19,200 over 3 rows; "Alice's units" = 180; out-of-table + argmax questions abstained). **10 live tools ·
 3 platforms (Documents 6 · Communications 3 · Data & Analysis 1).** *(v1 supports aggregate/count/filter; group-by /
 argmax "which X has the most Y" is a logged enhancement.)*
+
+### DEC 022 — Spreadsheet: add group-by / argmax ("which X has the most Y?")
+**Decision.** Extend "Ask your spreadsheet" (DEC 021) with a **groupby** operation — group rows by a text column,
+aggregate a number column per group, and (optionally) return the single top/bottom group. Closes the one gap the
+DEC 021 live check exposed: "which product had the highest revenue?" used to (honestly) abstain; it now computes.
+Same discipline — **the model plans, the code computes**: the plan grew `group_column` · `top` · `order`, and
+`_execute_plan` does the grouping + per-group aggregation + ranking deterministically (numbers exact, results shown
+as a small group→value table). `agg="count"` groups by frequency ("how many per category").
+**Why.** Group-by / argmax is the most common real spreadsheet question after a plain total; abstaining on it was the
+biggest usability gap. Keeping the compute in code preserves the exact-numbers guarantee.
+**Rules out.** The model computing the ranking; a guessed winner (it's the deterministic top of the computed groups).
+**Status.** Accepted. `app/provider.py` (plan schema + `_stub_plan` groupby routing via argmax/argmin/"by"/"per"
+words), `app/pipeline.py` (`_execute_plan` groupby branch → a 4-tuple with a `grouped` table; `AskTableOutcome.grouped`),
+`_spreadsheet_result.html` (grouped-results label). `tests/test_spreadsheet.py` (argmax winner exact · all-groups sum ·
+argmin). **130 → 132 tests**; **live-verified** with `anthropic` (Product by highest revenue → Gadget 9,450; revenue by
+region → West 19,200 / East 7,650; fewest units → Carol). Closes the group-by/argmax BACKLOG item; multi-column
+filters / sort-top-N / XLSX remain logged.

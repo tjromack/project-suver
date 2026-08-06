@@ -23,7 +23,8 @@ and this repo's flagship pilot — is **Summarize**.
 > guessed), and **Draft a reply** (paste a message + pick an intent → a grounded reply that leaves [placeholders]
 > for the unknown and never invents specifics). **Platform #3 — Data & Analysis**: **Ask your spreadsheet** (add a
 > CSV + a plain question → an **exact answer computed from your rows**, showing the cells it used — the model plans,
-> the code computes; unanswerable → honest abstention). 130 tests (stub-backed,
+> the code computes — totals, averages, counts, value-filters, and group-by/"which X has the most Y"; unanswerable
+> → honest abstention). 132 tests (stub-backed,
 > no network); verified end-to-end on real PDFs/transcripts/CSVs with both the offline `stub` and the real `anthropic`
 > model. Sensitive data is sanitized before the model and re-hydrated only in the local view — on every tool. The
 > reusable **shell + hub + tool-app contract** made each tool a small add (a *question*, two *picks*, a *second

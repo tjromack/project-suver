@@ -116,9 +116,11 @@ West,Dan,Gizmo,200,9000
 ```
 Ask **"What is the total revenue in the West region?"** → **19,200** with the **HOW** line (*Total of "Revenue" where
 Region = "West"*) and the **exact rows** it used. Try **"How many units did Alice sell?"** (→ 180), **"average
-revenue per row?"**, **"how many rows are there?"**. Then ask something not in the table (**"What was the weather
-last Tuesday?"**) → an honest **abstention**. *(The number is computed in code over your full data — the model only
-picked which calculation to run, and only ever saw a small sample.)*
+revenue per row?"**, **"how many rows are there?"**. **Group-by / argmax:** ask **"Which product had the highest
+revenue?"** → **Gadget (9,450)** with a grouped table; **"revenue by region?"** → West 19,200 · East 7,650. Then ask
+something not in the table (**"What was the weather last Tuesday?"**) → an honest **abstention**. *(Numbers are
+computed in code over your full data — the model only picked which calculation to run, and only ever saw a small
+sample.)*
 
 ---
 

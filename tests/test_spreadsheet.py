@@ -30,9 +30,27 @@ def test_filter_aggregate_is_exact():
     t = parse_table(CSV)
     plan = {"op": "aggregate", "column": "Revenue", "agg": "sum",
             "filter": {"column": "Region", "match": "eq", "value": "West"}, "answerable": True}
-    answer, operation, idx = _execute_plan(t, plan)
+    answer, operation, idx, grouped = _execute_plan(t, plan)
     assert "10,200" in answer                            # West only: 4800 + 5400
-    assert len(idx) == 2
+    assert len(idx) == 2 and grouped is None
+
+
+def test_groupby_argmax_returns_the_winning_group():
+    """⭐ 'which X has the most Y' — group by a text column, aggregate a number, return the top group (exact)."""
+    r = ask_table(CSV, "Which product had the highest total revenue?")
+    assert r.answered and r.grouped
+    # Widget: 4800+3600 = 8400 ; Gadget: 5400+4050 = 9450 → Gadget wins
+    assert r.answer.startswith("Gadget") and "9,450" in r.answer
+
+
+def test_groupby_all_groups_sum_correctly():
+    t = parse_table(CSV)
+    plan = {"op": "groupby", "group_column": "Region", "column": "Revenue", "agg": "sum",
+            "top": None, "order": "desc", "filter": None, "answerable": True}
+    answer, operation, idx, grouped = _execute_plan(t, plan)
+    cols, rows = grouped
+    got = {row[0]: row[1] for row in rows}
+    assert got["West"] == "10,200" and got["East"] == "7,650"   # 4800+5400 ; 3600+4050
 
 
 def test_abstains_when_unanswerable():

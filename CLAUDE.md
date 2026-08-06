@@ -34,9 +34,10 @@ and re-hydrated locally. **Platform #1 — Documents** (*read · ask · write ·
 
 **Platform #3 — Data & Analysis** (a tabular, non-prose modality — the hub scales past documents):
 - **Ask your spreadsheet** — add a CSV (or paste a table) + a plain question → an **exact answer computed from the
-  rows**, showing the cells it used. **The model plans, the code computes**: the model picks the operation/columns,
-  the pipeline does the arithmetic deterministically (numbers always right). Unanswerable → honest abstention. The
-  model sees only the **schema + a small sanitized sample**, never the full dataset.
+  rows**, showing the cells it used. **The model plans, the code computes**: the model picks the operation/columns
+  (totals · averages · counts · value-filters · **group-by / "which X has the most Y"**), the pipeline does the
+  arithmetic deterministically (numbers always right). Unanswerable → honest abstention. The model sees only the
+  **schema + a small sanitized sample**, never the full dataset.
 
 It **composes built engines** (vendored lean cores, not forks): `phi-pii-data-boundary` (sanitize, under every
 tool) · `summarize-brief-generator` (split + cite-or-drop) · `draft-template-responder` (template + cite-or-block)

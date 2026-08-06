@@ -47,7 +47,11 @@
     </div>
     {% if r.rows %}
       <div class="cited">
-        <div class="lbl">FROM YOUR DATA — the rows this used{% if r.n_matched > r.rows|length %} (showing {{ r.rows|length }} of {{ "{:,}".format(r.n_matched) }}){% endif %}</div>
+        {% if r.grouped %}
+          <div class="lbl">GROUPED RESULTS — computed per group over {{ "{:,}".format(r.n_matched) }} row(s)</div>
+        {% else %}
+          <div class="lbl">FROM YOUR DATA — the rows this used{% if r.n_matched > r.rows|length %} (showing {{ r.rows|length }} of {{ "{:,}".format(r.n_matched) }}){% endif %}</div>
+        {% endif %}
         <div class="tablewrap">
           <table>
             <thead><tr>{% for h in r.columns %}<th>{{ h }}</th>{% endfor %}</tr></thead>

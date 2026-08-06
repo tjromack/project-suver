@@ -659,12 +659,17 @@ _PLAN_PROMPT = (
     "You turn a question about a table into a STRUCTURED PLAN that will be executed deterministically over the data. "
     "You do NOT compute or state the answer yourself — only the plan.\n"
     "The table's columns:\n{schema}\n\nA few sample rows (for context only):\n{sample}\n\n"
-    'Return ONLY a JSON object: {{"op": "aggregate"|"count"|"filter", "column": "<column name or null>", '
-    '"agg": "sum"|"avg"|"min"|"max"|null, "filter": {{"column": "<column>", "match": "eq"|"contains", '
-    '"value": "<value from the question>"}} | null, "answerable": true}}\n'
+    'Return ONLY a JSON object: {{"op": "aggregate"|"count"|"filter"|"groupby", '
+    '"column": "<number column, or null>", "group_column": "<text column for groupby, or null>", '
+    '"agg": "sum"|"avg"|"min"|"max"|"count"|null, "top": <integer or null>, "order": "desc"|"asc"|null, '
+    '"filter": {{"column": "<column>", "match": "eq"|"contains", "value": "<value from the question>"}} | null, '
+    '"answerable": true}}\n'
     "Rules:\n"
     "- aggregate: a sum/average/min/max over a NUMBER column (set `agg` and `column`). count: how many rows match. "
     "filter: return the matching rows (optionally `column` = one column to show).\n"
+    "- groupby: group rows by a TEXT column and aggregate a NUMBER column per group — use for \"which X has the "
+    "most/least Y\" or \"Y by X\" (set `group_column` + `column` + `agg`; for the single winner set `top`=1 and "
+    "`order`=desc for most / asc for least).\n"
     "- `filter.value` comes from the QUESTION (what the user filters by); `match` is eq for exact, contains for partial.\n"
     "- Use ONLY the exact column names listed above. If the question can't be answered from these columns, set "
     '`answerable` to false.\n'
@@ -675,28 +680,54 @@ _PLAN_PROMPT = (
 _AGG_WORDS = {"sum": "sum", "total": "sum", "add": "sum", "average": "avg", "avg": "avg", "mean": "avg",
               "max": "max", "maximum": "max", "highest": "max", "largest": "max", "most": "max",
               "min": "min", "minimum": "min", "lowest": "min", "smallest": "min"}
+_EXPLICIT_AGG = {"sum": "sum", "total": "sum", "average": "avg", "avg": "avg", "mean": "avg", "count": "count"}
+_ARGMAX_WORDS = ("which", "most", "highest", "largest", "top", "biggest", "greatest", "best")
+_ARGMIN_WORDS = ("lowest", "smallest", "least", "fewest", "worst")
+
+
+def _plan(op, **kw):
+    base = {"op": op, "column": None, "group_column": None, "agg": None, "top": None, "order": None,
+            "filter": None, "answerable": True}
+    base.update(kw)
+    return base
 
 
 def _stub_plan(schema_headers: list[str], numeric_headers: list[str], question: str) -> dict:
-    """Deterministic offline planner — match an aggregate word + a column name from the question; else count. Enough
-    to run the flow offline for tests; the shipped planner is the `anthropic` path."""
+    """Deterministic offline planner — routes group-by / aggregate / count questions by keyword + a column mention;
+    else abstains. Enough to run the flow offline for tests; the shipped planner is the `anthropic` path."""
     q = (question or "").lower()
-    agg = next((v for k, v in _AGG_WORDS.items() if _re.search(rf"\b{k}\b", q)), None)
-    # a column mentioned in the question (prefer a numeric one for aggregates)
+    text_headers = [h for h in schema_headers if h not in numeric_headers]
+
     def find_col(cols):
         return next((h for h in cols if h and h.lower() in q), None)
+
+    is_argmax = any(w in q for w in _ARGMAX_WORDS)
+    is_argmin = any(w in q for w in _ARGMIN_WORDS)
+
+    # groupby: a text column mentioned + an argmax/argmin word or "by"/"per"
+    gcol = find_col(text_headers)
+    if gcol and (is_argmax or is_argmin or " by " in q or "per " in q):
+        ncol = find_col(numeric_headers) or (numeric_headers[0] if numeric_headers else None)
+        if ncol:
+            expl = next((v for k, v in _EXPLICIT_AGG.items() if _re.search(rf"\b{k}\b", q)), None)
+            return _plan("groupby", group_column=gcol, column=ncol, agg=expl or "sum",
+                         top=1 if (is_argmax or is_argmin) else None, order="asc" if is_argmin else "desc")
+
     if "how many" in q or "count" in q or "number of rows" in q:
-        return {"op": "count", "column": None, "agg": None, "filter": None, "answerable": True}
+        return _plan("count")
+
+    agg = next((v for k, v in _AGG_WORDS.items() if _re.search(rf"\b{k}\b", q)), None)
     if agg:
         col = find_col(numeric_headers) or (numeric_headers[0] if numeric_headers else None)
         if col:
-            return {"op": "aggregate", "column": col, "agg": agg, "filter": None, "answerable": True}
+            return _plan("aggregate", column=col, agg=agg)
+
     col = find_col(schema_headers)
     if col:
-        return {"op": "filter", "column": col, "agg": None, "filter": None, "answerable": True}
+        return _plan("filter", column=col)
     # Nothing in the question maps to this table → abstain (never guess an operation). The anthropic planner handles
     # value-filters ("the West rows") that this offline heuristic can't.
-    return {"op": "filter", "column": None, "agg": None, "filter": None, "answerable": False}
+    return _plan("filter", answerable=False)
 
 
 def _parse_plan(raw: str) -> dict | None:
