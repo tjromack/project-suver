@@ -67,6 +67,28 @@ def best_span(claim_text: str, spans: list[Span]) -> tuple[Span | None, float]:
     return best, (best_score if best is not None else 0.0)
 
 
+def best_window(claim_text: str, spans: list[Span], max_span: int = 2) -> tuple[Span | None, float]:
+    """Best support over any **contiguous run of ≤ `max_span` spans**, with the anchor span (highest single-span
+    support in that window) for the citation. A summary point legitimately compresses 1–2 adjacent sentences, so a
+    true lead fact whose tokens split across two sentences ("active from 330 to 1453, headquartered at X") should
+    ground — while a fabrication (tokens in no window) still won't. Verifying against an adjacent-sentence window is
+    a faithful claim: every token appears in this short, contiguous stretch of the user's document."""
+    if not spans:
+        return None, 0.0
+    best_anchor: Span | None = None
+    best_score = -1.0
+    n = len(spans)
+    for i in range(n):
+        combined = ""
+        for j in range(i, min(i + max_span, n)):
+            combined = (combined + " " + spans[j].text) if combined else spans[j].text
+            s = support(claim_text, combined)
+            if s > best_score:
+                best_score = s
+                best_anchor = max(spans[i : j + 1], key=lambda sp: support(claim_text, sp.text))
+    return best_anchor, (best_score if best_anchor is not None else 0.0)
+
+
 @dataclass(frozen=True)
 class GroundedClaim:
     section_key: str
@@ -101,11 +123,13 @@ class GroundingResult:
 
 
 def ground(candidates: list[Candidate], spans: list[Span], threshold: float) -> GroundingResult:
-    """Verify each candidate against the spans; keep (cited) if support ≥ threshold, else drop and surface."""
+    """Verify each candidate against the spans; keep (cited) if support ≥ threshold, else drop and surface.
+    Support is measured over the best contiguous ≤2-span window (a summary point may compress two adjacent
+    sentences), cited to the anchor span — so a true multi-sentence lead fact grounds, a fabrication still doesn't."""
     kept: list[GroundedClaim] = []
     dropped: list[Dropped] = []
     for c in candidates:
-        sp, score = best_span(c.text, spans)
+        sp, score = best_window(c.text, spans)
         score = round(score, 4)
         if sp is not None and score >= threshold:
             kept.append(GroundedClaim(c.section_key, c.text, sp.id, score, c.kind, c.salience))

@@ -43,6 +43,24 @@ def test_fabricated_claim_is_withheld():
     assert any("merger" in t for t in dropped_texts)
 
 
+def test_multi_sentence_fact_grounds_via_the_span_window():
+    """⭐ 08-06 Demo tuning: a true lead fact whose tokens split across two ADJACENT sentences must ground (over the
+    contiguous window) — not be over-withheld by single-span support — while a fabrication still stays withheld."""
+    doc = ("The Byzantine navy was a direct continuation of its Roman predecessor. "
+           "It remained active from 330 to 1453 and was headquartered at Constantinople.")
+    spans = split_document(doc)
+    # this claim's tokens are split across the two sentences ("continuation" + "330…1453…Constantinople")
+    split_fact = Candidate(section_key="key_points",
+                           text="The navy was a continuation of Rome, active from 330 to 1453 at Constantinople.")
+    fabricated = Candidate(section_key="key_points",
+                           text="The navy operated forty aircraft carriers in the Pacific in 1990.")
+    result = ground([split_fact, fabricated], spans, settings.ground_threshold)
+    kept = [k.text for k in result.kept]
+    dropped = [d.text for d in result.dropped]
+    assert any("continuation of Rome" in t for t in kept), "a two-sentence lead fact should ground via the window"
+    assert any("aircraft carriers" in t for t in dropped), "a fabrication must still be withheld"
+
+
 def test_pipeline_is_reproducible():
     a = summarize_text(DOC)
     b = summarize_text(DOC)

@@ -255,7 +255,9 @@ _EXTRACT_PROMPT = (
     'Return ONLY a JSON array of objects, each: {{"label": "...", "value": "...", "uncertain": false}}.\n'
     "- Use ONLY information stated in the document; never invent a value.\n"
     "- Return the **most important ~25 items at most** (favor the clearest, most significant).\n"
-    '- Set "uncertain": true for any item you are unsure about.\n'
+    '- Set "uncertain": true ONLY when the value is genuinely ambiguous, estimated, or you had to interpret it —\n'
+    "  NOT for a value that is clearly stated in the document (a clearly-stated figure is certain even if it is\n"
+    "  large or approximate-sounding, e.g. \"over $29 trillion\").\n"
     "- If the document contains none of this, return [].\n"
     "- Keep bracketed tokens like [EMAIL_1] exactly as written.\n\n"
     "DOCUMENT:\n{doc}"

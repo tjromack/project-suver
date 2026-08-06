@@ -402,3 +402,27 @@ changes output · unknown-intent fallback · invented-specifics flagged · stub 
 safe-text · reproducible) + `test_app.py` (intent select · the route). **102 → 112 tests**; **live-verified** with
 `anthropic` (a real scheduling message → Answer/Ask-for-detail/Decline drafts, each grounded, unknowns as
 placeholders, zero invented specifics). **9 live tools · Communications now has 3 (triage · reply · meeting-actions).**
+
+### DEC 020 — Documents tuning from the 08-06 Demo: Summarize span-window grounding + Extractor over-flag fix
+**Context.** Trevor's 08-06 Demo surfaced two over-cautious behaviors (both safe/transparent, but they undersold the
+tools). Fixed both without weakening any trust discipline.
+
+**1 — Summarize over-withheld true lead facts.** Byzantine lead facts (navy "active from 330 to 1453…") were withheld
+at support **0.43–0.45 < 0.60** because grounding measured support against the single **best span**, but the fact's
+tokens split across two adjacent sentences. **Fix:** ground each summary claim against the best **contiguous ≤2-span
+window** (a summary point legitimately compresses 1–2 adjacent sentences), cited to the anchor span — so a true
+multi-sentence fact grounds while a fabrication (tokens in no window) still doesn't. Scoped to Summarize (`ground()`
+is used nowhere else). `app/_engines/summarize/ground.py` (`best_window`); +1 regression test. **Live-verified:**
+the "330 to 1453" fact now grounds at **0.75** (kept); withheld 2 → 1 (the one remaining is genuinely borderline at
+0.57, shown transparently).
+
+**2 — Extractor flagged clearly-stated amounts at 50%.** FSOC amounts ($38T Treasury debt, $1.5B DPRK, …) sat at
+50% · review because the **model** marked them `uncertain=true` (min(validation=1.0, model=0.5)=0.5), even though
+they type-validate cleanly. **Fix at the source** (keeps the `min(validation, model)` gate fully intact): tightened
+the extract prompt so the model sets `uncertain` **only** for genuinely ambiguous/estimated/interpreted values —
+NOT for a clearly-stated figure (even a large or approximate-sounding one). `app/provider.py` (`_EXTRACT_PROMPT`).
+**Live-verified:** FSOC "Amounts & totals" flagged **8 → 0** (all 52 clearly-stated amounts now read 95%); the gate
+still flags a type-invalid or genuinely-uncertain value.
+
+**Status.** Accepted. **112 → 113 tests**; both live-verified on `anthropic`. Closes the two 🟡 tuning items in
+`../_PLATFORM/BACKLOG.md`.
