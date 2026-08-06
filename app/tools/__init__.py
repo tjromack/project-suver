@@ -142,4 +142,5 @@ def load_builtin() -> None:
     from app.tools import converse  # noqa: F401  (live — the 6th Documents tool; first multi-turn/chat tool)
     from app.tools import meeting_actions  # noqa: F401  (live — platform #2: Communications, 1st tool)
     from app.tools import triage  # noqa: F401  (live — Communications, 2nd tool)
+    from app.tools import reply  # noqa: F401  (live — Communications, 3rd tool)
     from app.tools import coming_soon  # noqa: F401  (no soon cards currently)

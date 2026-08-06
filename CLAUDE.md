@@ -5,7 +5,7 @@ suite becomes: an AI **tool hub that removes the prompt.** This repo is Suver's 
 the hub launcher, and the tools). `DESIGN.md` holds the original spec (written when Summarize was the pilot); this
 file is the *how we work* contract. Product North Star: `../_PLATFORM/VISION.md`.
 
-## What this is  *(status: a multi-platform hub — 8 live tools across 2 platforms, 2026-08-06)*
+## What this is  *(status: a multi-platform hub — 9 live tools across 2 platforms, 2026-08-06)*
 A **consumer-grade tool hub** on one shell — each tool: bring only your input (one or two documents; at most a plain
 **question** or a **pick**), get the output; **no prompt, no config**; sensitive data **sanitized before the model**
 and re-hydrated locally. **Platform #1 — Documents** (*read · ask · write · pull data · compare · chat*):
@@ -28,6 +28,9 @@ and re-hydrated locally. **Platform #1 — Documents** (*read · ask · write ·
 - **Triage messages** — paste your messages or a thread → each **sorted by what it needs** (*Needs reply · Action ·
   FYI · Can ignore*) with a grounded one-line reason; anything ambiguous is shown as **Review**, never forced into a
   confident wrong bucket (**honest uncertainty**).
+- **Draft a reply** — paste a received message, pick an intent (acknowledge · answer · decline · ask · follow up) →
+  a grounded draft reply that uses only the message's facts, leaves clearly-labeled **[placeholders]** for anything
+  it doesn't know, and **flags any invented specific** — it never makes something up on your behalf.
 
 It **composes built engines** (vendored lean cores, not forks): `phi-pii-data-boundary` (sanitize, under every
 tool) · `summarize-brief-generator` (split + cite-or-drop) · `draft-template-responder` (template + cite-or-block)

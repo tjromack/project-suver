@@ -379,3 +379,26 @@ box; per-message model calls (one batched call); re-ordering that buries the urg
 the-model-only-sees-safe-text · reproducible) + `test_app.py` (2nd Communications tool on the hub · the route).
 **93 → 102 tests**; **live-verified** with `anthropic` (a 5-message inbox → needs-reply/action/FYI/2×ignore, all
 correct; a promo whose ungrounded reason was correctly dropped). **8 live tools · Communications now has 2.**
+
+### DEC 019 — Communications tool #3: "Draft a reply" (the 9th tool) — placeholders, not guesses
+**Decision.** Add **Draft a reply** — paste a received message, **pick the reply intent** (Acknowledge · Answer ·
+Decline · Ask for detail · Follow up) → a grounded draft reply. Signature discipline: the model **uses only the
+message's facts** and inserts clearly-labeled **[placeholders]** for anything it doesn't know — it never invents a
+date, number, name, or commitment; the pipeline **lists the placeholders** ("N things for you to fill in") and, as a
+deterministic backstop, **flags any invented specific** (a money/time/ISO-date in the draft not present in the
+message) for the user to verify. Same trust posture: the model only ever sees the sanitized message; the reply
+re-hydrates locally (real names restored; `[placeholders]` survive because they aren't boundary tokens). Reuses the
+contract's `choice`/`options` (a pick, not a prompt); no new engine.
+**Why.** Completes the Communications trio — *triage what came in · pull actions from meetings · **draft what goes
+out***. A reply is inherently generative (you add your own info), so the honest trust move isn't cite-or-drop — it's
+**explicit placeholders + a no-invented-specifics guard**: the tool drafts, but never quietly makes something up on
+your behalf. That's a demonstrable property a professional can trust.
+**Rules out.** A confident reply with a fabricated date/number/name; a prompt box (intent is a pick); sending raw
+text to the model; hiding what it didn't know (placeholders are surfaced, specifics are flagged).
+**Status.** Accepted. `app/provider.py` (`draft_reply` + stub templates), `app/pipeline.py` (`ReplyOutcome`,
+`draft_reply_text`, `_REPLY_INTENTS`/`reply_intents`, `_invented_specifics`), `app/tools/reply.py`,
+`app/shell/templates/_reply_result.html`, registration. `tests/test_reply.py` (drafts + placeholders · intent
+changes output · unknown-intent fallback · invented-specifics flagged · stub never invents · the-model-only-sees-
+safe-text · reproducible) + `test_app.py` (intent select · the route). **102 → 112 tests**; **live-verified** with
+`anthropic` (a real scheduling message → Answer/Ask-for-detail/Decline drafts, each grounded, unknowns as
+placeholders, zero invented specifics). **9 live tools · Communications now has 3 (triage · reply · meeting-actions).**

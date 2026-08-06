@@ -588,3 +588,64 @@ def classify_messages(messages: list[str], provider: str) -> list[dict]:
         except Exception:
             return _stub_triage(messages)
     return _stub_triage(messages)
+
+
+# --- Communications · Draft a reply: a grounded reply to a received message; unknowns become [placeholders] --------
+
+_REPLY_PROMPT = (
+    "Draft a short, professional reply to the message below. The user's intent for the reply: {intent}\n"
+    "Rules:\n"
+    "- Use ONLY facts stated in the message. Do NOT invent any specific — no date, time, number, price, name,\n"
+    "  link, or commitment the message doesn't contain.\n"
+    "- For anything you would need but the message doesn't give, insert a clearly-labeled placeholder in square\n"
+    "  brackets, e.g. [confirm the meeting time] or [your answer here] — never guess it.\n"
+    "- Keep it concise (2–6 sentences), plain text, no subject line.\n"
+    "- Some names appear as bracketed tokens like [PERSON_NAME_1] — those are the REAL names; keep them exactly\n"
+    "  (they are not placeholders).\n\n"
+    "MESSAGE:\n{message}"
+)
+
+_REPLY_STUBS = {
+    "acknowledge": "Thanks for your message — got it. [confirm the specific point]. I'll [next step] and follow up. Best,",
+    "answer": "Thanks for reaching out. [your answer to their question]. Let me know if you need anything else. Best,",
+    "decline": "Thanks for thinking of me. Unfortunately I won't be able to [what they asked] because [reason]. Best,",
+    "request_info": "Thanks for the note. Could you share [the detail you need] so I can respond properly? Best,",
+    "follow_up": "Thanks for this — I'll look into it and follow up on [what you'll get back on] by [date]. Best,",
+}
+
+
+def _stub_reply(intent_slug: str) -> str:
+    """Deterministic offline reply — an intent-appropriate template with explicit [placeholders], no invented
+    specifics. The shipped experience is the `anthropic` draft; this keeps tests/dev offline."""
+    return _REPLY_STUBS.get(intent_slug, _REPLY_STUBS["acknowledge"])
+
+
+def _anthropic_reply(safe_message: str, intent_focus: str) -> str:
+    import truststore
+
+    truststore.inject_into_ssl()
+    from anthropic import Anthropic
+
+    from app.config import settings
+
+    client = Anthropic()
+    prompt = _REPLY_PROMPT.format(intent=intent_focus, message=safe_message)
+    msg = client.messages.create(
+        model=settings.anthropic_model,
+        max_tokens=600,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return "".join(getattr(b, "text", "") for b in msg.content).strip()
+
+
+def draft_reply(safe_message: str, intent_slug: str, intent_focus: str, provider: str) -> str:
+    """Draft a reply to the SANITIZED message for the chosen intent. `stub` is a deterministic template; `anthropic`
+    is a real draft that uses only the message's facts and inserts [placeholders] for anything it doesn't know. The
+    model only ever sees safe text; the pipeline lists placeholders + flags any invented specific. Degrades to the
+    stub on any model error."""
+    if provider == "anthropic":
+        try:
+            return _anthropic_reply(safe_message, intent_focus)
+        except Exception:
+            return _stub_reply(intent_slug)
+    return _stub_reply(intent_slug)

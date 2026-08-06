@@ -1,0 +1,56 @@
+<style>
+  .res{padding:22px}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:999px;font-size:13px;
+    font-weight:600;background:var(--good-soft);color:var(--good)}
+  .chip.none{background:var(--accent-soft);color:var(--accent)}
+  .metaline{color:var(--faint);font-size:12.5px;margin-top:10px}
+  .reply{margin-top:16px;padding:16px 18px;border:1px solid var(--line);border-radius:12px;background:var(--panel);
+    white-space:pre-wrap;line-height:1.55;font-size:14.5px;color:var(--ink)}
+  .note{margin-top:14px;padding:11px 14px;border-radius:10px;font-size:13px}
+  .note.fill{background:var(--accent-soft);color:var(--accent)}
+  .note.verify{background:var(--warn-soft);color:var(--warn);font-weight:600}
+  .note ul{margin:7px 0 0;padding-left:18px}
+  .note li{margin:3px 0}
+  .foot{color:var(--faint);font-size:12.5px;margin-top:14px}
+  .blocked{padding:20px;border-radius:12px;background:var(--warn-soft);color:var(--warn)}
+  .blocked strong{display:block;margin-bottom:4px;font-size:15px}
+</style>
+
+<div class="panel res">
+  {% if r.handled_count > 0 %}
+    <span class="chip">🛡 {{ r.handled_note }}</span>
+  {% else %}
+    <span class="chip none">🛡 {{ r.handled_note }}</span>
+  {% endif %}
+  <div class="metaline">
+    {{ r.intent_label }} · boundary: <strong>{{ r.decision }}</strong>
+    {% if r.handled_classes %}· handled: {{ r.handled_classes | join(", ") }}{% endif %}
+    · source: {{ r.doc_kind }} ({{ "{:,}".format(r.source_chars) }} chars) · drafted by: {{ r.provider }}
+  </div>
+
+  {% if r.blocked %}
+    <div class="blocked" style="margin-top:14px"><strong>Nothing sent.</strong> {{ r.block_message }}</div>
+  {% else %}
+    <div class="reply">{{ r.reply }}</div>
+
+    {% if r.placeholders %}
+      <div class="note fill">
+        ✎ {{ r.placeholders|length }} thing{{ "" if r.placeholders|length == 1 else "s" }} left for you to fill in
+        (the tool won’t guess these):
+        <ul>{% for p in r.placeholders %}<li>[{{ p }}]</li>{% endfor %}</ul>
+      </div>
+    {% endif %}
+
+    {% if r.unverified %}
+      <div class="note verify">
+        ⚠ Verify {{ r.unverified|length }} specific{{ "" if r.unverified|length == 1 else "s" }} — not found in the
+        original message: {{ r.unverified | join(" · ") }}
+      </div>
+    {% endif %}
+
+    <div class="foot">
+      Drafted from your message only — anything it didn’t know was left as a <b>[placeholder]</b>, not invented.
+      Review before sending.
+    </div>
+  {% endif %}
+</div>

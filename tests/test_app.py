@@ -30,6 +30,7 @@ def test_hub_shows_a_second_platform():
     assert "Communications platform" in r.text       # platform #2
     assert "Meeting notes" in r.text                  # its first tool
     assert "Triage messages" in r.text                # its second tool
+    assert "Draft a reply" in r.text                  # its third tool
     # the Documents platform still renders before Communications (stable order)
     assert r.text.index("Documents platform") < r.text.index("Communications platform")
 
@@ -226,6 +227,21 @@ def test_triage_empty_is_honest():
     r = client.post("/t/triage/run", data={"paste": "   "})
     assert r.status_code == 200
     assert "Paste your messages" in r.text            # the friendly empty-input message
+
+
+def test_reply_shell_has_an_intent_select():
+    r = client.get("/t/reply")
+    assert r.status_code == 200
+    assert "<select" in r.text and 'name="choice"' in r.text
+    assert "Acknowledge" in r.text or "Politely decline" in r.text
+
+
+def test_reply_run_drafts_with_placeholders():
+    r = client.post("/t/reply/run", data={"paste": "Can you send the report?", "choice": "answer"})
+    assert r.status_code == 200
+    assert "fill in" in r.text                          # the placeholders note
+    assert "not invented" in r.text                     # the discipline line
+    assert "🛡" in r.text
 
 
 def test_healthz():

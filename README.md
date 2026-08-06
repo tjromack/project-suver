@@ -11,16 +11,17 @@ every tool. Pick one tool, or a platform of them.
 This repo is Suver's home: the reusable **tool-app shell**, the **hub launcher**, and the tools. The first tool —
 and this repo's flagship pilot — is **Summarize**.
 
-> **Status — a multi-platform hub: 8 tools across 2 platforms on one shell.** **Platform #1 — Documents**
+> **Status — a multi-platform hub: 9 tools across 2 platforms on one shell.** **Platform #1 — Documents**
 > (*read · ask · write · pull data · compare · chat*): **Summarize** (→ cited summary), **Copilot** ("Ask this
 > document" → a grounded, cited answer or an honest "not in your document"), **Draft** (pick a kind → a grounded
 > memo, *cite-or-block*), **Extractor** (pick a field-set → a **typed table**, the uncertain **flagged**),
 > **Compare** (drop **two** documents → every difference, type-aware, grounded in both — the tool never picks a
 > winner), and **Converse** (add a document, then **chat** — multi-turn, grounded, follow-ups and all).
 > **Platform #2 — Communications**: **Meeting notes → actions** (drop notes/a transcript → **action items**
-> — *who · what · by when* — grounded; cite-or-drop the action, owner/due only if stated) and **Triage messages**
+> — *who · what · by when* — grounded; cite-or-drop the action, owner/due only if stated), **Triage messages**
 > (paste a thread → each message sorted *Needs reply · Action · FYI · Ignore*, ambiguous ones flagged Review, never
-> guessed). 102 tests (stub-backed,
+> guessed), and **Draft a reply** (paste a message + pick an intent → a grounded reply that leaves [placeholders]
+> for the unknown and never invents specifics). 112 tests (stub-backed,
 > no network); verified end-to-end on real PDFs/transcripts with both the offline `stub` and the real `anthropic`
 > model. Sensitive data is sanitized before the model and re-hydrated only in the local view — on every tool. The
 > reusable **shell + hub + tool-app contract** made each tool a small add (a *question*, two *picks*, a *second

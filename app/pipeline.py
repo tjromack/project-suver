@@ -30,6 +30,7 @@ from app.provider import (
     classify_messages,
     draft_answer,
     draft_candidates,
+    draft_reply,
     draft_section,
     extract_action_items,
     extract_items,
@@ -1045,3 +1046,104 @@ def triage_document(filename: str, data: bytes | str, *, provider: str | None = 
 def triage_paste(text: str, *, provider: str | None = None) -> TriageOutcome:
     r = from_paste(text)
     return triage_messages(r.text, doc_kind=r.kind, provider=provider)
+
+
+# --- Communications · Draft a reply: a grounded reply; unknowns → [placeholders]; invented specifics flagged -------
+
+_REPLY_INTENTS = {
+    "acknowledge": ("Acknowledge & confirm", "acknowledge the message and confirm receipt; warm and brief."),
+    "answer": ("Answer their question", "answer the question(s) the message asks, using only what the message provides."),
+    "decline": ("Politely decline", "politely decline or say no to what the message asks, with a courteous reason."),
+    "request_info": ("Ask for more detail", "ask for the specific additional information you'd need to respond properly."),
+    "follow_up": ("Say I'll follow up", "acknowledge and say you'll follow up, noting what you'll get back to them on."),
+}
+
+
+def reply_intents() -> list[tuple[str, str]]:
+    """(slug, label) pairs for the intent `<select>` — a pick, not a prompt. The first is the default."""
+    return [(slug, label) for slug, (label, _focus) in _REPLY_INTENTS.items()]
+
+
+def _reply_intent(slug: str | None):
+    return _REPLY_INTENTS.get((slug or "").strip()) or _REPLY_INTENTS["acknowledge"]
+
+
+# A "specific" the reply must not invent: money, a clock time, or an ISO date. If one appears in the draft but not
+# in the message, it's flagged "verify" (the model is told to use placeholders, so this is a backstop).
+_SPECIFIC_RX = re.compile(
+    r"(\$\s?\d[\d,]*(?:\.\d{2})?|\b\d{1,2}:\d{2}\s?(?:am|pm)?\b|\b\d{1,2}\s?(?:am|pm)\b|\b\d{4}-\d{2}-\d{2}\b)", re.I)
+
+
+def _invented_specifics(draft: str, message: str) -> list[str]:
+    msg_low = message.lower()
+    found: list[str] = []
+    for m in _SPECIFIC_RX.findall(draft):
+        s = m.strip()
+        if s and s.lower() not in msg_low and s not in found:
+            found.append(s)
+    return found
+
+
+@dataclass(frozen=True)
+class ReplyOutcome:
+    intent_slug: str = ""
+    intent_label: str = ""
+    reply: str = ""                                 # the drafted reply, re-hydrated for local display
+    placeholders: list = field(default_factory=list)   # bracketed [things to fill] the tool left for the user
+    unverified: list = field(default_factory=list)     # specifics in the draft not found in the message (verify)
+    handled_count: int = 0
+    handled_classes: list = field(default_factory=list)
+    decision: str = "clear"
+    provider: str = "stub"
+    doc_kind: str = "text"
+    source_chars: int = 0
+    blocked: bool = False
+    block_message: str | None = None
+
+    @property
+    def handled_note(self) -> str:
+        n = self.handled_count
+        if n == 0:
+            return "No sensitive items detected"
+        return f"{n} sensitive {'item' if n == 1 else 'items'} handled before the model"
+
+
+def draft_reply_text(text: str, intent_slug: str | None = None, *, doc_kind: str = "text",
+                     provider: str | None = None) -> ReplyOutcome:
+    """Draft a reply to a received message for a chosen **intent** (a pick, not a prompt). Trust posture: the model
+    only ever sees the sanitized message; it **uses only the message's facts** and inserts **[placeholders]** for
+    anything it doesn't know (never invents a date/number/name/commitment); the pipeline lists those placeholders and
+    **flags any invented specific** (a money/time/date in the draft not in the message) for the user to verify. The
+    reply re-hydrates locally (real names restored)."""
+    provider = provider or settings.provider
+    slug = (intent_slug or "acknowledge").strip() or "acknowledge"
+    label, focus = _reply_intent(slug)
+    if slug not in _REPLY_INTENTS:
+        slug = "acknowledge"
+    doc = sanitize(text, default_policy())
+    base = dict(
+        intent_slug=slug, intent_label=label, handled_count=len(doc.spans), handled_classes=doc.classes,
+        decision=doc.decision, provider=provider, doc_kind=doc_kind, source_chars=len(text),
+    )
+
+    if doc.safe_text is None:
+        return ReplyOutcome(**base, blocked=True,
+                            block_message=_BLOCK_MSG.format(classes=", ".join(doc.classes) or "restricted content"))
+
+    safe_msg = doc.safe_text
+    raw = draft_reply(safe_msg, slug, focus, provider)     # the model sees only the sanitized message
+    unverified = _invented_specifics(raw, safe_msg)        # backstop: specifics in the draft not in the message
+    reply = rehydrate(raw, doc.token_map)                  # restore real names locally; [placeholders] survive
+    placeholders = re.findall(r"\[([^\]]+)\]", reply)      # boundary tokens are already re-hydrated → these are fills
+    return ReplyOutcome(**base, reply=reply, placeholders=placeholders, unverified=unverified)
+
+
+def reply_document(filename: str, data: bytes | str, intent_slug: str | None = None, *,
+                   provider: str | None = None) -> ReplyOutcome:
+    r: IngestResult = extract_text(filename, data)
+    return draft_reply_text(r.text, intent_slug, doc_kind=r.kind, provider=provider)
+
+
+def reply_paste(text: str, intent_slug: str | None = None, *, provider: str | None = None) -> ReplyOutcome:
+    r = from_paste(text)
+    return draft_reply_text(r.text, intent_slug, doc_kind=r.kind, provider=provider)
