@@ -27,6 +27,7 @@ from app.config import settings
 from app.ingest import IngestResult, extract_text, from_paste
 from app.provider import (
     NOT_IN_DOCUMENT,
+    classify_messages,
     draft_answer,
     draft_candidates,
     draft_section,
@@ -925,3 +926,122 @@ def actions_document(filename: str, data: bytes | str, *, provider: str | None =
 def actions_paste(text: str, *, provider: str | None = None) -> ActionsOutcome:
     r = from_paste(text)
     return extract_actions(r.text, doc_kind=r.kind, provider=provider)
+
+
+# --- Communications · Triage messages: bucket each message by what it needs; ambiguous → 'review', never guessed ---
+
+_TRIAGE_LABELS = {"needs_reply": "Needs reply", "action": "Action needed", "fyi": "FYI",
+                  "ignore": "Can ignore", "unsure": "Review"}
+_TRIAGE_ORDER = ("needs_reply", "action", "unsure", "fyi", "ignore")   # important buckets first
+_TRIAGE_CATS = ("needs_reply", "action", "fyi", "ignore")
+
+
+@dataclass(frozen=True)
+class TriageItem:
+    snippet: str                 # a short preview of the message, re-hydrated for display
+    category: str                # needs_reply | action | fyi | ignore | unsure
+    category_label: str
+    reason: str = ""             # one line, drawn from the message (grounded) — why it's in that bucket
+    confidence: float = 0.0
+
+
+@dataclass(frozen=True)
+class TriageOutcome:
+    items: list = field(default_factory=list)      # TriageItem, important buckets first
+    counts: dict = field(default_factory=dict)     # category -> count (for the summary line)
+    handled_count: int = 0
+    handled_classes: list = field(default_factory=list)
+    decision: str = "clear"
+    provider: str = "stub"
+    doc_kind: str = "text"
+    source_chars: int = 0
+    empty: bool = False
+    empty_note: str | None = None
+    blocked: bool = False
+    block_message: str | None = None
+
+    @property
+    def handled_note(self) -> str:
+        n = self.handled_count
+        if n == 0:
+            return "No sensitive items detected"
+        return f"{n} sensitive {'item' if n == 1 else 'items'} handled before the model"
+
+
+def _split_messages(text: str) -> list[str]:
+    """Split a paste/thread into individual messages. Primary unit = a blank-line-separated block (the common
+    'list of messages' / thread paste); a trivially short fragment (e.g. a lone signature) merges into the block
+    above it. A single email with no blank lines is one message."""
+    text = (text or "").strip()
+    if not text:
+        return []
+    blocks = [b.strip() for b in re.split(r"\n\s*\n+", text) if b.strip()]
+    merged: list[str] = []
+    for b in blocks:
+        if merged and len(b) < 15:
+            merged[-1] = merged[-1] + "\n" + b
+        else:
+            merged.append(b)
+    return merged or [text]
+
+
+def _snippet(message: str, limit: int = 150) -> str:
+    """A one-line preview: the message's non-empty lines joined (so a 'From:' header and the body both show), trimmed."""
+    flat = " · ".join(ln.strip() for ln in message.splitlines() if ln.strip())
+    return (flat[:limit].rstrip() + "…") if len(flat) > limit else flat
+
+
+def triage_messages(text: str, *, doc_kind: str = "text", provider: str | None = None) -> TriageOutcome:
+    """Sort a batch of messages by what each needs — **needs reply · action · FYI · ignore** — each with a one-line
+    reason drawn from the message. Trust posture: the model only ever sees sanitized text; a classification below the
+    confidence threshold is shown as **Review** (honest uncertainty over a confident wrong bucket); the reason must
+    ground to the message or it's dropped (never invented); snippets/reasons re-hydrate locally."""
+    provider = provider or settings.provider
+    doc = sanitize(text, default_policy())
+    base = dict(
+        handled_count=len(doc.spans), handled_classes=doc.classes, decision=doc.decision,
+        provider=provider, doc_kind=doc_kind, source_chars=len(text),
+    )
+
+    if doc.safe_text is None:
+        return TriageOutcome(**base, blocked=True,
+                             block_message=_BLOCK_MSG.format(classes=", ".join(doc.classes) or "restricted content"))
+
+    messages = _split_messages(doc.safe_text)[: settings.triage_max_messages]
+    if not messages:
+        return TriageOutcome(**base, empty=True, empty_note="No messages to triage — paste one or more messages.")
+
+    raw = classify_messages(messages, provider)
+    tmap = doc.token_map
+    items: list[TriageItem] = []
+    for m, r in zip(messages, raw):
+        try:
+            conf = float(r.get("confidence", 0.0))
+        except (TypeError, ValueError):
+            conf = 0.0
+        cat = (r.get("category") or "unsure").strip().lower()
+        if cat not in _TRIAGE_CATS:
+            cat = "unsure"
+        if cat != "unsure" and conf < settings.triage_threshold:   # honest uncertainty → review, not a wrong bucket
+            cat = "unsure"
+        reason = (r.get("reason") or "").strip()
+        if reason and support(reason, m) < settings.ground_threshold:   # reason must ground to the message
+            reason = ""
+        items.append(TriageItem(
+            snippet=rehydrate(_snippet(m), tmap), category=cat, category_label=_TRIAGE_LABELS[cat],
+            reason=rehydrate(reason, tmap), confidence=round(conf, 4)))
+
+    items.sort(key=lambda it: (_TRIAGE_ORDER.index(it.category) if it.category in _TRIAGE_ORDER else 99))
+    counts = {c: sum(1 for it in items if it.category == c) for c in _TRIAGE_ORDER}
+    counts = {c: n for c, n in counts.items() if n}
+    return TriageOutcome(**base, items=items, counts=counts)
+
+
+def triage_document(filename: str, data: bytes | str, *, provider: str | None = None) -> TriageOutcome:
+    r: IngestResult = extract_text(filename, data)
+    return triage_messages(r.text, doc_kind=r.kind, provider=provider)
+
+
+def triage_paste(text: str, *, provider: str | None = None) -> TriageOutcome:
+    r = from_paste(text)
+    return triage_messages(r.text, doc_kind=r.kind, provider=provider)

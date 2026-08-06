@@ -29,6 +29,7 @@ def test_hub_shows_a_second_platform():
     assert r.status_code == 200
     assert "Communications platform" in r.text       # platform #2
     assert "Meeting notes" in r.text                  # its first tool
+    assert "Triage messages" in r.text                # its second tool
     # the Documents platform still renders before Communications (stable order)
     assert r.text.index("Documents platform") < r.text.index("Communications platform")
 
@@ -208,6 +209,23 @@ def test_meeting_actions_empty_is_honest():
     r = client.post("/t/meeting-actions/run", data={"paste": "It was a lovely, uneventful afternoon."})
     assert r.status_code == 200
     assert "No action items" in r.text
+
+
+def test_triage_run_sorts_messages():
+    inbox = ("Can you approve the budget by Friday?\n\n"
+             "FLASH SALE 50% off — unsubscribe here.\n\n"
+             "FYI the office is closed Monday.")
+    r = client.post("/t/triage/run", data={"paste": inbox})
+    assert r.status_code == 200
+    assert "Needs reply" in r.text or "Action needed" in r.text
+    assert "Can ignore" in r.text
+    assert "🛡" in r.text
+
+
+def test_triage_empty_is_honest():
+    r = client.post("/t/triage/run", data={"paste": "   "})
+    assert r.status_code == 200
+    assert "Paste your messages" in r.text            # the friendly empty-input message
 
 
 def test_healthz():

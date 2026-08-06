@@ -357,3 +357,25 @@ only-if-stated · owner re-hydrated from a token · `_stated` guards a guessed v
 sees-safe-text · reproducible) + `test_app.py` (2nd platform on the hub · the tool over the route). **82 → 93 tests**;
 **live-verified** with `anthropic` (a product-sync transcript → 4 grounded actions with owners re-hydrated from
 tokens + correct dues; "no decision was made" / "demo went well" correctly excluded). **7 live tools · 2 platforms.**
+
+### DEC 018 — Communications tool #2: "Triage messages" (the 8th tool) — honest uncertainty over a wrong bucket
+**Decision.** Add **Triage messages** — paste your messages or a thread → each message **sorted by what it needs**:
+*Needs reply · Action needed · FYI · Can ignore*, with a one-line reason drawn from the message. Signature
+discipline: **honest uncertainty** — a classification below the confidence threshold is shown as **Review**, never
+forced into a confident wrong bucket; and the **reason must ground to the message** (its content appears there) or
+it's dropped, never invented. Same trust posture: the model only ever sees Data-Boundary-safe text; snippets/reasons
+re-hydrate locally. One model call per batch (numbered messages → aligned `{index, category, reason, confidence}`),
+then a deterministic confidence gate.
+**Why.** Deepens the Communications platform to a real multi-tool platform (*sort what came in · pull actions from
+meetings*; reply drafting is the natural third). "What needs my reply?" is a universal, high-value inbox job, and
+triage is a genuinely different *shape* (a per-item **classifier** with an abstain-to-Review gate) — proving the
+platform isn't one-note. Composes the classify-then-gate pattern with **no new engine and no new contract field**.
+**Rules out.** A confident label on an ambiguous message (→ Review); an invented reason (grounding gate); a prompt
+box; per-message model calls (one batched call); re-ordering that buries the urgent (sorted needs-reply/action first).
+**Status.** Accepted. `app/provider.py` (`classify_messages` + stub/`_parse_triage`), `app/pipeline.py`
+(`TriageItem`/`TriageOutcome`, `triage_messages`, `_split_messages`, `_snippet`), `app/tools/triage.py`,
+`app/shell/templates/_triage_result.html`, config (`triage_max_messages`/`triage_threshold`), registration.
+`tests/test_triage.py` (buckets correctly · important-first · ambiguous→Review · reason grounded · honest empty ·
+the-model-only-sees-safe-text · reproducible) + `test_app.py` (2nd Communications tool on the hub · the route).
+**93 → 102 tests**; **live-verified** with `anthropic` (a 5-message inbox → needs-reply/action/FYI/2×ignore, all
+correct; a promo whose ungrounded reason was correctly dropped). **8 live tools · Communications now has 2.**

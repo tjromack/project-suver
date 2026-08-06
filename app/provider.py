@@ -468,3 +468,123 @@ def extract_action_items(safe_text: str, provider: str) -> list[dict]:
         except Exception:
             return _stub_action_items(safe_text)
     return _stub_action_items(safe_text)
+
+
+# --- Communications · Triage messages: bucket each message by what it needs (needs_reply/action/fyi/ignore) --------
+
+_TRIAGE_CATEGORIES = ("needs_reply", "action", "fyi", "ignore")
+
+_TRIAGE_PROMPT = (
+    "You are triaging the user's messages. For EACH numbered message below, decide what it needs:\n"
+    "- needs_reply: the sender is waiting for a response from the user.\n"
+    "- action: it asks the user to DO something (a task or deadline), no reply needed.\n"
+    "- fyi: informational — worth reading, but no action or reply.\n"
+    "- ignore: no value to the user (newsletter, promotion, automated no-reply, spam).\n"
+    'Return ONLY a JSON array, one object per message: {{"index": <n>, "category": "...", "reason": "...", '
+    '"confidence": 0.0}}.\n'
+    "- reason: one short phrase drawn ONLY from the message (why it lands in that bucket). Never invent.\n"
+    "- confidence: how sure you are (use below 0.6 when the message is genuinely ambiguous).\n"
+    "- Keep bracketed tokens like [PERSON_NAME_1] exactly.\n\n"
+    "MESSAGES:\n{numbered}"
+)
+
+_TRIAGE_CUES = {
+    "ignore": ("unsubscribe", "newsletter", "no-reply", "noreply", "% off", "sale ends", "limited time",
+               "promotion", "view in browser", "do not reply"),
+    "needs_reply": ("?", "let me know", "can you", "could you", "please confirm", "get back to me", "thoughts",
+                    "what do you think", "are you able", "would you", "please advise", "waiting to hear", "reply"),
+    "action": ("please ", "action required", "need you to", "by friday", "by monday", "by tuesday", "by wednesday",
+               "by thursday", "deadline", " due ", "submit", "complete the", "sign the", "approve"),
+    "fyi": ("fyi", "for your information", "heads up", "just so you know", "no action needed", "reminder",
+            "will be closed", "please note", "update:", "notice:"),
+}
+
+
+def _stub_triage(messages: list[str]) -> list[dict]:
+    """Deterministic offline triage — keyword cues decide the bucket; a message with no clear cue gets low confidence
+    (the pipeline then flags it 'review'). The reason is a short slice of the message, so it grounds trivially."""
+    out: list[dict] = []
+    for m in messages:
+        low = m.lower()
+        cat, conf = "fyi", 0.5
+        if any(c in low for c in _TRIAGE_CUES["ignore"]):
+            cat, conf = "ignore", 0.9
+        elif any(c in low for c in _TRIAGE_CUES["needs_reply"]):
+            cat, conf = "needs_reply", 0.9
+        elif any(c in low for c in _TRIAGE_CUES["action"]):
+            cat, conf = "action", 0.9
+        elif any(c in low for c in _TRIAGE_CUES["fyi"]):
+            cat, conf = "fyi", 0.85
+        first = next((ln.strip() for ln in m.splitlines() if ln.strip()), m.strip())
+        out.append({"category": cat, "reason": first[:120], "confidence": conf})
+    return out
+
+
+def _parse_triage(raw: str, n: int) -> list[dict]:
+    """Parse the model's reply into `n` aligned {category, reason, confidence} dicts (by `index`; gaps → unsure)."""
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        raw = raw[raw.find("\n") + 1:] if "\n" in raw else raw
+    data = None
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, ValueError):
+        cut = raw.rfind("}")
+        if cut != -1:
+            try:
+                data = json.loads(raw[: cut + 1] + "]")
+            except (json.JSONDecodeError, ValueError):
+                data = None
+    aligned: list[dict] = [{"category": "unsure", "reason": "", "confidence": 0.0} for _ in range(n)]
+    for d in data if isinstance(data, list) else []:
+        if not isinstance(d, dict):
+            continue
+        try:
+            i = int(d.get("index"))
+        except (TypeError, ValueError):
+            continue
+        if 0 <= i < n:
+            cat = str(d.get("category") or "").strip().lower()
+            try:
+                conf = float(d.get("confidence", 0.0))
+            except (TypeError, ValueError):
+                conf = 0.0
+            aligned[i] = {"category": cat if cat in _TRIAGE_CATEGORIES else "unsure",
+                          "reason": str(d.get("reason") or "").strip(),
+                          "confidence": max(0.0, min(1.0, conf))}
+    return aligned
+
+
+def _anthropic_triage(messages: list[str]) -> list[dict]:
+    import truststore
+
+    truststore.inject_into_ssl()
+    from anthropic import Anthropic
+
+    from app.config import settings
+
+    client = Anthropic()
+    numbered = "\n".join(f"[{i}] {m}" for i, m in enumerate(messages))
+    prompt = _TRIAGE_PROMPT.format(numbered=numbered)
+    msg = client.messages.create(
+        model=settings.anthropic_model,
+        max_tokens=2048,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    raw = "".join(getattr(b, "text", "") for b in msg.content).strip()
+    return _parse_triage(raw, len(messages))
+
+
+def classify_messages(messages: list[str], provider: str) -> list[dict]:
+    """Triage each (SANITIZED) message → {category, reason, confidence}, aligned to input order. `stub` is
+    deterministic/offline; `anthropic` is a real one-call triage. The model only ever sees safe text; the pipeline
+    flags a low-confidence classification as 'review' (never a confident wrong bucket). Degrades to the stub on error."""
+    if not messages:
+        return []
+    if provider == "anthropic":
+        try:
+            return _anthropic_triage(messages)
+        except Exception:
+            return _stub_triage(messages)
+    return _stub_triage(messages)

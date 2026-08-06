@@ -52,6 +52,10 @@ class Settings:
     copilot_min_relevance: float = float(os.getenv("COPILOT_MIN_RELEVANCE", "0.12"))
     # Extractor: confidence below this (or a value that fails type-validation) → the field is flagged for review.
     extract_threshold: float = float(os.getenv("EXTRACT_THRESHOLD", "0.75"))
+    # Triage ("Triage messages"): cap the messages processed in one pass; a classification below the confidence
+    # threshold is flagged 'review' rather than shown as a confident bucket.
+    triage_max_messages: int = int(os.getenv("TRIAGE_MAX_MESSAGES", "40"))
+    triage_threshold: float = float(os.getenv("TRIAGE_THRESHOLD", "0.6"))
     samples_dir: Path = REPO_ROOT / os.getenv("SAMPLES_DIR", "data/samples")
 
     def provenance(self) -> dict:

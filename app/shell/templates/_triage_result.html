@@ -1,0 +1,69 @@
+<style>
+  .res{padding:22px}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:999px;font-size:13px;
+    font-weight:600;background:var(--good-soft);color:var(--good)}
+  .chip.none{background:var(--accent-soft);color:var(--accent)}
+  .metaline{color:var(--faint);font-size:12.5px;margin-top:10px}
+  .summary{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+  .pill{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;font-size:13px;
+    font-weight:600;border:1px solid var(--line)}
+  .pill b{font-variant-numeric:tabular-nums}
+  .cards{margin-top:16px;display:flex;flex-direction:column;gap:10px}
+  .card{display:flex;gap:12px;align-items:flex-start;padding:13px 15px;border:1px solid var(--line);
+    border-radius:12px;background:var(--panel)}
+  .card .badge{flex:none;font-size:11px;font-weight:700;letter-spacing:.02em;padding:4px 10px;border-radius:999px;white-space:nowrap}
+  .card .body{flex:1;min-width:0}
+  .card .msg{color:var(--ink);font-weight:500;overflow-wrap:anywhere}
+  .card .why{color:var(--muted);font-size:13px;margin-top:3px}
+  .card .why .lbl{color:var(--faint);font-size:11px;font-weight:700;letter-spacing:.03em;margin-right:5px}
+  /* bucket colours */
+  .b-needs_reply{background:var(--accent-soft);color:var(--accent)}
+  .b-action{background:var(--warn-soft);color:var(--warn)}
+  .b-fyi{background:var(--good-soft);color:var(--good)}
+  .b-ignore{background:var(--line);color:var(--faint)}
+  .b-unsure{background:var(--warn-soft);color:var(--warn);border:1px dashed var(--warn)}
+  .empty{margin-top:14px;padding:18px;border-radius:12px;background:var(--accent-soft);color:var(--muted)}
+  .blocked{padding:20px;border-radius:12px;background:var(--warn-soft);color:var(--warn)}
+  .blocked strong{display:block;margin-bottom:4px;font-size:15px}
+</style>
+
+<div class="panel res">
+  {% if r.handled_count > 0 %}
+    <span class="chip">🛡 {{ r.handled_note }}</span>
+  {% else %}
+    <span class="chip none">🛡 {{ r.handled_note }}</span>
+  {% endif %}
+  <div class="metaline">
+    Triage · boundary: <strong>{{ r.decision }}</strong>
+    {% if r.handled_classes %}· handled: {{ r.handled_classes | join(", ") }}{% endif %}
+    · source: {{ r.doc_kind }} ({{ "{:,}".format(r.source_chars) }} chars) · sorted by: {{ r.provider }}
+  </div>
+
+  {% if r.blocked %}
+    <div class="blocked" style="margin-top:14px"><strong>Nothing sent.</strong> {{ r.block_message }}</div>
+  {% elif r.empty %}
+    <div class="empty">{{ r.empty_note }}</div>
+  {% else %}
+    {% set labels = {"needs_reply":"Needs reply","action":"Action needed","fyi":"FYI","ignore":"Can ignore","unsure":"Review"} %}
+    <div class="summary">
+      {% for cat, n in r.counts.items() %}
+        <span class="pill"><span class="badge b-{{ cat }}">{{ labels.get(cat, cat) }}</span><b>{{ n }}</b></span>
+      {% endfor %}
+    </div>
+    <div class="cards">
+      {% for it in r.items %}
+        <div class="card">
+          <span class="badge b-{{ it.category }}">{{ it.category_label }}</span>
+          <div class="body">
+            <div class="msg">{{ it.snippet }}</div>
+            {% if it.reason %}<div class="why"><span class="lbl">WHY</span>{{ it.reason }}</div>{% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+    <div class="metaline" style="margin-top:14px">
+      Each message is sorted from what it says; anything the tool wasn’t sure about is marked <b>Review</b> for your
+      eyes — never guessed into a bucket.
+    </div>
+  {% endif %}
+</div>

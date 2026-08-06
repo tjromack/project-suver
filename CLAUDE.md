@@ -5,7 +5,7 @@ suite becomes: an AI **tool hub that removes the prompt.** This repo is Suver's 
 the hub launcher, and the tools). `DESIGN.md` holds the original spec (written when Summarize was the pilot); this
 file is the *how we work* contract. Product North Star: `../_PLATFORM/VISION.md`.
 
-## What this is  *(status: a multi-platform hub — 7 live tools across 2 platforms, 2026-08-06)*
+## What this is  *(status: a multi-platform hub — 8 live tools across 2 platforms, 2026-08-06)*
 A **consumer-grade tool hub** on one shell — each tool: bring only your input (one or two documents; at most a plain
 **question** or a **pick**), get the output; **no prompt, no config**; sensitive data **sanitized before the model**
 and re-hydrated locally. **Platform #1 — Documents** (*read · ask · write · pull data · compare · chat*):
@@ -24,7 +24,10 @@ and re-hydrated locally. **Platform #1 — Documents** (*read · ask · write ·
 **Platform #2 — Communications** (the hub is not one Documents app):
 - **Meeting notes → actions** — drop meeting notes or a transcript → a list of **action items** (*who · what · by
   when*), grounded in the notes; **cite-or-drop the action** (never invented) and an **owner or due only if the notes
-  state it** (never guessed). The first Communications tool.
+  state it** (never guessed).
+- **Triage messages** — paste your messages or a thread → each **sorted by what it needs** (*Needs reply · Action ·
+  FYI · Can ignore*) with a grounded one-line reason; anything ambiguous is shown as **Review**, never forced into a
+  confident wrong bucket (**honest uncertainty**).
 
 It **composes built engines** (vendored lean cores, not forks): `phi-pii-data-boundary` (sanitize, under every
 tool) · `summarize-brief-generator` (split + cite-or-drop) · `draft-template-responder` (template + cite-or-block)
