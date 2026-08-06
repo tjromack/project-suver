@@ -1,0 +1,66 @@
+<style>
+  .res{padding:22px}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:999px;font-size:13px;
+    font-weight:600;background:var(--good-soft);color:var(--good)}
+  .chip.none{background:var(--accent-soft);color:var(--accent)}
+  .metaline{color:var(--faint);font-size:12.5px;margin-top:10px}
+  .answer{margin-top:16px;padding:18px 20px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+  .answer .big{font-size:20px;font-weight:700;letter-spacing:-.01em;color:var(--ink)}
+  .answer .op{margin-top:6px;color:var(--muted);font-size:13px}
+  .answer .op b{color:var(--faint);font-weight:700;font-size:11px;letter-spacing:.03em;margin-right:6px}
+  .cited{margin-top:14px}
+  .cited .lbl{color:var(--faint);font-size:11px;font-weight:700;letter-spacing:.03em;margin-bottom:6px}
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{text-align:left;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);
+    padding:9px 13px;border-bottom:1px solid var(--line);background:var(--accent-soft);white-space:nowrap}
+  td{padding:9px 13px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  .abstain{margin-top:14px;padding:18px;border-radius:12px;background:var(--warn-soft);color:var(--warn)}
+  .empty{margin-top:14px;padding:18px;border-radius:12px;background:var(--accent-soft);color:var(--muted)}
+  .blocked{padding:20px;border-radius:12px;background:var(--warn-soft);color:var(--warn)}
+  .foot{color:var(--faint);font-size:12.5px;margin-top:14px}
+</style>
+
+<div class="panel res">
+  {% if r.handled_count > 0 %}
+    <span class="chip">🛡 {{ r.handled_note }}</span>
+  {% else %}
+    <span class="chip none">🛡 {{ r.handled_note }}</span>
+  {% endif %}
+  <div class="metaline">
+    You asked: <strong>{{ r.query }}</strong>
+    {% if r.n_table_rows %}· table: {{ "{:,}".format(r.n_table_rows) }} rows × {{ r.n_table_cols }} cols{% endif %}
+    · planned by: {{ r.provider }} · <strong>computed locally</strong>
+  </div>
+
+  {% if r.blocked %}
+    <div class="blocked" style="margin-top:14px"><strong>Nothing sent.</strong> {{ r.block_message }}</div>
+  {% elif r.empty %}
+    <div class="empty">{{ r.empty_note }}</div>
+  {% elif r.abstained %}
+    <div class="abstain">{{ r.answer }}</div>
+  {% else %}
+    <div class="answer">
+      <div class="big">{{ r.answer }}</div>
+      <div class="op"><b>HOW</b>{{ r.operation }} · matched {{ "{:,}".format(r.n_matched) }} row(s)</div>
+    </div>
+    {% if r.rows %}
+      <div class="cited">
+        <div class="lbl">FROM YOUR DATA — the rows this used{% if r.n_matched > r.rows|length %} (showing {{ r.rows|length }} of {{ "{:,}".format(r.n_matched) }}){% endif %}</div>
+        <div class="tablewrap">
+          <table>
+            <thead><tr>{% for h in r.columns %}<th>{{ h }}</th>{% endfor %}</tr></thead>
+            <tbody>
+              {% for row in r.rows %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% endif %}
+    <div class="foot">
+      The model only chose <b>which</b> calculation to run (over a small sample); the arithmetic was done in code over
+      your full data, so the number is exact and every answer traces to real rows.
+    </div>
+  {% endif %}
+</div>

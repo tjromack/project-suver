@@ -34,8 +34,10 @@ from app.provider import (
     draft_section,
     extract_action_items,
     extract_items,
+    plan_query,
 )
 from app.sessions import ConverseTurn, create_session, get_session
+from app.table import TableData, parse_table, to_number
 
 
 @dataclass(frozen=True)
@@ -1147,3 +1149,153 @@ def reply_document(filename: str, data: bytes | str, intent_slug: str | None = N
 def reply_paste(text: str, intent_slug: str | None = None, *, provider: str | None = None) -> ReplyOutcome:
     r = from_paste(text)
     return draft_reply_text(r.text, intent_slug, doc_kind=r.kind, provider=provider)
+
+
+# --- Data & Analysis · Ask your spreadsheet: the model plans, the CODE computes (numbers always right, cells cited) --
+
+_AGG_LABEL = {"sum": "Total", "avg": "Average", "min": "Minimum", "max": "Maximum"}
+_SPREADSHEET_ABSTAIN = ("I couldn't answer that from this table — try asking about one of its columns "
+                        "(a total/average/count, or a lookup).")
+
+
+@dataclass(frozen=True)
+class AskTableOutcome:
+    query: str = ""
+    answer: str | None = None                       # the computed answer, in words
+    operation: str = ""                             # a plain description of what was computed (auditable)
+    columns: list = field(default_factory=list)     # header row of the supporting rows
+    rows: list = field(default_factory=list)        # the supporting rows (the cells the answer came from)
+    n_matched: int = 0                              # how many rows the operation covered
+    handled_count: int = 0
+    handled_classes: list = field(default_factory=list)
+    decision: str = "clear"
+    provider: str = "stub"
+    doc_kind: str = "text"
+    source_chars: int = 0
+    n_table_rows: int = 0
+    n_table_cols: int = 0
+    answered: bool = False
+    abstained: bool = False
+    blocked: bool = False
+    block_message: str | None = None
+    empty: bool = False
+    empty_note: str | None = None
+
+    @property
+    def handled_note(self) -> str:
+        n = self.handled_count
+        if n == 0:
+            return "No sensitive items detected"
+        return f"{n} sensitive {'item' if n == 1 else 'items'} handled before the model"
+
+
+def _fmt_num(v: float) -> str:
+    """Render a computed number cleanly (drop a trailing .0; thousands separators)."""
+    if v == int(v):
+        return f"{int(v):,}"
+    return f"{v:,.2f}"
+
+
+def _filter_indices(table: TableData, filt: dict | None) -> list[int]:
+    """Row indices matching an optional {column, match, value} filter (eq/contains, case-insensitive)."""
+    if not filt:
+        return list(range(table.n_rows))
+    ci = table.col_index(str(filt.get("column", "")))
+    if ci < 0:
+        return list(range(table.n_rows))
+    val = str(filt.get("value", "")).strip().lower()
+    match = filt.get("match", "eq")
+    out = []
+    for r_i, r in enumerate(table.rows):
+        cell = (r[ci] if ci < len(r) else "").strip().lower()
+        if (match == "contains" and val in cell) or (match != "contains" and cell == val):
+            out.append(r_i)
+    return out
+
+
+def _execute_plan(table: TableData, plan: dict):
+    """Run the model's PLAN deterministically over the local data → (answer, operation, matched_indices) or None to
+    abstain. The arithmetic happens here, never in the model — so the number is exact and traces to real rows."""
+    if not isinstance(plan, dict) or plan.get("answerable") is False:
+        return None
+    op = str(plan.get("op") or "").lower()
+    filt = plan.get("filter") if isinstance(plan.get("filter"), dict) else None
+    where = ""
+    if filt and table.col_index(str(filt.get("column", ""))) >= 0:
+        where = f' where {filt.get("column")} {"contains" if filt.get("match") == "contains" else "="} "{filt.get("value")}"'
+    idx = _filter_indices(table, filt)
+
+    if op == "count":
+        return (f"{len(idx):,}", f"Count of rows{where}", idx)
+
+    if op == "aggregate":
+        ci = table.col_index(str(plan.get("column", "")))
+        if ci < 0 or ci not in table.numeric_cols:
+            return None
+        agg = str(plan.get("agg") or "sum").lower()
+        nums = [table.numbers(ci)[i] for i in idx]
+        nums = [n for n in nums if n is not None]
+        if not nums:
+            return None
+        val = {"sum": sum(nums), "avg": sum(nums) / len(nums), "min": min(nums), "max": max(nums)}.get(agg)
+        if val is None:
+            return None
+        label = _AGG_LABEL.get(agg, agg.capitalize())
+        return (f"{label} of {table.headers[ci]}{where}: {_fmt_num(val)}",
+                f"{label} of “{table.headers[ci]}”{where} — over {len(nums)} value(s)", idx)
+
+    if op == "filter":
+        if not idx:
+            return None
+        return (f"{len(idx):,} row(s) match{where}.", f"Rows{where}", idx)
+
+    return None
+
+
+def ask_table(text: str, query: str, *, doc_kind: str = "text", provider: str | None = None) -> AskTableOutcome:
+    """Answer a plain question about a table by **planning with the model and computing in code**. The model only
+    ever sees the sanitized **schema + a small sanitized sample** (never the full dataset) + the sanitized question,
+    and returns a structured plan; the pipeline executes that plan deterministically over the local rows, so the
+    number is exact and the answer shows the exact rows it used. Unanswerable → an honest abstention."""
+    provider = provider or settings.provider
+    q = (query or "").strip()
+    table = parse_table(text)
+    base = dict(query=q, provider=provider, doc_kind=doc_kind, source_chars=len(text))
+    if table is None:
+        return AskTableOutcome(**base, empty=True,
+                               empty_note="That doesn't look like a table — add a CSV (or paste rows with a header).")
+    base = dict(base, n_table_rows=table.n_rows, n_table_cols=table.n_cols)
+
+    # The model sees only the sanitized schema + a small sanitized SAMPLE + the sanitized question — never all rows.
+    schema = sanitize(table.schema_text(), default_policy())
+    sample = sanitize(table.sample_text(settings.table_sample_rows), default_policy())
+    ques = sanitize(q, default_policy())
+    handled = len(schema.spans) + len(sample.spans) + len(ques.spans)
+    classes = sorted(set(schema.classes) | set(sample.classes) | set(ques.classes))
+    base = dict(base, handled_count=handled, handled_classes=classes, decision=ques.decision)
+    if ques.safe_text is None:
+        return AskTableOutcome(**base, blocked=True,
+                               block_message="That question contains data that can't leave your device. Try rephrasing.")
+
+    numeric_headers = [table.headers[i] for i in sorted(table.numeric_cols)]
+    plan = plan_query(schema.safe_text or "", sample.safe_text or "", ques.safe_text,
+                      list(table.headers), numeric_headers, provider)
+    result = _execute_plan(table, plan) if plan else None
+    if result is None:
+        return AskTableOutcome(**base, answered=False, abstained=True, answer=_SPREADSHEET_ABSTAIN)
+
+    answer, operation, idx = result
+    show = idx[: settings.table_max_rows_shown]
+    rows = [table.rows[i] for i in show]
+    return AskTableOutcome(**base, answered=True, answer=answer, operation=operation,
+                           columns=list(table.headers), rows=rows, n_matched=len(idx))
+
+
+def ask_table_document(filename: str, data: bytes | str, query: str, *, provider: str | None = None) -> AskTableOutcome:
+    r: IngestResult = extract_text(filename, data)
+    return ask_table(r.text, query, doc_kind=r.kind, provider=provider)
+
+
+def ask_table_paste(text: str, query: str, *, provider: str | None = None) -> AskTableOutcome:
+    r = from_paste(text)
+    return ask_table(r.text, query, doc_kind=r.kind, provider=provider)

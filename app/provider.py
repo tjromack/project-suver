@@ -651,3 +651,103 @@ def draft_reply(safe_message: str, intent_slug: str, intent_focus: str, provider
         except Exception:
             return _stub_reply(intent_slug)
     return _stub_reply(intent_slug)
+
+
+# --- Data & Analysis · Ask your spreadsheet: the model PLANS a query; the pipeline COMPUTES it deterministically ---
+
+_PLAN_PROMPT = (
+    "You turn a question about a table into a STRUCTURED PLAN that will be executed deterministically over the data. "
+    "You do NOT compute or state the answer yourself — only the plan.\n"
+    "The table's columns:\n{schema}\n\nA few sample rows (for context only):\n{sample}\n\n"
+    'Return ONLY a JSON object: {{"op": "aggregate"|"count"|"filter", "column": "<column name or null>", '
+    '"agg": "sum"|"avg"|"min"|"max"|null, "filter": {{"column": "<column>", "match": "eq"|"contains", '
+    '"value": "<value from the question>"}} | null, "answerable": true}}\n'
+    "Rules:\n"
+    "- aggregate: a sum/average/min/max over a NUMBER column (set `agg` and `column`). count: how many rows match. "
+    "filter: return the matching rows (optionally `column` = one column to show).\n"
+    "- `filter.value` comes from the QUESTION (what the user filters by); `match` is eq for exact, contains for partial.\n"
+    "- Use ONLY the exact column names listed above. If the question can't be answered from these columns, set "
+    '`answerable` to false.\n'
+    "- Never put the numeric answer in the plan.\n\n"
+    "QUESTION: {question}"
+)
+
+_AGG_WORDS = {"sum": "sum", "total": "sum", "add": "sum", "average": "avg", "avg": "avg", "mean": "avg",
+              "max": "max", "maximum": "max", "highest": "max", "largest": "max", "most": "max",
+              "min": "min", "minimum": "min", "lowest": "min", "smallest": "min"}
+
+
+def _stub_plan(schema_headers: list[str], numeric_headers: list[str], question: str) -> dict:
+    """Deterministic offline planner — match an aggregate word + a column name from the question; else count. Enough
+    to run the flow offline for tests; the shipped planner is the `anthropic` path."""
+    q = (question or "").lower()
+    agg = next((v for k, v in _AGG_WORDS.items() if _re.search(rf"\b{k}\b", q)), None)
+    # a column mentioned in the question (prefer a numeric one for aggregates)
+    def find_col(cols):
+        return next((h for h in cols if h and h.lower() in q), None)
+    if "how many" in q or "count" in q or "number of rows" in q:
+        return {"op": "count", "column": None, "agg": None, "filter": None, "answerable": True}
+    if agg:
+        col = find_col(numeric_headers) or (numeric_headers[0] if numeric_headers else None)
+        if col:
+            return {"op": "aggregate", "column": col, "agg": agg, "filter": None, "answerable": True}
+    col = find_col(schema_headers)
+    if col:
+        return {"op": "filter", "column": col, "agg": None, "filter": None, "answerable": True}
+    # Nothing in the question maps to this table → abstain (never guess an operation). The anthropic planner handles
+    # value-filters ("the West rows") that this offline heuristic can't.
+    return {"op": "filter", "column": None, "agg": None, "filter": None, "answerable": False}
+
+
+def _parse_plan(raw: str) -> dict | None:
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        raw = raw[raw.find("\n") + 1:] if "\n" in raw else raw
+    try:
+        d = json.loads(raw)
+        return d if isinstance(d, dict) else None
+    except (json.JSONDecodeError, ValueError):
+        cut = raw.rfind("}")
+        if cut != -1:
+            try:
+                d = json.loads(raw[: cut + 1])
+                return d if isinstance(d, dict) else None
+            except (json.JSONDecodeError, ValueError):
+                return None
+    return None
+
+
+def _anthropic_plan(safe_schema: str, safe_sample: str, safe_question: str) -> dict | None:
+    import truststore
+
+    truststore.inject_into_ssl()
+    from anthropic import Anthropic
+
+    from app.config import settings
+
+    client = Anthropic()
+    prompt = _PLAN_PROMPT.format(schema=safe_schema, sample=safe_sample, question=safe_question)
+    msg = client.messages.create(
+        model=settings.anthropic_model,
+        max_tokens=400,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    raw = "".join(getattr(b, "text", "") for b in msg.content).strip()
+    return _parse_plan(raw)
+
+
+def plan_query(safe_schema: str, safe_sample: str, safe_question: str, schema_headers: list[str],
+               numeric_headers: list[str], provider: str) -> dict | None:
+    """Ask the model for a STRUCTURED PLAN over the (sanitized) schema + sample + question — never the answer. The
+    pipeline executes the plan deterministically over the full local data. `stub` is a heuristic planner. The model
+    only ever sees the sanitized schema + a sanitized SAMPLE (never the full dataset). Degrades to the stub on error."""
+    if provider == "anthropic":
+        try:
+            plan = _anthropic_plan(safe_schema, safe_sample, safe_question)
+            if plan is not None:
+                return plan
+        except Exception:
+            pass
+        return _stub_plan(schema_headers, numeric_headers, safe_question)
+    return _stub_plan(schema_headers, numeric_headers, safe_question)

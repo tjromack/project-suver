@@ -1,8 +1,8 @@
 # DEMO — a manual verification pass (Project Suver · a multi-platform hub)
 
-A walk of all **9 tools across 2 platforms** (Documents ×6 · Communications ×3) + the tuning fixes. Everything below
-is **live-verified in code** already; this is the human eyeball pass. Report anything that looks wrong, awkward, or
-off and it gets fixed + regression-tested.
+A walk of all **10 tools across 3 platforms** (Documents ×6 · Communications ×3 · Data & Analysis ×1) + the tuning
+fixes. Everything below is **live-verified in code** already; this is the human eyeball pass. Report anything that
+looks wrong, awkward, or off and it gets fixed + regression-tested.
 
 ## 0. Start it up
 From `c:\ai\project-suver` (PowerShell — one command per line, no `&&`):
@@ -18,9 +18,9 @@ Open **http://127.0.0.1:8000**.
   (~326K chars), and `data\samples\sample.txt` (has a **planted SSN** for the trust check).
 
 ## 1. The hub (the product front door) — `/`
-Look for: hero **"Tools, not prompts."** · a 3-step **how it works** · two platform sections — **"🗂 The Documents
-platform"** (6 cards: Read · Ask · Write · Pull data · Compare · Chat) and **"✉️ The Communications platform"** (3
-cards: Meetings · Triage · Reply) · a **"🛡 Governed by design"** trust band at the bottom.
+Look for: hero **"Tools, not prompts."** · a 3-step **how it works** · three platform sections — **"🗂 The Documents
+platform"** (6 cards), **"✉️ The Communications platform"** (3 cards: Meetings · Triage · Reply), and **"📊 The Data &
+Analysis platform"** (1 card: Ask) · a **"🛡 Governed by design"** trust band at the bottom.
 
 ## 2. Summarize  *(long-doc coverage + citations + the trust re-hydration)*
 - Drop **`Byzantine_navy.pdf`** → a list of **cited** key points. The note should say **"Summarized across the
@@ -99,6 +99,26 @@ Paste a message, e.g.: `Hi — could you join a 30-min call next week to walk th
 Pick an intent (**Answer** / **Ask for more detail** / **Politely decline**) → a grounded reply. Expect **[placeholders]**
 for anything it doesn't know (a day/time, your name) listed under "things to fill in", and **no invented specifics**.
 Try each intent — the reply changes. *(It never makes up a date/number on your behalf.)*
+
+---
+
+# Platform #3 — Data & Analysis *(added 2026-08-06)*
+
+## 11. Ask your spreadsheet  *(the model plans, the code computes — exact numbers, cited rows)*
+Paste a small table (or drop a `.csv`), e.g.:
+```
+Region,Rep,Product,Units,Revenue
+West,Alice,Widget,120,4800
+East,Bob,Widget,90,3600
+West,Alice,Gadget,60,5400
+East,Carol,Gadget,45,4050
+West,Dan,Gizmo,200,9000
+```
+Ask **"What is the total revenue in the West region?"** → **19,200** with the **HOW** line (*Total of "Revenue" where
+Region = "West"*) and the **exact rows** it used. Try **"How many units did Alice sell?"** (→ 180), **"average
+revenue per row?"**, **"how many rows are there?"**. Then ask something not in the table (**"What was the weather
+last Tuesday?"**) → an honest **abstention**. *(The number is computed in code over your full data — the model only
+picked which calculation to run, and only ever saw a small sample.)*
 
 ---
 

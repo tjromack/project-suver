@@ -12,8 +12,8 @@ from pathlib import PurePosixPath
 
 from app.config import settings
 
-TEXT_EXTS = {".txt", ".md", ".markdown", ".text", ""}
-SUPPORTED = {".txt", ".md", ".markdown", ".text", ".pdf", ".docx"}
+TEXT_EXTS = {".txt", ".md", ".markdown", ".text", ".csv", ".tsv", ""}
+SUPPORTED = {".txt", ".md", ".markdown", ".text", ".pdf", ".docx", ".csv", ".tsv"}
 
 
 class IngestError(ValueError):
@@ -52,7 +52,7 @@ def extract_text(filename: str, data: bytes | str) -> IngestResult:
 
     if ext in TEXT_EXTS:
         text = raw.decode("utf-8", errors="replace").strip()
-        kind = "md" if ext in {".md", ".markdown"} else "txt"
+        kind = "md" if ext in {".md", ".markdown"} else ("csv" if ext in {".csv", ".tsv"} else "txt")
     elif ext == ".pdf":
         text, kind = _extract_pdf(raw), "pdf"
     elif ext == ".docx":

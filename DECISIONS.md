@@ -426,3 +426,31 @@ still flags a type-invalid or genuinely-uncertain value.
 
 **Status.** Accepted. **112 → 113 tests**; both live-verified on `anthropic`. Closes the two 🟡 tuning items in
 `../_PLATFORM/BACKLOG.md`.
+
+### DEC 021 — Platform #3: Data & Analysis — "Ask your spreadsheet" (the 10th tool) — the model plans, the code computes
+**Decision.** Open a **third platform — Data & Analysis** (a new, non-prose **tabular** modality) with its first
+tool, **"Ask your spreadsheet"**: add a CSV (or paste a table) + a plain question → an **exact answer computed from
+the rows**, showing the cells it used. Signature discipline: **the model PLANS, the code COMPUTES.** The model turns
+the question into a structured plan (op = aggregate/count/filter · column · agg · filter{column,match,value}); the
+pipeline **executes it deterministically** over the full local data (`_execute_plan`), so the arithmetic is always
+right and every answer traces to real rows. Unanswerable/unsupported → an honest **abstention** (never a guessed
+number). ⭐ Strong privacy property: the model only ever sees the **schema + a small sanitized SAMPLE** (`table_sample_
+rows`), never the full dataset — the computation runs locally on all rows.
+**Why.** Proves the hub scales past documents/text to a genuinely different modality (tabular), the strongest "this
+is a real multi-platform hub" statement. And it fixes the #1 danger of LLMs on data — **arithmetic** — by keeping the
+numbers deterministic (the model chooses *which* calculation, code does the math), mirroring Compare's "rules
+compute, model explains." A universal job (everyone has spreadsheets); a lean build (stdlib `csv` + a table parser,
+no pandas/openpyxl).
+**Rules out.** The model doing the arithmetic (it plans only); a guessed answer when the question doesn't map
+(abstain); sending the whole dataset to the model (schema + sample only); a heavy data dep.
+**Status.** Accepted. `app/table.py` (CSV/TSV/paste → typed `TableData`, numeric-column detection), `.csv`/`.tsv`
+added to ingest, `app/provider.py` (`plan_query` + stub/`_parse_plan`), `app/pipeline.py` (`AskTableOutcome`,
+`ask_table`, `_execute_plan`, `_filter_indices`), `app/tools/spreadsheet.py`,
+`app/shell/templates/_spreadsheet_result.html`, config (`table_sample_rows`/`table_max_rows_shown`), the hub's 3rd
+platform section (`_PLATFORM_ORDER`). `tests/test_table.py` + `tests/test_spreadsheet.py` (sum/avg/count exact ·
+value-filter aggregate exact · abstain when unanswerable · can't-sum-text abstains · **model sees only a sanitized
+sample, never the full dataset** · full dataset still computed over · reproducible) + `test_app.py` (3rd platform on
+the hub · the route). **113 → 130 tests**; **live-verified** with `anthropic` (a sales table → "total revenue in the
+West region" = 19,200 over 3 rows; "Alice's units" = 180; out-of-table + argmax questions abstained). **10 live tools ·
+3 platforms (Documents 6 · Communications 3 · Data & Analysis 1).** *(v1 supports aggregate/count/filter; group-by /
+argmax "which X has the most Y" is a logged enhancement.)*

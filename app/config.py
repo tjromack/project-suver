@@ -56,6 +56,10 @@ class Settings:
     # threshold is flagged 'review' rather than shown as a confident bucket.
     triage_max_messages: int = int(os.getenv("TRIAGE_MAX_MESSAGES", "40"))
     triage_threshold: float = float(os.getenv("TRIAGE_THRESHOLD", "0.6"))
+    # "Ask your spreadsheet": how many rows the model sees as a SAMPLE (never the full dataset), and how many
+    # supporting rows to show under a computed answer.
+    table_sample_rows: int = int(os.getenv("TABLE_SAMPLE_ROWS", "6"))
+    table_max_rows_shown: int = int(os.getenv("TABLE_MAX_ROWS_SHOWN", "12"))
     samples_dir: Path = REPO_ROOT / os.getenv("SAMPLES_DIR", "data/samples")
 
     def provenance(self) -> dict:

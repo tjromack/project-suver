@@ -229,6 +229,30 @@ def test_triage_empty_is_honest():
     assert "Paste your messages" in r.text            # the friendly empty-input message
 
 
+def test_hub_shows_the_data_platform():
+    """⭐ platform #3 — Data & Analysis (a new tabular modality) appears as its own section, after Communications."""
+    r = client.get("/")
+    assert r.status_code == 200
+    assert "Data &amp; Analysis platform" in r.text or "Data & Analysis platform" in r.text
+    assert "Ask your spreadsheet" in r.text
+    assert r.text.index("Communications platform") < r.text.index("Analysis platform")
+
+
+def test_spreadsheet_run_computes_an_answer():
+    csv = "Region,Revenue\nWest,4800\nEast,3600\nWest,5400\n"
+    r = client.post("/t/spreadsheet/run", data={"paste": csv, "query": "total Revenue?"})
+    assert r.status_code == 200
+    assert "13,800" in r.text                             # 4800+3600+5400, computed in code
+    assert "computed locally" in r.text
+    assert "🛡" in r.text
+
+
+def test_spreadsheet_needs_a_question():
+    r = client.post("/t/spreadsheet/run", data={"paste": "A,B\n1,2", "query": "  "})
+    assert r.status_code == 200
+    assert "Type a question" in r.text
+
+
 def test_reply_shell_has_an_intent_select():
     r = client.get("/t/reply")
     assert r.status_code == 200
