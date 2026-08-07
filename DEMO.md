@@ -1,6 +1,6 @@
 # DEMO — a manual verification pass (Project Suver · a multi-platform hub)
 
-A walk of all **10 tools across 3 platforms** (Documents ×6 · Communications ×3 · Data & Analysis ×1) + the tuning
+A walk of all **11 tools across 3 platforms** (Documents ×6 · Communications ×3 · Data & Analysis ×2) + the tuning
 fixes. Everything below is **live-verified in code** already; this is the human eyeball pass. Report anything that
 looks wrong, awkward, or off and it gets fixed + regression-tested.
 
@@ -20,7 +20,7 @@ Open **http://127.0.0.1:8000**.
 ## 1. The hub (the product front door) — `/`
 Look for: hero **"Tools, not prompts."** · a 3-step **how it works** · three platform sections — **"🗂 The Documents
 platform"** (6 cards), **"✉️ The Communications platform"** (3 cards: Meetings · Triage · Reply), and **"📊 The Data &
-Analysis platform"** (1 card: Ask) · a **"🛡 Governed by design"** trust band at the bottom.
+Analysis platform"** (2 cards: Ask · Overview) · a **"🛡 Governed by design"** trust band at the bottom.
 
 ## 2. Summarize  *(long-doc coverage + citations + the trust re-hydration)*
 - Drop **`Byzantine_navy.pdf`** → a list of **cited** key points. The note should say **"Summarized across the
@@ -121,6 +121,12 @@ revenue?"** → **Gadget (9,450)** with a grouped table; **"revenue by region?"*
 something not in the table (**"What was the weather last Tuesday?"**) → an honest **abstention**. *(Numbers are
 computed in code over your full data — the model only picked which calculation to run, and only ever saw a small
 sample.)*
+
+## 12. Summarize a spreadsheet  *(the model narrates, the code computes — every figure calculated)*
+Paste the same sales table (or a `.csv`) → a plain-language **overview** ("this dataset tracks sales across N
+records…") + a **computed column profile** (per column: type · numeric min/mean/max/total · top categories ·
+missing). Check that a number in the overview (e.g. a total) matches its profile row — the narrative is written from
+the computed profile, never invented, and the model only ever saw the profile + a small sample.
 
 ---
 

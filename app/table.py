@@ -10,6 +10,7 @@ from __future__ import annotations
 import csv
 import io
 import re
+from collections import Counter
 from dataclasses import dataclass, field
 
 _NUM_RX = re.compile(r"^-?\(?\$?\s?\d[\d,]*(?:\.\d+)?\)?%?$")
@@ -27,6 +28,20 @@ def to_number(cell: str) -> float | None:
         return -v if neg else v
     except ValueError:
         return None
+
+
+@dataclass
+class ColumnProfile:
+    name: str
+    kind: str                       # "number" | "text"
+    filled: int
+    missing: int
+    minimum: float | None = None    # numeric
+    maximum: float | None = None
+    mean: float | None = None
+    total: float | None = None
+    distinct: int | None = None     # text
+    top: list = field(default_factory=list)   # [(value, count), ...]
 
 
 @dataclass
@@ -63,6 +78,27 @@ class TableData:
     def schema_text(self) -> str:
         return "\n".join(
             f'- "{h}" ({"number" if i in self.numeric_cols else "text"})' for i, h in enumerate(self.headers))
+
+    def profile(self, top_k: int = 3) -> list[ColumnProfile]:
+        """A deterministic per-column profile — the trusted, computed facts a data summary is built from. Numeric
+        columns get min/max/mean/total; text columns get distinct count + the top values; both get a missing count."""
+        out: list[ColumnProfile] = []
+        for i, h in enumerate(self.headers):
+            cells = [(r[i] if i < len(r) else "").strip() for r in self.rows]
+            nonempty = [c for c in cells if c]
+            missing = self.n_rows - len(nonempty)
+            if i in self.numeric_cols:
+                nums = [n for n in self.numbers(i) if n is not None]
+                out.append(ColumnProfile(
+                    name=h, kind="number", filled=len(nonempty), missing=missing,
+                    minimum=min(nums) if nums else None, maximum=max(nums) if nums else None,
+                    mean=(sum(nums) / len(nums)) if nums else None, total=sum(nums) if nums else None))
+            else:
+                counts = Counter(nonempty)
+                out.append(ColumnProfile(
+                    name=h, kind="text", filled=len(nonempty), missing=missing,
+                    distinct=len(counts), top=counts.most_common(top_k)))
+        return out
 
     def sample_text(self, n: int = 5) -> str:
         head = " | ".join(self.headers)

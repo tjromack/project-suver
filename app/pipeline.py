@@ -34,10 +34,11 @@ from app.provider import (
     draft_section,
     extract_action_items,
     extract_items,
+    narrate_table,
     plan_query,
 )
 from app.sessions import ConverseTurn, create_session, get_session
-from app.table import TableData, parse_table, to_number
+from app.table import ColumnProfile, TableData, parse_table, to_number
 
 
 @dataclass(frozen=True)
@@ -1348,3 +1349,106 @@ def ask_table_document(filename: str, data: bytes | str, query: str, *, provider
 def ask_table_paste(text: str, query: str, *, provider: str | None = None) -> AskTableOutcome:
     r = from_paste(text)
     return ask_table(r.text, query, doc_kind=r.kind, provider=provider)
+
+
+# --- Data & Analysis · Summarize a spreadsheet: a computed profile + a grounded plain-language overview -------------
+
+
+@dataclass(frozen=True)
+class ProfileRow:
+    name: str
+    kind: str            # "number" | "text"
+    stats: str           # a display-ready summary of the computed facts
+    missing: int
+
+
+@dataclass(frozen=True)
+class DataSummaryOutcome:
+    overview: str = ""                              # the plain-language narrative (model), re-hydrated
+    profile: list = field(default_factory=list)     # ProfileRow per column (computed)
+    n_rows: int = 0
+    n_cols: int = 0
+    n_numeric: int = 0
+    handled_count: int = 0
+    handled_classes: list = field(default_factory=list)
+    decision: str = "clear"
+    provider: str = "stub"
+    doc_kind: str = "text"
+    source_chars: int = 0
+    empty: bool = False
+    empty_note: str | None = None
+    blocked: bool = False
+    block_message: str | None = None
+
+    @property
+    def handled_note(self) -> str:
+        n = self.handled_count
+        if n == 0:
+            return "No sensitive items detected"
+        return f"{n} sensitive {'item' if n == 1 else 'items'} handled before the model"
+
+
+def _profile_stats(p: ColumnProfile) -> str:
+    """A display-ready one-line summary of a column's computed profile."""
+    if p.kind == "number":
+        parts = []
+        if p.minimum is not None:
+            parts.append(f"min {_fmt_num(p.minimum)}")
+        if p.maximum is not None:
+            parts.append(f"max {_fmt_num(p.maximum)}")
+        if p.mean is not None:
+            parts.append(f"mean {_fmt_num(round(p.mean, 2))}")
+        if p.total is not None:
+            parts.append(f"total {_fmt_num(p.total)}")
+        return " · ".join(parts) or "—"
+    top = ", ".join(f"{v} ({c})" for v, c in (p.top or [])) or "—"
+    return f"{p.distinct} distinct · top: {top}"
+
+
+def _profile_text(profiles: list[ColumnProfile], n_rows: int) -> str:
+    """The computed facts as text for the model to narrate (numbers already calculated — it must not recompute)."""
+    lines = [f"{n_rows:,} rows, {len(profiles)} columns."]
+    for p in profiles:
+        miss = f", {p.missing} missing" if p.missing else ""
+        lines.append(f'- "{p.name}" ({p.kind}): {_profile_stats(p)}{miss}')
+    return "\n".join(lines)
+
+
+def summarize_table(text: str, *, doc_kind: str = "text", provider: str | None = None) -> DataSummaryOutcome:
+    """Summarize a table: compute a per-column **profile** deterministically, then have the model write a plain-language
+    **overview** from that profile (it narrates, the code computes — every figure is calculated, not invented). The
+    model only ever sees the sanitized profile + a sanitized sample, never the full data; the overview re-hydrates
+    locally, the profile table shown alongside is the computed ground truth."""
+    provider = provider or settings.provider
+    table = parse_table(text)
+    base = dict(provider=provider, doc_kind=doc_kind, source_chars=len(text))
+    if table is None:
+        return DataSummaryOutcome(**base, empty=True,
+                                  empty_note="That doesn't look like a table — add a CSV (or paste rows with a header).")
+
+    profiles = table.profile()
+    prof_text = _profile_text(profiles, table.n_rows)
+
+    # The model sees only the sanitized profile + a sanitized sample — never the full dataset.
+    prof = sanitize(prof_text, default_policy())
+    sample = sanitize(table.sample_text(settings.table_sample_rows), default_policy())
+    handled = len(prof.spans) + len(sample.spans)
+    classes = sorted(set(prof.classes) | set(sample.classes))
+    tmap = {**prof.token_map, **sample.token_map}
+
+    overview = rehydrate(narrate_table(prof.safe_text or prof_text, sample.safe_text or "",
+                                       table.n_rows, table.n_cols, provider), tmap)
+    display = [ProfileRow(name=p.name, kind=p.kind, stats=_profile_stats(p), missing=p.missing) for p in profiles]
+    return DataSummaryOutcome(
+        **base, overview=overview, profile=display, n_rows=table.n_rows, n_cols=table.n_cols,
+        n_numeric=len(table.numeric_cols), handled_count=handled, handled_classes=classes, decision=prof.decision)
+
+
+def summarize_table_document(filename: str, data: bytes | str, *, provider: str | None = None) -> DataSummaryOutcome:
+    r: IngestResult = extract_text(filename, data)
+    return summarize_table(r.text, doc_kind=r.kind, provider=provider)
+
+
+def summarize_table_paste(text: str, *, provider: str | None = None) -> DataSummaryOutcome:
+    r = from_paste(text)
+    return summarize_table(r.text, doc_kind=r.kind, provider=provider)

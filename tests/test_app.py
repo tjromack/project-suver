@@ -235,6 +235,7 @@ def test_hub_shows_the_data_platform():
     assert r.status_code == 200
     assert "Data &amp; Analysis platform" in r.text or "Data & Analysis platform" in r.text
     assert "Ask your spreadsheet" in r.text
+    assert "Summarize a spreadsheet" in r.text                # its second tool
     assert r.text.index("Communications platform") < r.text.index("Analysis platform")
 
 
@@ -251,6 +252,15 @@ def test_spreadsheet_needs_a_question():
     r = client.post("/t/spreadsheet/run", data={"paste": "A,B\n1,2", "query": "  "})
     assert r.status_code == 200
     assert "Type a question" in r.text
+
+
+def test_data_summary_run_shows_profile():
+    csv = "Region,Revenue\nWest,4800\nEast,3600\nWest,5400\n"
+    r = client.post("/t/data-summary/run", data={"paste": csv})
+    assert r.status_code == 200
+    assert "COMPUTED COLUMN PROFILE" in r.text
+    assert "total 13,800" in r.text                     # computed sum shown in the profile
+    assert "🛡" in r.text
 
 
 def test_reply_shell_has_an_intent_select():

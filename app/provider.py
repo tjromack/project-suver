@@ -782,3 +782,52 @@ def plan_query(safe_schema: str, safe_sample: str, safe_question: str, schema_he
             pass
         return _stub_plan(schema_headers, numeric_headers, safe_question)
     return _stub_plan(schema_headers, numeric_headers, safe_question)
+
+
+# --- Data & Analysis · Summarize a spreadsheet: the model NARRATES a computed profile (never invents a number) ------
+
+_NARRATE_PROMPT = (
+    "Below is a COMPUTED profile of a data table — the numbers are already calculated for you. Write a 2–4 sentence "
+    "plain-language overview of the dataset: what it appears to be about, its size, and 2–3 of the most notable facts.\n"
+    "Rules:\n"
+    "- Use ONLY the numbers in the profile — do NOT recompute anything or invent any figure.\n"
+    "- No preamble (don't start with \"Based on…\"/\"This profile…\"); just the overview, plain and direct.\n"
+    "- Keep bracketed tokens like [PERSON_NAME_1] exactly as written.\n\n"
+    "PROFILE:\n{profile}\n\nSAMPLE ROWS:\n{sample}"
+)
+
+
+def _stub_narrate(n_rows: int, n_cols: int) -> str:
+    return f"This table has {n_rows:,} rows and {n_cols} columns. See the computed column profile below."
+
+
+def _anthropic_narrate(safe_profile: str, safe_sample: str) -> str:
+    import truststore
+
+    truststore.inject_into_ssl()
+    from anthropic import Anthropic
+
+    from app.config import settings
+
+    client = Anthropic()
+    prompt = _NARRATE_PROMPT.format(profile=safe_profile, sample=safe_sample)
+    msg = client.messages.create(
+        model=settings.anthropic_model,
+        max_tokens=400,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    raw = "".join(getattr(b, "text", "") for b in msg.content).strip()
+    return _PREAMBLE.sub("", raw).strip()
+
+
+def narrate_table(safe_profile: str, safe_sample: str, n_rows: int, n_cols: int, provider: str) -> str:
+    """Write a plain-language overview of a table from its already-COMPUTED profile. `stub` is a minimal deterministic
+    line; `anthropic` narrates. The model only ever sees the sanitized profile + a sanitized sample (never the full
+    data) and is told to use only the computed numbers — the profile table shown alongside is the ground truth.
+    Degrades to the stub on any model error."""
+    if provider == "anthropic":
+        try:
+            return _anthropic_narrate(safe_profile, safe_sample)
+        except Exception:
+            return _stub_narrate(n_rows, n_cols)
+    return _stub_narrate(n_rows, n_cols)

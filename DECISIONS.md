@@ -471,3 +471,24 @@ words), `app/pipeline.py` (`_execute_plan` groupby branch → a 4-tuple with a `
 argmin). **130 → 132 tests**; **live-verified** with `anthropic` (Product by highest revenue → Gadget 9,450; revenue by
 region → West 19,200 / East 7,650; fewest units → Carol). Closes the group-by/argmax BACKLOG item; multi-column
 filters / sort-top-N / XLSX remain logged.
+
+### DEC 023 — Data & Analysis tool #2: "Summarize a spreadsheet" (the 11th tool) — the model narrates, the code computes
+**Decision.** Add **Summarize a spreadsheet** — drop a CSV (or paste a table) → a plain-language **overview** + a
+**computed per-column profile** (row/col counts · type · numeric min/mean/max/total · top categories · missing
+counts). The tabular analog of the flagship Summarize. Discipline: the code computes **every figure**
+(`TableData.profile()`); the model only **narrates** from the computed profile (told to use only those numbers — the
+profile table shown alongside is the ground truth). Same trust posture: the model sees only the **sanitized profile +
+a sanitized sample**, never the full dataset; the overview re-hydrates locally. Zero-config (no question, no pick).
+**Why.** Understanding a dataset ("what is this?") is the natural first step before **Ask your spreadsheet** ("what's
+the total in X?"); this deepens the newest platform to 2 tools (as Communications was deepened). It keeps the
+platform's discipline — *the model plans/narrates, the code computes* — so every number is right by construction.
+**Rules out.** The model computing or inventing a stat (it narrates the computed profile); sending the full dataset
+(profile + sample only); a prompt or pick.
+**Status.** Accepted. `app/table.py` (`ColumnProfile` + `TableData.profile()`), `app/provider.py` (`narrate_table` +
+stub), `app/pipeline.py` (`summarize_table`, `ProfileRow`/`DataSummaryOutcome`, `_profile_text`/`_profile_stats`),
+`app/tools/data_summary.py`, `app/shell/templates/_data_summary_result.html`, registration. `tests/test_data_summary.py`
+(profile computed exactly · missing counts · overview present · not-a-table · **model sees only sanitized profile +
+sample** · reproducible) + `test_table.py` (profile) + `test_app.py` (2nd Data tool on the hub · the route). **132 →
+139 tests**; **live-verified** with `anthropic` (a sales table → an accurate overview whose every figure matches the
+computed profile — Units total 665, Revenue total 33,600, mean $5,600, largest sale grounded in the sample). **11 live
+tools · 3 platforms (Data & Analysis now 2).** ⏳ Pending Trevor Demo-verify + a couple of Explore instances.
