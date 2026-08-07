@@ -236,6 +236,7 @@ def test_hub_shows_the_data_platform():
     assert "Data &amp; Analysis platform" in r.text or "Data & Analysis platform" in r.text
     assert "Ask your spreadsheet" in r.text
     assert "Summarize a spreadsheet" in r.text                # its second tool
+    assert "Chart your spreadsheet" in r.text                 # its third tool
     assert r.text.index("Communications platform") < r.text.index("Analysis platform")
 
 
@@ -261,6 +262,15 @@ def test_data_summary_run_shows_profile():
     assert "COMPUTED COLUMN PROFILE" in r.text
     assert "total 13,800" in r.text                     # computed sum shown in the profile
     assert "🛡" in r.text
+
+
+def test_chart_run_renders_bars():
+    csv = "Region,Revenue\nWest,4800\nEast,3600\nWest,5400\n"
+    r = client.post("/t/chart/run", data={"paste": csv})
+    assert r.status_code == 200
+    assert "Total Revenue by Region" in r.text          # the chart title
+    assert "10,200" in r.text                            # West total (4800+5400), a bar value
+    assert "nothing sent to a model" in r.text          # the fully-local trust line
 
 
 def test_reply_shell_has_an_intent_select():

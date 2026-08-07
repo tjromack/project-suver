@@ -39,7 +39,7 @@ SPREADSHEET = register(
         name="Ask your spreadsheet",
         blurb="Add a CSV (or paste a table) and ask a plain question — get an exact answer computed from your rows, "
               "showing the cells it used.",
-        icon="📊",
+        icon="🔎",
         accepts="CSV · TSV · or paste a table",
         action_label="Ask",
         run=run,

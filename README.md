@@ -11,7 +11,7 @@ every tool. Pick one tool, or a platform of them.
 This repo is Suver's home: the reusable **tool-app shell**, the **hub launcher**, and the tools. The first tool —
 and this repo's flagship pilot — is **Summarize**.
 
-> **Status — a multi-platform hub: 11 tools across 3 platforms on one shell.** **Platform #1 — Documents**
+> **Status — a multi-platform hub: 12 tools across 3 platforms on one shell.** **Platform #1 — Documents**
 > (*read · ask · write · pull data · compare · chat*): **Summarize** (→ cited summary), **Copilot** ("Ask this
 > document" → a grounded, cited answer or an honest "not in your document"), **Draft** (pick a kind → a grounded
 > memo, *cite-or-block*), **Extractor** (pick a field-set → a **typed table**, the uncertain **flagged**),
@@ -25,7 +25,9 @@ and this repo's flagship pilot — is **Summarize**.
 > CSV + a plain question → an **exact answer computed from your rows**, showing the cells it used — the model plans,
 > the code computes — totals, averages, counts, value-filters, and group-by/"which X has the most Y"; unanswerable
 > → honest abstention) and **Summarize a spreadsheet** (a CSV → a plain-language overview + a computed column
-> profile — the model narrates, the code computes, so every figure is calculated, not invented). 139 tests (stub-backed,
+> profile — the model narrates, the code computes, so every figure is calculated, not invented) and **Chart your
+> spreadsheet** (a CSV → bar charts, each numeric column totalled by category — computed from your rows, fully local,
+> no model). 146 tests (stub-backed,
 > no network); verified end-to-end on real PDFs/transcripts/CSVs with both the offline `stub` and the real `anthropic`
 > model. Sensitive data is sanitized before the model and re-hydrated only in the local view — on every tool. The
 > reusable **shell + hub + tool-app contract** made each tool a small add (a *question*, two *picks*, a *second

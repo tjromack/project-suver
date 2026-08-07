@@ -60,6 +60,9 @@ class Settings:
     # supporting rows to show under a computed answer.
     table_sample_rows: int = int(os.getenv("TABLE_SAMPLE_ROWS", "6"))
     table_max_rows_shown: int = int(os.getenv("TABLE_MAX_ROWS_SHOWN", "12"))
+    # "Chart your spreadsheet": at most this many bars per chart, and this many numeric measures charted.
+    chart_max_bars: int = int(os.getenv("CHART_MAX_BARS", "12"))
+    chart_max_measures: int = int(os.getenv("CHART_MAX_MEASURES", "3"))
     samples_dir: Path = REPO_ROOT / os.getenv("SAMPLES_DIR", "data/samples")
 
     def provenance(self) -> dict:

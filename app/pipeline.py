@@ -1452,3 +1452,99 @@ def summarize_table_document(filename: str, data: bytes | str, *, provider: str 
 def summarize_table_paste(text: str, *, provider: str | None = None) -> DataSummaryOutcome:
     r = from_paste(text)
     return summarize_table(r.text, doc_kind=r.kind, provider=provider)
+
+
+# --- Data & Analysis · Chart your spreadsheet: bars computed from your rows — accurate by construction, no model ----
+
+
+@dataclass(frozen=True)
+class ChartBar:
+    label: str           # the category (re-hydrated is unnecessary — never sent to a model; local only)
+    value: str           # the computed aggregate, formatted
+    pct: int             # bar width 0–100 (relative to the largest bar in this chart)
+
+
+@dataclass(frozen=True)
+class Chart:
+    measure: str         # the numeric column charted
+    category: str        # the category column grouped by
+    agg: str             # "total"
+    bars: list = field(default_factory=list)   # ChartBar, largest first
+    n_groups: int = 0    # total groups (bars may be capped)
+
+
+@dataclass(frozen=True)
+class ChartOutcome:
+    charts: list = field(default_factory=list)      # Chart per numeric measure
+    category: str = ""
+    n_rows: int = 0
+    n_cols: int = 0
+    doc_kind: str = "text"
+    source_chars: int = 0
+    empty: bool = False
+    empty_note: str | None = None
+
+
+def _pick_category(table: TableData) -> int:
+    """The best column to group bars by: a TEXT column with 2–20 distinct values (and fewer distinct than rows —
+    not an id). Prefer the fewest distinct (cleanest bars), leftmost on a tie. -1 if none is suitable."""
+    best_i, best_d = -1, 999
+    for i, _h in enumerate(table.headers):
+        if i in table.numeric_cols:
+            continue
+        vals = {(r[i] if i < len(r) else "").strip() for r in table.rows if (r[i] if i < len(r) else "").strip()}
+        d = len(vals)
+        if 2 <= d <= 20 and d < table.n_rows and d < best_d:
+            best_i, best_d = i, d
+    return best_i
+
+
+def chart_table(text: str, *, doc_kind: str = "text") -> ChartOutcome:
+    """Build bar chart(s) from a table — for the primary categorical column, the **total** of each numeric column by
+    category. Fully **deterministic and local**: the sums are computed from your rows and the chart is drawn from
+    them, so it's accurate by construction — nothing is sent to a model at all."""
+    table = parse_table(text)
+    base = dict(doc_kind=doc_kind, source_chars=len(text))
+    if table is None:
+        return ChartOutcome(**base, empty=True,
+                            empty_note="That doesn't look like a table — add a CSV (or paste rows with a header).")
+    base = dict(base, n_rows=table.n_rows, n_cols=table.n_cols)
+
+    ci = _pick_category(table)
+    numeric = sorted(table.numeric_cols)[: settings.chart_max_measures]
+    if ci < 0 or not numeric:
+        note = ("This table doesn't have an obvious category to chart by — try **Ask your spreadsheet** or "
+                "**Summarize a spreadsheet** instead.")
+        return ChartOutcome(**base, empty=True, empty_note=note)
+
+    cat_name = table.headers[ci]
+    charts = []
+    for nci in numeric:
+        groups: dict[str, float] = {}
+        for r_i, row in enumerate(table.rows):
+            key = (row[ci] if ci < len(row) else "").strip() or "(blank)"
+            v = table.numbers(nci)[r_i]
+            if v is not None:
+                groups[key] = groups.get(key, 0.0) + v
+        if not groups:
+            continue
+        items = sorted(groups.items(), key=lambda t: -t[1])
+        shown = items[: settings.chart_max_bars]
+        top = shown[0][1] if shown and shown[0][1] > 0 else 1.0
+        bars = [ChartBar(label=k, value=_fmt_num(v), pct=max(1, round(v / top * 100)) if v > 0 else 0)
+                for k, v in shown]
+        charts.append(Chart(measure=table.headers[nci], category=cat_name, agg="total", bars=bars, n_groups=len(items)))
+
+    if not charts:
+        return ChartOutcome(**base, empty=True, empty_note="No numeric values to chart by category.")
+    return ChartOutcome(**base, charts=charts, category=cat_name)
+
+
+def chart_table_document(filename: str, data: bytes | str) -> ChartOutcome:
+    r: IngestResult = extract_text(filename, data)
+    return chart_table(r.text, doc_kind=r.kind)
+
+
+def chart_table_paste(text: str) -> ChartOutcome:
+    r = from_paste(text)
+    return chart_table(r.text, doc_kind=r.kind)

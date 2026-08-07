@@ -1,6 +1,6 @@
 # DEMO — a manual verification pass (Project Suver · a multi-platform hub)
 
-A walk of all **11 tools across 3 platforms** (Documents ×6 · Communications ×3 · Data & Analysis ×2) + the tuning
+A walk of all **12 tools across 3 platforms** (Documents ×6 · Communications ×3 · Data & Analysis ×3) + the tuning
 fixes. Everything below is **live-verified in code** already; this is the human eyeball pass. Report anything that
 looks wrong, awkward, or off and it gets fixed + regression-tested.
 
@@ -20,7 +20,7 @@ Open **http://127.0.0.1:8000**.
 ## 1. The hub (the product front door) — `/`
 Look for: hero **"Tools, not prompts."** · a 3-step **how it works** · three platform sections — **"🗂 The Documents
 platform"** (6 cards), **"✉️ The Communications platform"** (3 cards: Meetings · Triage · Reply), and **"📊 The Data &
-Analysis platform"** (2 cards: Ask · Overview) · a **"🛡 Governed by design"** trust band at the bottom.
+Analysis platform"** (3 cards: Ask · Overview · Chart) · a **"🛡 Governed by design"** trust band at the bottom.
 
 ## 2. Summarize  *(long-doc coverage + citations + the trust re-hydration)*
 - Drop **`Byzantine_navy.pdf`** → a list of **cited** key points. The note should say **"Summarized across the
@@ -127,6 +127,12 @@ Paste the same sales table (or a `.csv`) → a plain-language **overview** ("thi
 records…") + a **computed column profile** (per column: type · numeric min/mean/max/total · top categories ·
 missing). Check that a number in the overview (e.g. a total) matches its profile row — the narrative is written from
 the computed profile, never invented, and the model only ever saw the profile + a small sample.
+
+## 13. Chart your spreadsheet  *(bar charts, computed locally — no model at all)*
+Paste the same sales table (or a `.csv`) → **bar charts**: "Total Units by Region" and "Total Revenue by Region",
+each bar sized to its computed total (West should out-bar East). The chip reads **"Charted entirely on your device —
+nothing sent to a model."** *(Zero-config; the sums are computed from your rows, so the chart is accurate by
+construction.)* Try a table with no obvious category (all-numeric) → an honest "no obvious category to chart by."
 
 ---
 

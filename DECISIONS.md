@@ -492,3 +492,24 @@ sample** · reproducible) + `test_table.py` (profile) + `test_app.py` (2nd Data 
 139 tests**; **live-verified** with `anthropic` (a sales table → an accurate overview whose every figure matches the
 computed profile — Units total 665, Revenue total 33,600, mean $5,600, largest sale grounded in the sample). **11 live
 tools · 3 platforms (Data & Analysis now 2).** ⏳ Pending Trevor Demo-verify + a couple of Explore instances.
+
+### DEC 024 — Data & Analysis tool #3: "Chart your spreadsheet" (the 12th tool) — a chart, computed locally, no model
+**Decision.** Add **Chart your spreadsheet** — drop a CSV → **bar chart(s)**: for the primary categorical column, the
+**total** of each numeric column by category, rendered as dependency-free **CSS bars** (no CDN, theme-aware). Signature:
+**accurate by construction + fully local** — the sums are computed from the rows and the bars drawn from them, with
+**no model call at all** (nothing is sent, so there is nothing to sanitize). Zero-config (no question, no pick):
+auto-picks the category column (a text column with 2–20 distinct values, fewer than the row count — not an id) and
+charts each numeric measure (top-12 bars, largest first, scaled to the max). Adds a genuinely new **output modality**
+(a visualization) to the hub.
+**Why.** Rounds out Data & Analysis to *summarize it · ask it · chart it*; a chart is the most visually-distinct,
+demo-compelling output, and doing it **deterministically** makes it maximally trustworthy (accurate by construction),
+instant, and free. Reuses `app/table.py`.
+**Rules out.** An LLM-drawn or hallucinated chart (it's computed sums); sending the data anywhere (fully local); a
+prompt or pick; a charting dependency (CSS bars, no library).
+**Status.** Accepted. `app/pipeline.py` (`chart_table`, `Chart`/`ChartBar`/`ChartOutcome`, `_pick_category`),
+`app/tools/chart.py`, `app/shell/templates/_chart_result.html`, config (`chart_max_bars`/`chart_max_measures`). Also
+gave **Ask your spreadsheet** a distinct icon (🔎) so the 3 Data tools read clearly (Ask 🔎 · Summarize 📈 · Chart 📊).
+`tests/test_chart.py` (computed by category · sorted+scaled bars · no-category honest · id-column not a category ·
+not-a-table · reproducible) + `test_app.py` (3rd Data tool on the hub · the route renders bars). **139 → 146 tests**
+(fully deterministic — the route-render test is the verification; no model to call). **12 live tools · 3 platforms
+(Data & Analysis now 3: summarize · ask · chart).** ⏳ Pending Trevor Demo-verify + Explore.

@@ -1,0 +1,50 @@
+<style>
+  .res{padding:22px}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:999px;font-size:13px;
+    font-weight:600;background:var(--good-soft);color:var(--good)}
+  .metaline{color:var(--faint);font-size:12.5px;margin-top:10px}
+  .chart{margin-top:20px}
+  .chart h4{margin:0 0 10px;font-size:14.5px;letter-spacing:-.01em;color:var(--ink)}
+  .chart h4 .sub{color:var(--faint);font-weight:500;font-size:12px}
+  .bars{display:flex;flex-direction:column;gap:7px}
+  .bar{display:grid;grid-template-columns:minmax(72px,22%) 1fr auto;align-items:center;gap:10px}
+  .bar .lbl{color:var(--muted);font-size:13px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bar .track{height:20px;border-radius:6px;background:var(--accent-soft);overflow:hidden}
+  .bar .fill{height:100%;border-radius:6px;background:var(--accent);min-width:2px}
+  .bar .val{font-variant-numeric:tabular-nums;font-size:13px;color:var(--ink);font-weight:600;white-space:nowrap}
+  .capnote{color:var(--faint);font-size:12px;margin-top:7px}
+  .empty{margin-top:14px;padding:18px;border-radius:12px;background:var(--accent-soft);color:var(--muted)}
+  .foot{color:var(--faint);font-size:12.5px;margin-top:16px}
+</style>
+
+<div class="panel res">
+  <span class="chip">🛡 Charted entirely on your device — nothing sent to a model</span>
+  <div class="metaline">
+    {% if r.n_rows %}table: {{ "{:,}".format(r.n_rows) }} rows × {{ r.n_cols }} cols · {% endif %}
+    {% if r.category %}grouped by <strong>{{ r.category }}</strong> · {% endif %}computed locally
+  </div>
+
+  {% if r.empty %}
+    <div class="empty">{{ r.empty_note }}</div>
+  {% else %}
+    {% for c in r.charts %}
+      <div class="chart">
+        <h4>Total {{ c.measure }} by {{ c.category }} <span class="sub">· {{ c.n_groups }} group{{ "" if c.n_groups == 1 else "s" }}</span></h4>
+        <div class="bars">
+          {% for b in c.bars %}
+            <div class="bar">
+              <span class="lbl" title="{{ b.label }}">{{ b.label }}</span>
+              <span class="track"><span class="fill" style="width:{{ b.pct }}%"></span></span>
+              <span class="val">{{ b.value }}</span>
+            </div>
+          {% endfor %}
+        </div>
+        {% if c.n_groups > c.bars|length %}<div class="capnote">Showing the top {{ c.bars|length }} of {{ c.n_groups }} {{ c.category }} values.</div>{% endif %}
+      </div>
+    {% endfor %}
+    <div class="foot">
+      Each bar is the <b>total</b> of that column for the category, computed from your rows — accurate by
+      construction. No prompt, no model, nothing left your device.
+    </div>
+  {% endif %}
+</div>
