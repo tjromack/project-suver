@@ -114,8 +114,35 @@ RESUME = FieldSet(
     stub_kind="keyvalue",
 )
 
+CLAIM_EOB = FieldSet(
+    slug="eob",
+    label="Claim / EOB details  (healthcare)",
+    item_type=FieldType.STRING,
+    instruction=("Extract the details of this insurance claim or Explanation of Benefits as label → value pairs: "
+                 "**member / patient**, **provider**, **service date(s)**, **claim or reference number**, "
+                 "**service / procedure**, **billed amount**, **allowed amount**, **amount the plan paid**, "
+                 "**patient responsibility** (deductible / copay / coinsurance), **claim status**, and any **denial "
+                 "reason**. Use ONLY what the document states; omit anything absent (don't invent it)."),
+    blurb="Pull claim/EOB details — provider, dates, billed vs. allowed, patient responsibility, status — into a table.",
+    empty_note="No claim or EOB details were found — is this an EOB, claim, or medical bill?",
+    stub_kind="keyvalue",
+)
+
+CLINICAL = FieldSet(
+    slug="clinical",
+    label="Clinical summary  (healthcare)",
+    item_type=FieldType.STRING,
+    instruction=("Extract the clinical details STATED in this document as label → value pairs: **diagnoses**, "
+                 "**medications** (name and dose), **procedures**, **allergies**, **follow-up appointments**, and "
+                 "**care instructions**. Use ONLY what the document states — never infer a diagnosis or a dose. Omit "
+                 "anything absent."),
+    blurb="Pull clinical details — diagnoses, medications, procedures, follow-ups — into a table.",
+    empty_note="No clinical details were found — is this a discharge or visit summary?",
+    stub_kind="keyvalue",
+)
+
 _FIELDSETS = {fs.slug: fs for fs in
-              (KEY_FACTS, DATES, PEOPLE, AMOUNTS, CONTRACT_TERMS, INVOICE, RESUME)}
+              (KEY_FACTS, DATES, PEOPLE, AMOUNTS, CONTRACT_TERMS, INVOICE, RESUME, CLAIM_EOB, CLINICAL)}
 
 
 def get_fieldset(slug: str | None) -> FieldSet | None:

@@ -552,3 +552,21 @@ section cited) + `test_app.py` (selectable in the Draft select). **149 → 150 t
 `anthropic`: a prose MSA → Overview + Key Terms + Points to Review (liability cap $500K + indemnity flagged for
 scrutiny), all grounded/cited; Next Steps correctly omitted (the contract states none). Still **12 tools · 3
 platforms** — adaptation, not a new tool. Legal vertical now complete; `_LEARNING/VERTICAL-LEGAL.md` updated.
+
+### DEC 027 — Second vertical example: Healthcare field-sets (the adaptation pattern generalizes)
+**Decision.** Add two **healthcare** field-set packs — **Claim / EOB details** (member · provider · service date ·
+claim # · service · billed / allowed / plan-paid · patient responsibility · status · denial reason) and **Clinical
+summary** (diagnoses · medications *with dose* · procedures · allergies · follow-ups · care instructions). Like the
+legal packs (DEC 025), they appear in **both** the Extractor and Compare (config, no new engine). The clinical
+instruction is explicit: *use only what's stated — never infer a diagnosis or dose.*
+**Why.** A **second vertical example** proving the adaptation ladder isn't legal-only. Healthcare is the natural next
+fit — **real PHI makes sanitize-before-egress the whole game** (the control plane's core value), and it's
+document-dense (EOBs, claims, discharge summaries). It also has the suite's deepest existing use-case library.
+**Rules out.** Anything advisory/clinical-decision-support (these *extract what's written*, they don't diagnose or
+opine); an inferred dose (the instruction forbids it; the confidence gate flags the uncertain).
+**Status.** Accepted. `app/_engines/extract/fieldsets.py` (`CLAIM_EOB`/`CLINICAL`). `tests/test_extractor.py` (the
+healthcare packs register). **150 tests** (unchanged — field-sets don't add a code path the stub exercises beyond the
+existing keyvalue). **Live-verified** with `anthropic`: an EOB → 11 fields (billed vs. allowed, patient responsibility,
+status), PHI (member name, email) tokenized for the model + re-hydrated locally; a discharge summary → 9 clinical
+items (diagnoses, meds with exact doses, follow-ups), none inferred. Still **12 tools · 3 platforms** — adaptation,
+not a new tool. Second vertical example; see `_LEARNING/VERTICAL-HEALTHCARE.md`.

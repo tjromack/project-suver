@@ -17,11 +17,12 @@ def test_narrative_money_validates_not_flagged():
 
 
 def test_vertical_fieldsets_are_available():
-    """⭐ the adaptation ladder — a new vertical is config (a field-set), not a new engine. Legal-led."""
+    """⭐ the adaptation ladder — a new vertical is config (a field-set), not a new engine. Legal + healthcare + more."""
     slugs = [fs.slug for fs in all_fieldsets()]
-    for slug in ("contract", "invoice", "resume"):
+    for slug in ("contract", "invoice", "resume", "eob", "clinical"):
         assert slug in slugs and get_fieldset(slug) is not None
     assert "legal" in get_fieldset("contract").label.lower()
+    assert "healthcare" in get_fieldset("eob").label.lower()
 
 
 def test_contract_terms_extracts_into_a_table():
