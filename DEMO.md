@@ -1,8 +1,9 @@
 # DEMO — a manual verification pass (Project Suver · a multi-platform hub)
 
-A walk of all **12 tools across 3 platforms** (Documents ×6 · Communications ×3 · Data & Analysis ×3) + the tuning
-fixes. Everything below is **live-verified in code** already; this is the human eyeball pass. Report anything that
-looks wrong, awkward, or off and it gets fixed + regression-tested.
+A walk of all **12 tools across 3 platforms** (Documents ×6 · Communications ×3 · Data & Analysis ×3) + the **vertical
+packs** (legal · healthcare · finance) + the tuning fixes. Everything below is **live-verified in code** already; this
+is the human eyeball pass. **Start with the "Your verification queue" section** (what you haven't checked yet). Report
+anything that looks wrong, awkward, or off and it gets fixed + regression-tested.
 
 ## 0. Start it up
 From `c:\ai\project-suver` (PowerShell — one command per line, no `&&`):
@@ -16,6 +17,21 @@ Open **http://127.0.0.1:8000**.
   and a few cents. To run free/offline instead: set `PROVIDER=stub` in `.env` and restart.)*
 - Test files: `data\samples\real\Byzantine_navy.pdf` (~143K chars), `data\samples\real\FSOC2025AnnualReport.pdf`
   (~326K chars), and `data\samples\sample.txt` (has a **planted SSN** for the trust check).
+
+## 🎯 Your verification queue  *(what's NOT yet Demo-verified — Trevor, start here)*
+You've verified the **Documents platform** (§1–§7). Everything below is live-verified in code but hasn't had your
+manual pass. Work the queue; **report back** anything that reads wrong, looks off, or feels awkward.
+
+- [ ] **The hub** now shows **three** platform sections (§1) — Documents · Communications · Data & Analysis.
+- [ ] **Communications ×3** — Meeting notes → actions (§8) · Triage messages (§9) · Draft a reply (§10).
+- [ ] **Data & Analysis ×3** — Ask (§11) · Summarize (§12) · Chart (§13) your spreadsheet.
+- [ ] **Vertical packs** (§V) — the legal / healthcare / finance field-sets in **Extract** + **Compare**, and the
+  **Contract review memo** Draft kind. *(This is the go-to-market proof — worth a careful look.)*
+- [ ] **The 08-06 tuning fixes** (§T) — Summarize lead-fact + Extractor over-flag.
+
+*(Documents §1–§7 you've already passed; re-run any if you like.)*
+
+---
 
 ## 1. The hub (the product front door) — `/`
 Look for: hero **"Tools, not prompts."** · a 3-step **how it works** · three platform sections — **"🗂 The Documents
@@ -136,7 +152,45 @@ construction.)* Try a table with no obvious category (all-numeric) → an honest
 
 ---
 
-# Re-verify the 08-06 tuning fixes *(DEC 020)*
+# §V — Vertical packs: legal · healthcare · finance  *(the go-to-market proof)*
+These adapt the platform to a vertical by **config, not new tools** — new field-sets (in **Extract** and **Compare**)
+and a Draft kind. This is what a vertical pilot demo looks like; give it a careful pass.
+
+## V-a. Extract → **Contract terms (legal)**
+Open **Extract fields**, pick **"Contract terms (legal)"**, paste:
+`This Master Services Agreement is between Acme Corp and Beta LLC, effective 2026-01-01. Term: 24 months, auto-renews unless 90 days notice. Governed by Delaware law. Liability capped at $500,000. Fees Net 30.`
+→ a table: parties · effective date · term · renewal · termination notice · governing law · liability cap · payment —
+each grounded; a term not present is **absent**, never invented.
+
+## V-b. Compare → **Contract terms** *(the killer legal demo)*
+Open **Compare two documents**, pick **"Contract terms (legal)"**, paste two versions:
+- **A:** `Term: 24 months. Governing law: Delaware. Liability cap: $500,000. Payment: Net 30.`
+- **B:** `Term: 36 months. Governing law: New York. Liability cap: $1,000,000. Payment: Net 45. Late fee: 1.5% per month.`
+→ every difference (term · governing law · liability cap · payment) + **Late fee "only in B"**, with the line
+**"never picks which document is right."**
+
+## V-c. Draft → **Contract review memo (legal)**
+Open **Draft from a document**, paste a contract, pick **"Contract review memo (legal)"** → a memo with **Overview ·
+Key Terms · Points to Review** (the liability cap / indemnity / auto-renewal to scrutinize, from the contract's own
+words), each cited; nothing the contract doesn't support (cite-or-block).
+
+## V-d. Extract → **Claim / EOB details (healthcare)** *(the PHI proof)*
+Open **Extract fields**, pick **"Claim / EOB details (healthcare)"**, paste:
+`EOB. Member: Jane Doe (ID M12345). Provider: Springfield Family Care. Date: 2026-03-14. Billed: $220. Allowed: $142. Plan paid: $113.60. Patient responsibility: $28.40 (coinsurance). Status: Processed.`
+→ a table (billed vs. allowed · **patient responsibility** · status). ⭐ **The 🛡 chip shows the member name was
+handled — the model only saw a token; "Jane Doe" is re-hydrated only on your screen.**
+
+## V-e. Extract → **Clinical summary (healthcare)**
+Same tool, pick **"Clinical summary (healthcare)"**, paste a discharge summary (diagnoses, meds with doses, follow-ups)
+→ the clinical facts as a table, **as stated, nothing inferred** (never a guessed diagnosis or dose).
+
+## V-f. Extract → **Financial statement lines (finance)**
+Same tool, pick **"Financial statement lines (finance)"**, paste an income statement → revenue · gross profit · net
+income · period · currency — grounded; Extract pulls what's written (the **Data tools** compute).
+
+---
+
+# §T — Re-verify the 08-06 tuning fixes *(DEC 020)*
 - **Summarize** the Byzantine PDF again → the lead fact **"…the naval force of the Byzantine Empire, active from 330
   to 1453…"** should now appear as a **kept, cited** point (it used to be in the "withheld" panel). Withheld count
   should be ~1, not 2.
