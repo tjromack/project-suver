@@ -12,8 +12,9 @@ and re-hydrated locally. **Platform #1 — Documents** (*read · ask · write ·
 - **Summarize** — drop a document → a **cited** summary (every claim cites a source span; unsupported ones withheld).
 - **Copilot ("Ask this document")** — ask a plain question → a grounded, **cited** answer, or an honest "not in
   your document" (**abstention** over hallucination).
-- **Draft ("Draft from a document")** — pick a kind (memo · explainer · action-items) → a **grounded memo**, every
-  section cited or omitted; a required section that can't ground **blocks** (**cite-or-block**, never fabricates).
+- **Draft ("Draft from a document")** — pick a kind (memo · explainer · action-items · **Contract review memo
+  (legal)**) → a **grounded memo**, every section cited or omitted; a required section that can't ground **blocks**
+  (**cite-or-block**, never fabricates). *(A kind is config too — a vertical adapts across field-sets AND draft kinds.)*
 - **Extractor ("Extract fields")** — pick a field-set (facts · dates · people · amounts, **+ vertical packs:
   Contract terms (legal) · Invoice details (finance) · Résumé fields (HR)**) → a **typed table**, the uncertain
   **flagged** (**confidence = min(validation, model)**), never guessed. *(A new vertical is a field-set — config, not
