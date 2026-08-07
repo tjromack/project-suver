@@ -141,8 +141,23 @@ CLINICAL = FieldSet(
     stub_kind="keyvalue",
 )
 
+STATEMENT_LINES = FieldSet(
+    slug="statement",
+    label="Financial statement lines  (finance)",
+    item_type=FieldType.STRING,
+    instruction=("Extract the key line items from this financial statement (income statement / balance sheet / cash "
+                 "flow) as label → value pairs: e.g. **revenue**, **cost of goods sold**, **gross profit**, "
+                 "**operating expenses**, **operating income**, **net income**, **total assets**, **total "
+                 "liabilities**, **equity**, **cash flow from operations** — plus the **period / fiscal year** and "
+                 "**currency**. Use ONLY figures stated in the document; omit anything absent (don't compute or "
+                 "invent a line)."),
+    blurb="Pull financial statement lines — revenue, expenses, net income, assets, liabilities — into a table.",
+    empty_note="No financial statement lines were found — is this an income statement, balance sheet, or cash-flow?",
+    stub_kind="keyvalue",
+)
+
 _FIELDSETS = {fs.slug: fs for fs in
-              (KEY_FACTS, DATES, PEOPLE, AMOUNTS, CONTRACT_TERMS, INVOICE, RESUME, CLAIM_EOB, CLINICAL)}
+              (KEY_FACTS, DATES, PEOPLE, AMOUNTS, CONTRACT_TERMS, INVOICE, RESUME, CLAIM_EOB, CLINICAL, STATEMENT_LINES)}
 
 
 def get_fieldset(slug: str | None) -> FieldSet | None:

@@ -570,3 +570,18 @@ existing keyvalue). **Live-verified** with `anthropic`: an EOB → 11 fields (bi
 status), PHI (member name, email) tokenized for the model + re-hydrated locally; a discharge summary → 9 clinical
 items (diagnoses, meds with exact doses, follow-ups), none inferred. Still **12 tools · 3 platforms** — adaptation,
 not a new tool. Second vertical example; see `_LEARNING/VERTICAL-HEALTHCARE.md`.
+
+### DEC 028 — Third vertical: Finance — "Financial statement lines" field-set (verticals now legal · healthcare · finance)
+**Decision.** Add a **Financial statement lines** field-set (revenue · COGS · gross profit · opex · operating income ·
+net income · assets · liabilities · equity · cash-flow · period · currency), in Extractor + Compare like the other
+packs. Finance already had **Invoice details** (DEC 025); this + the **Data & Analysis platform** (Ask/Summarize/Chart
+a financial spreadsheet — exact numbers, computed not guessed) make finance a full vertical.
+**Why.** Completes the vertical set (legal · healthcare · finance). Finance's differentiator is different from the
+others — it leans hardest on **exact-by-construction numbers** (the Data platform) + statement/invoice extraction; a
+mis-stated figure is the failure mode, and *plan/narrate-then-compute* + *omit-don't-invent* address it.
+**Rules out.** Computing/deriving a line the statement doesn't state (the instruction says omit, don't compute — the
+Data tools compute; Extract only pulls what's written).
+**Status.** Accepted. `app/_engines/extract/fieldsets.py` (`STATEMENT_LINES`). `tests/test_extractor.py` (registers).
+**150 tests**; **live-verified** with `anthropic`: an income statement → 8 line items (revenue $4.2M → net income
+$812K, period, currency), all grounded, none flagged. Still **12 tools · 3 platforms** — adaptation. Third vertical;
+see `_LEARNING/VERTICAL-FINANCE.md`.
