@@ -14,8 +14,10 @@ and re-hydrated locally. **Platform #1 — Documents** (*read · ask · write ·
   your document" (**abstention** over hallucination).
 - **Draft ("Draft from a document")** — pick a kind (memo · explainer · action-items) → a **grounded memo**, every
   section cited or omitted; a required section that can't ground **blocks** (**cite-or-block**, never fabricates).
-- **Extractor ("Extract fields")** — pick a field-set (facts · dates · people · amounts) → a **typed table**, the
-  uncertain **flagged** (**confidence = min(validation, model)**), never guessed.
+- **Extractor ("Extract fields")** — pick a field-set (facts · dates · people · amounts, **+ vertical packs:
+  Contract terms (legal) · Invoice details (finance) · Résumé fields (HR)**) → a **typed table**, the uncertain
+  **flagged** (**confidence = min(validation, model)**), never guessed. *(A new vertical is a field-set — config, not
+  a new engine; the packs appear in Compare too, so "compare two contracts term-by-term" just works.)*
 - **Compare ("Compare two documents")** — drop two docs, pick a field-set → every difference, **type-aware** (money
   tolerance · dates normalized · fuzzy strings), grounded in both; the tool **never picks a winner** (first two-document tool).
 - **Converse ("Chat with a document")** — add a document, then **ask questions in a conversation** (follow-ups and all);

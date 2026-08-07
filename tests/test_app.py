@@ -130,6 +130,13 @@ def test_extractor_shell_has_a_fieldset_select():
     assert r.status_code == 200
     assert "<select" in r.text and 'name="choice"' in r.text
     assert "Dates &amp; deadlines" in r.text or "Key facts" in r.text
+    assert "Contract terms" in r.text                     # the legal vertical pack is selectable
+
+
+def test_compare_offers_the_contract_fieldset():
+    r = client.get("/t/compare")
+    assert r.status_code == 200
+    assert "Contract terms" in r.text                     # "compare two contracts, term by term"
 
 
 def test_extractor_run_produces_a_typed_table():

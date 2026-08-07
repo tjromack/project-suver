@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from app._engines.extract import FieldType, parse_money, score_item
-from app.pipeline import extract_fields
+from app._engines.extract import FieldType, all_fieldsets, get_fieldset, parse_money, score_item
+from app.pipeline import extract_fields, extract_paste
 
 
 def test_narrative_money_validates_not_flagged():
@@ -14,6 +14,23 @@ def test_narrative_money_validates_not_flagged():
     assert parse_money("not money") is None
     it = score_item("Market size", "$29 trillion", FieldType.MONEY, False)
     assert it.valid and it.status == "ok"
+
+
+def test_vertical_fieldsets_are_available():
+    """⭐ the adaptation ladder — a new vertical is config (a field-set), not a new engine. Legal-led."""
+    slugs = [fs.slug for fs in all_fieldsets()]
+    for slug in ("contract", "invoice", "resume"):
+        assert slug in slugs and get_fieldset(slug) is not None
+    assert "legal" in get_fieldset("contract").label.lower()
+
+
+def test_contract_terms_extracts_into_a_table():
+    doc = ("Master Services Agreement\nParties: Acme Corp and Beta LLC\nEffective date: 2026-01-01\n"
+           "Term: 24 months\nGoverning law: Delaware\nTermination notice: 60 days\nLiability cap: $500,000\n")
+    r = extract_paste(doc, "contract")               # stub reads the label:value lines
+    labels = [it.label.lower() for it in r.items]
+    assert any("part" in l for l in labels) and any("govern" in l for l in labels)
+    assert any("$500,000" == it.value for it in r.items)
 
 
 def test_confidence_gate_flags_invalid_and_uncertain():

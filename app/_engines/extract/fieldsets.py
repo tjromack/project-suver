@@ -70,7 +70,52 @@ AMOUNTS = FieldSet(
     stub_kind="money",
 )
 
-_FIELDSETS = {fs.slug: fs for fs in (KEY_FACTS, DATES, PEOPLE, AMOUNTS)}
+# --- Vertical field-set packs (the "adaptation ladder": a new vertical is config, not a new engine) --------------
+# Each targets a common structured-document job. They appear in BOTH the Extractor's select AND Compare's — so
+# "compare a vendor contract vs. our standard, term by term" works with no new code.
+
+CONTRACT_TERMS = FieldSet(
+    slug="contract",
+    label="Contract terms  (legal)",
+    item_type=FieldType.STRING,
+    instruction=("Extract the key terms of this contract as label → value pairs. Look for: the **parties**, "
+                 "**effective/commencement date**, **term or duration**, **renewal / auto-renewal**, **termination "
+                 "notice period**, **governing law / jurisdiction**, **payment terms**, **fees or price**, "
+                 "**liability cap / limitation of liability**, **indemnification**, **confidentiality**, and any "
+                 "other material term. Use ONLY what the document states; omit a term that isn't present (don't "
+                 "invent it). Keep each value concise."),
+    blurb="Pull the key contract terms — parties, dates, term, governing law, liability, payment — into a table.",
+    empty_note="No clear contract terms were found — is this a contract or agreement?",
+    stub_kind="keyvalue",
+)
+
+INVOICE = FieldSet(
+    slug="invoice",
+    label="Invoice details  (finance)",
+    item_type=FieldType.STRING,
+    instruction=("Extract the invoice details as label → value pairs: **invoice number**, **invoice date**, **due "
+                 "date**, **vendor / supplier**, **bill-to**, **PO number**, **subtotal**, **tax**, **total amount "
+                 "due**, and **payment terms**. Use ONLY what the document states; omit anything absent."),
+    blurb="Pull invoice details — number, dates, vendor, subtotal, tax, total, payment terms — into a table.",
+    empty_note="No invoice details were found — is this an invoice or bill?",
+    stub_kind="keyvalue",
+)
+
+RESUME = FieldSet(
+    slug="resume",
+    label="Résumé fields  (HR)",
+    item_type=FieldType.STRING,
+    instruction=("Extract the candidate's details as label → value pairs: **full name**, **contact** (email/phone), "
+                 "**current or most recent title**, **years of experience**, **key skills**, **education** "
+                 "(degrees/institutions), **certifications**, and any **notable achievements**. Use ONLY what the "
+                 "résumé states; omit anything absent."),
+    blurb="Pull résumé fields — name, contact, title, experience, skills, education — into a table.",
+    empty_note="No résumé fields were found — is this a CV or résumé?",
+    stub_kind="keyvalue",
+)
+
+_FIELDSETS = {fs.slug: fs for fs in
+              (KEY_FACTS, DATES, PEOPLE, AMOUNTS, CONTRACT_TERMS, INVOICE, RESUME)}
 
 
 def get_fieldset(slug: str | None) -> FieldSet | None:

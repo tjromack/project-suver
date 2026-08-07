@@ -513,3 +513,24 @@ gave **Ask your spreadsheet** a distinct icon (🔎) so the 3 Data tools read cl
 not-a-table · reproducible) + `test_app.py` (3rd Data tool on the hub · the route renders bars). **139 → 146 tests**
 (fully deterministic — the route-render test is the verification; no model to call). **12 live tools · 3 platforms
 (Data & Analysis now 3: summarize · ask · chart).** ⏳ Pending Trevor Demo-verify + Explore.
+
+### DEC 025 — Vertical field-set packs (legal-led): the adaptation ladder — config, not new engines
+**Decision.** Add three **vertical field-set packs** to the Extractor's field-sets — **Contract terms (legal)**,
+**Invoice details (finance)**, **Résumé fields (HR)** — each a `FieldSet` with a domain-specific extraction
+`instruction`. Because both the **Extractor** and **Compare** render `all_fieldsets()`, these appear in *both* selects
+automatically — so a legal user can **extract a contract's key terms** *and* **compare two contracts term-by-term**
+with **no new code**. The legal pack pulls: parties · effective date · term · renewal · termination notice · governing
+law · payment terms · fees · liability cap · indemnification · confidentiality (only what the document states — omit,
+don't invent).
+**Why.** Legal is the best-fit vertical for Suver — the trust disciplines map to lawyers' worst fears (a hallucinated
+cite/clause is malpractice; privilege makes sanitize-before-egress essential; cite-or-drop + abstain are exactly what
+they need). And this proves the **adaptation ladder**: a new vertical is **config** (a field-set), not a new engine —
+the core economic story for verticals. The same mechanism serves finance (invoices) and HR (résumés).
+**Rules out.** A per-vertical fork/engine; a prompt box (still a pick); inventing an absent term (the instruction
+says omit). The generic sets (facts/dates/people/amounts) are unchanged.
+**Status.** Accepted. `app/_engines/extract/fieldsets.py` (`CONTRACT_TERMS`/`INVOICE`/`RESUME`). `tests/test_extractor.py`
+(the packs register · contract extracts into a table) + `test_app.py` (Contract terms selectable in Extractor **and**
+Compare). **146 → 149 tests**; **live-verified** with `anthropic`: 8 contract terms extracted from **prose** (all
+grounded, none flagged); two contract versions **compared term-by-term** → 6 differences (governing law · liability
+cap · payment · term · termination · a new late fee) + 1 match, the tool never picking a winner. Still **12 tools · 3
+platforms** — this is *adaptation*, not a new tool. First vertical example (legal); see `_LEARNING/VERTICAL-LEGAL.md`.
