@@ -107,6 +107,7 @@ def test_draft_shell_has_a_kind_select():
     assert r.status_code == 200
     assert "<select" in r.text and 'name="choice"' in r.text
     assert "Summary memo" in r.text                          # the pickable kinds
+    assert "Contract review memo" in r.text                  # the legal Draft kind
 
 
 def test_draft_run_produces_a_cited_memo():

@@ -96,7 +96,30 @@ ACTION_ITEMS = DraftKind(
     ),
 )
 
-_KINDS = {k.slug: k for k in (SUMMARY_MEMO, EXPLAINER, ACTION_ITEMS)}
+CONTRACT_MEMO = DraftKind(
+    slug="contract-memo",
+    label="Contract review memo  (legal)",
+    title_hint="Contract Review Memo",
+    blurb="A first-pass review memo of an agreement — Overview · Key Terms · Points to Review · Next Steps — every "
+          "section grounded in the contract (cite-or-block, never invented).",
+    sections=(
+        Section("overview", "Overview",
+                "In one or two sentences, what is this agreement, who are the parties, and what is its purpose?",
+                required=True),
+        Section("key_terms", "Key Terms",
+                "What are the key terms this document states — the term/duration, renewal, payment or fees, governing "
+                "law, termination notice, and any liability or indemnification provisions?", required=True),
+        Section("review", "Points to Review",
+                "Point out the clauses in this document a reviewer should look at closely — for each, name it using "
+                "the document's own wording (for example the liability cap, the automatic renewal, the indemnity, or "
+                "the termination/notice terms). Describe only clauses actually present.",
+                required=False),
+        Section("next_steps", "Next Steps",
+                "What approvals, actions, or open questions does this document call for?", required=False),
+    ),
+)
+
+_KINDS = {k.slug: k for k in (SUMMARY_MEMO, EXPLAINER, ACTION_ITEMS, CONTRACT_MEMO)}
 
 
 def get_kind(slug: str | None) -> DraftKind | None:

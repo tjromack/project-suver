@@ -66,6 +66,19 @@ def test_unknown_kind_falls_back_to_default():
     assert r.kind_slug == "memo"  # default_kind
 
 
+def test_contract_review_memo_kind_drafts():
+    """⭐ the legal Draft kind (adaptation ladder — a vertical is config across field-sets AND draft kinds)."""
+    contract = ("This Master Services Agreement is between Acme Corp and Beta LLC, effective 2026-01-01. The term is "
+                "24 months and renews automatically unless either party gives 90 days notice. Governed by Delaware "
+                "law. Provider liability shall not exceed $500,000. Fees are due Net 30.")
+    r = draft_text(contract, "contract-memo")
+    assert not r.blocked and r.kind_slug == "contract-memo"
+    headings = [s.heading for s in r.sections]
+    assert "Overview" in headings and "Key Terms" in headings
+    for s in r.sections:
+        assert s.citations, f"section {s.heading!r} must be grounded (cite-or-block)"
+
+
 def test_reproducible():
     a = draft_text(RICH, "memo")
     b = draft_text(RICH, "memo")

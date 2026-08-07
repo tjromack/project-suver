@@ -534,3 +534,21 @@ Compare). **146 → 149 tests**; **live-verified** with `anthropic`: 8 contract 
 grounded, none flagged); two contract versions **compared term-by-term** → 6 differences (governing law · liability
 cap · payment · term · termination · a new late fee) + 1 match, the tool never picking a winner. Still **12 tools · 3
 platforms** — this is *adaptation*, not a new tool. First vertical example (legal); see `_LEARNING/VERTICAL-LEGAL.md`.
+
+### DEC 026 — Legal Draft kind: "Contract review memo" — a vertical is config across Draft kinds too
+**Decision.** Add a **Contract review memo** Draft kind — sections **Overview · Key Terms · Points to Review · Next
+Steps**, each grounded in the dropped contract (**cite-or-block**, never invented; optional sections omit when
+absent). Completes the legal workflow: *ask a contract · extract its terms · compare two · **draft a review memo** ·
+chat.* Extends DEC 025's thesis — **a vertical is config across BOTH Extract field-sets AND Draft kinds** (it appears
+in the Draft select via `all_kinds()`, no new code).
+**Why.** The GTM's first move is a legal (or healthcare) pilot; a **complete, demo-ready** legal vertical is the asset
+that lands it. A first-pass contract review memo (grounded, won't invent a clause) is exactly a transactional lawyer's
+job — and the "Points to Review" section is the value-add (the clauses to scrutinize: liability cap, indemnity,
+auto-renewal), surfaced from the contract's own wording so it grounds.
+**Rules out.** An editorializing risk section that free-writes (the query steers to name clauses in the document's own
+words → it grounds, or omits); a fabricated term (cite-or-block); a new engine (a kind is config).
+**Status.** Accepted. `app/_engines/draft/template.py` (`CONTRACT_MEMO`). `tests/test_draft.py` (the kind drafts, every
+section cited) + `test_app.py` (selectable in the Draft select). **149 → 150 tests**; **live-verified** with
+`anthropic`: a prose MSA → Overview + Key Terms + Points to Review (liability cap $500K + indemnity flagged for
+scrutiny), all grounded/cited; Next Steps correctly omitted (the contract states none). Still **12 tools · 3
+platforms** — adaptation, not a new tool. Legal vertical now complete; `_LEARNING/VERTICAL-LEGAL.md` updated.
