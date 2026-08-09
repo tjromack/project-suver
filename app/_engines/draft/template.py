@@ -104,7 +104,8 @@ CONTRACT_MEMO = DraftKind(
           "section grounded in the contract (cite-or-block, never invented).",
     sections=(
         Section("overview", "Overview",
-                "In one or two sentences, what is this agreement, who are the parties, and what is its purpose?",
+                "In one or two sentences, state what this agreement is and who the parties are — using the document's "
+                "own wording (e.g. its title and the named parties). Keep it factual, not interpretive.",
                 required=True),
         Section("key_terms", "Key Terms",
                 "What are the key terms this document states — the term/duration, renewal, payment or fees, governing "

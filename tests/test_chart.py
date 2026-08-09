@@ -15,18 +15,19 @@ CSV = ("Region,Product,Units,Revenue\n"
 
 def test_charts_are_computed_by_category():
     r = chart_table(CSV)
-    assert not r.empty and r.category == "Region"        # the primary categorical column
+    # picks the RICHER breakdown (Product, 3 distinct) over Region (2) — a 2-bar chart isn't informative
+    assert not r.empty and r.category == "Product"
     assert len(r.charts) == 2                             # one per numeric column (Units, Revenue)
     rev = next(c for c in r.charts if c.measure == "Revenue")
     got = {b.label: b.value for b in rev.bars}
-    assert got["West"] == "19,200" and got["East"] == "7,650"   # computed totals per category
+    assert got["Gadget"] == "9,450" and got["Widget"] == "8,400" and got["Gizmo"] == "9,000"  # computed per product
 
 
 def test_bars_are_sorted_and_scaled():
     r = chart_table(CSV)
     rev = next(c for c in r.charts if c.measure == "Revenue")
-    assert rev.bars[0].label == "West" and rev.bars[0].pct == 100   # largest first, scaled to 100
-    assert rev.bars[1].pct < 100
+    assert rev.bars[0].label == "Gadget" and rev.bars[0].pct == 100   # largest first (9,450), scaled to 100
+    assert rev.bars[-1].pct < 100                                     # the smallest is proportionally shorter
 
 
 def test_no_categorical_column_is_honest():

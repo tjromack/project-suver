@@ -118,6 +118,7 @@ def test_draft_run_produces_a_cited_memo():
     assert "Overview" in r.text or "Key Points" in r.text     # section headings
     assert "from your document" in r.text.lower()             # per-section citations
     assert "🛡" in r.text                                      # the trust chip
+    assert "copybtn" in r.text and "rawmd" in r.text          # a one-click copy button on the memo
 
 
 def test_draft_blocks_do_not_fabricate():
@@ -294,6 +295,7 @@ def test_reply_run_drafts_with_placeholders():
     assert "fill in" in r.text                          # the placeholders note
     assert "not invented" in r.text                     # the discipline line
     assert "🛡" in r.text
+    assert "copybtn" in r.text                          # a one-click copy button on the reply
 
 
 def test_healthz():

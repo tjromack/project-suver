@@ -22,9 +22,9 @@ Open **http://127.0.0.1:8000**.
 You've verified the **Documents platform** (§1–§7). Everything below is live-verified in code but hasn't had your
 manual pass. Work the queue; **report back** anything that reads wrong, looks off, or feels awkward.
 
-- [ ] **The hub** now shows **three** platform sections (§1) — Documents · Communications · Data & Analysis.
-- [ ] **Communications ×3** — Meeting notes → actions (§8) · Triage messages (§9) · Draft a reply (§10).
-- [ ] **Data & Analysis ×3** — Ask (§11) · Summarize (§12) · Chart (§13) your spreadsheet.
+- [x] **The hub** now shows **three** platform sections (§1) — Documents · Communications · Data & Analysis.
+- [x] **Communications ×3** — Meeting notes → actions (§8) · Triage messages (§9) · Draft a reply (§10).
+- [x] **Data & Analysis ×3** — Ask (§11) · Summarize (§12) · Chart (§13) your spreadsheet.
 - [ ] **Vertical packs** (§V) — the legal / healthcare / finance field-sets in **Extract** + **Compare**, and the
   **Contract review memo** Draft kind. *(This is the go-to-market proof — worth a careful look.)*
 - [ ] **The 08-06 tuning fixes** (§T) — Summarize lead-fact + Extractor over-flag.
@@ -114,14 +114,15 @@ from the message. Anything the tool isn't sure about shows as **Review** — nev
 Paste a message, e.g.: `Hi — could you join a 30-min call next week to walk through the Q2 forecast? Do you have the regional breakdown, or should I pull it? — Priya`
 Pick an intent (**Answer** / **Ask for more detail** / **Politely decline**) → a grounded reply. Expect **[placeholders]**
 for anything it doesn't know (a day/time, your name) listed under "things to fill in", and **no invented specifics**.
-Try each intent — the reply changes. *(It never makes up a date/number on your behalf.)*
+Try each intent — the reply changes. *(It never makes up a date/number on your behalf.)* **08-08 add:** the reply box
+now has a **⧉ Copy** button (top-right) — one click copies the whole reply (also added to the Draft memo, §10-Documents).
 
 ---
 
 # Platform #3 — Data & Analysis *(added 2026-08-06)*
 
 ## 11. Ask your spreadsheet  *(the model plans, the code computes — exact numbers, cited rows)*
-Paste a small table (or drop a `.csv`), e.g.:
+Paste this table (or drop a `.csv`) — **§11, §12, §13 all use this same 6-row table:**
 ```
 Region,Rep,Product,Units,Revenue
 West,Alice,Widget,120,4800
@@ -129,14 +130,15 @@ East,Bob,Widget,90,3600
 West,Alice,Gadget,60,5400
 East,Carol,Gadget,45,4050
 West,Dan,Gizmo,200,9000
+East,Bob,Gizmo,150,6750
 ```
 Ask **"What is the total revenue in the West region?"** → **19,200** with the **HOW** line (*Total of "Revenue" where
 Region = "West"*) and the **exact rows** it used. Try **"How many units did Alice sell?"** (→ 180), **"average
 revenue per row?"**, **"how many rows are there?"**. **Group-by / argmax:** ask **"Which product had the highest
-revenue?"** → **Gadget (9,450)** with a grouped table; **"revenue by region?"** → West 19,200 · East 7,650. Then ask
-something not in the table (**"What was the weather last Tuesday?"**) → an honest **abstention**. *(Numbers are
-computed in code over your full data — the model only picked which calculation to run, and only ever saw a small
-sample.)*
+revenue?"** → **Gizmo (15,750)** with a grouped table (Gizmo = 9,000 + 6,750; Gadget 9,450; Widget 8,400); **"revenue
+by region?"** → **West 19,200 · East 14,400**. Then ask something not in the table (**"What was the weather last
+Tuesday?"**) → an honest **abstention**. *(Numbers are computed in code over your full data — the model only picked
+which calculation to run, and only ever saw a small sample. Do the math yourself on one or two to confirm it's exact.)*
 
 ## 12. Summarize a spreadsheet  *(the model narrates, the code computes — every figure calculated)*
 Paste the same sales table (or a `.csv`) → a plain-language **overview** ("this dataset tracks sales across N
@@ -145,10 +147,13 @@ missing). Check that a number in the overview (e.g. a total) matches its profile
 the computed profile, never invented, and the model only ever saw the profile + a small sample.
 
 ## 13. Chart your spreadsheet  *(bar charts, computed locally — no model at all)*
-Paste the same sales table (or a `.csv`) → **bar charts**: "Total Units by Region" and "Total Revenue by Region",
-each bar sized to its computed total (West should out-bar East). The chip reads **"Charted entirely on your device —
-nothing sent to a model."** *(Zero-config; the sums are computed from your rows, so the chart is accurate by
-construction.)* Try a table with no obvious category (all-numeric) → an honest "no obvious category to chart by."
+Paste the same 6-row table → **bar charts**. It now groups by the **richest** categorical column (here **Rep** —
+4 distinct — not Region, which would be only 2 near-equal bars), so you get **Total Units by Rep** and **Total Revenue
+by Rep** with clearly-varying bar lengths (e.g. Carol's short bar vs. the others). The chip reads **"Charted entirely
+on your device — nothing sent to a model."** *(Zero-config; sums computed from your rows, accurate by construction.)*
+Try a table with no obvious category (all-numeric) → an honest "no obvious category to chart by."
+*(08-08 fix: the picker now prefers a richer breakdown + higher-contrast bars — the earlier version charted by the
+2-value Region column, which wasn't informative.)*
 
 ---
 
@@ -170,9 +175,20 @@ Open **Compare two documents**, pick **"Contract terms (legal)"**, paste two ver
 **"never picks which document is right."**
 
 ## V-c. Draft → **Contract review memo (legal)**
-Open **Draft from a document**, paste a contract, pick **"Contract review memo (legal)"** → a memo with **Overview ·
-Key Terms · Points to Review** (the liability cap / indemnity / auto-renewal to scrutinize, from the contract's own
-words), each cited; nothing the contract doesn't support (cite-or-block).
+Open **Draft from a document**, pick **"Contract review memo (legal)."** Use a **reasonably full contract** for the
+richest memo — e.g.:
+```
+This Master Services Agreement is between Acme Corporation (Provider) and Beta LLC (Client), effective January 1, 2026.
+The initial term is 24 months and renews automatically for successive one-year terms unless either party gives 90 days
+written notice. Governed by Delaware law. Provider's aggregate liability shall not exceed $500,000. Client shall
+indemnify Provider against third-party claims arising from Client data. Fees are due Net 30. Either party may terminate
+for material breach uncured after 30 days notice.
+```
+→ a memo with **Overview · Key Terms · Points to Review** (the liability cap / indemnity / auto-renewal to scrutinize,
+from the contract's own words), each cited; nothing the contract doesn't support (cite-or-block).
+*(08-08 fix: it no longer false-blocks a very short contract — the required "Overview" now grounds on the document's
+own wording. On a 2–3-sentence contract you'll get Overview + Key Terms and the optional sections may omit — expected,
+not a block. A fuller contract like the one above surfaces Points to Review.)*
 
 ## V-d. Extract → **Claim / EOB details (healthcare)** *(the PHI proof)*
 Open **Extract fields**, pick **"Claim / EOB details (healthcare)"**, paste:

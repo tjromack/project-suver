@@ -585,3 +585,31 @@ Data tools compute; Extract only pulls what's written).
 **150 tests**; **live-verified** with `anthropic`: an income statement → 8 line items (revenue $4.2M → net income
 $812K, period, currency), all grounded, none flagged. Still **12 tools · 3 platforms** — adaptation. Third vertical;
 see `_LEARNING/VERTICAL-FINANCE.md`.
+
+### DEC 029 — 8/8 demo-verify triage: chart breakdown + contract-memo short-doc block + a copy button
+**Context.** Trevor ran the full 15-step demo-verify (`DEMO.md`). Most passed (incl. the DEC 020 tuning fixes — the
+Byzantine lead fact now grounds at 75%, FSOC amounts all 95%/0-flagged). Three real fixes + one UX add:
+
+**1 — Chart grouped by the *least* informative column.** `_pick_category` preferred the **fewest** distinct values →
+it charted "by Region" (2 near-equal bars), which reads as uninformative. **Fix:** prefer the **richest** breakdown
+(most distinct in 2–12, still < rows), so it charts by e.g. Rep/Product (varied bars). Also raised bar contrast (solid
+accent on a faint neutral track). `app/pipeline.py` (`_pick_category`), `_chart_result.html`.
+
+**2 — Contract review memo false-blocked a short contract.** The required "Overview" over-synthesized on a 3-sentence
+MSA and failed to ground → "Nothing drafted" (same class as DEC 016). **Fix:** steered the Overview query to state
+what the agreement is and who the parties are **using the document's own wording** (factual, not interpretive) → it
+grounds on a short doc. Optional sections still omit gracefully. `app/_engines/draft/template.py`. Live-verified on
+Trevor's exact short MSA (Overview + Key Terms grounded, no block).
+
+**3 — Copy button (Trevor's ask).** Added a one-click **⧉ Copy** to the **reply** box and the **draft memo** (inline
+clipboard; the memo copies its clean assembled markdown via a hidden textarea). `_reply_result.html`,
+`_draft_result.html`.
+
+**4 — DEMO.md corrections.** The Data sections used inconsistent tables (§11 was 5-row where Gadget wins; the rest
+6-row where **Gizmo 15,750** wins) — unified to the 6-row table + fixed the expected values (that was the §5 "why did
+it say Gadget?" confusion — my table error). Updated §13 (richer grouping) and §V-c (drafts on short contracts; a
+fuller contract surfaces Points to Review).
+
+**Status.** Accepted. Tests updated (chart now groups by the richer column; reply/draft carry a copy button) — **150
+tests** green. **Backlogged (Trevor's future notes):** an app-wide **UI/branding polish** pass (unique look), and the
+one still-withheld Byzantine fact (~0.40 support — safe/transparent). Still **12 tools · 3 platforms.**

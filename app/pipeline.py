@@ -1486,15 +1486,16 @@ class ChartOutcome:
 
 
 def _pick_category(table: TableData) -> int:
-    """The best column to group bars by: a TEXT column with 2–20 distinct values (and fewer distinct than rows —
-    not an id). Prefer the fewest distinct (cleanest bars), leftmost on a tie. -1 if none is suitable."""
-    best_i, best_d = -1, 999
+    """The best column to group bars by: a TEXT column with 2–12 distinct values (fewer than rows — not an id).
+    Prefer **more** distinct (a richer, more informative breakdown — 2 near-equal bars aren't useful), leftmost on a
+    tie. -1 if none is suitable."""
+    best_i, best_d = -1, 0
     for i, _h in enumerate(table.headers):
         if i in table.numeric_cols:
             continue
         vals = {(r[i] if i < len(r) else "").strip() for r in table.rows if (r[i] if i < len(r) else "").strip()}
         d = len(vals)
-        if 2 <= d <= 20 and d < table.n_rows and d < best_d:
+        if 2 <= d <= 12 and d < table.n_rows and d > best_d:   # prefer the richer breakdown, not the sparsest
             best_i, best_d = i, d
     return best_i
 

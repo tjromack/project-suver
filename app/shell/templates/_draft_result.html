@@ -4,8 +4,13 @@
     font-weight:600;background:var(--good-soft);color:var(--good)}
   .chip.none{background:var(--accent-soft);color:var(--accent)}
   .metaline{color:var(--faint);font-size:12.5px;margin-top:10px}
-  .draft{margin-top:18px;padding:20px 22px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
-  .draft .title{font-size:18px;font-weight:700;letter-spacing:-.01em;margin:0 0 14px}
+  .draft{position:relative;margin-top:18px;padding:20px 22px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+  .draft .title{font-size:18px;font-weight:700;letter-spacing:-.01em;margin:0 40px 14px 0}
+  .copybtn{position:absolute;top:12px;right:12px;display:inline-flex;align-items:center;gap:5px;padding:5px 10px;
+    font-size:12px;font-weight:600;color:var(--muted);background:var(--panel);border:1px solid var(--line);
+    border-radius:8px;cursor:pointer;transition:color .12s,border-color .12s}
+  .copybtn:hover{color:var(--accent);border-color:var(--accent)}
+  .copybtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .sec{padding:12px 0;border-top:1px solid var(--line)}
   .sec:first-of-type{border-top:0;padding-top:0}
   .sec h4{margin:0 0 5px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent)}
@@ -42,6 +47,9 @@
     </div>
   {% else %}
     <div class="draft">
+      <button type="button" class="copybtn" aria-label="Copy memo"
+        onclick="navigator.clipboard.writeText(this.parentElement.querySelector('.rawmd').value).then(()=>{this.textContent='Copied ✓';setTimeout(()=>{this.textContent='⧉ Copy'},1500)})">⧉ Copy</button>
+      <textarea class="rawmd" hidden aria-hidden="true">{{ r.markdown }}</textarea>
       <div class="title">{{ r.title }}</div>
       {% for s in r.sections %}
         <div class="sec">
