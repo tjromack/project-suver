@@ -22,7 +22,14 @@ from app._engines.compare import FieldType as CompareFieldType
 from app._engines.compare import compare, explain_stub
 from app._engines.draft import GroundedSection, assemble, default_kind, get_kind
 from app._engines.extract import default_fieldset, get_fieldset, score_item
-from app._engines.summarize import Span, content_tokens, ground, split_document, support
+from app._engines.summarize import (
+    Span,
+    content_tokens,
+    ground,
+    retrieval_support,
+    split_document,
+    support,
+)
 from app.config import settings
 from app.ingest import IngestResult, extract_text, from_paste
 from app.provider import (
@@ -254,9 +261,11 @@ _ABSTAIN = "I couldn't find an answer to that in your document. Try rephrasing, 
 
 
 def _retrieve(safe_query: str, spans: list[Span]) -> list[tuple[Span, float]]:
-    """Rank passages by question↔passage content-token overlap (the same deterministic support used for grounding).
-    Returns the top-K above the relevance floor, most-relevant first. No model, no embeddings."""
-    scored = [(sp, support(safe_query, sp.text)) for sp in spans]
+    """Rank passages by question↔passage token overlap, over lightly **stemmed** tokens so a passage phrased as a
+    morphological variant of the question still surfaces ("monthly fee?" finds "$12,000 per month … fees"). Returns
+    the top-K above the relevance floor, most-relevant first. No model, no embeddings. Retrieval is generous on
+    purpose — the model's answer is still verified by the unchanged, exact-token grounding gate before anything shows."""
+    scored = [(sp, retrieval_support(safe_query, sp.text)) for sp in spans]
     scored = [(sp, s) for sp, s in scored if s >= settings.copilot_min_relevance]
     scored.sort(key=lambda t: (-t[1], t[0].index))
     return scored[: settings.copilot_top_k]

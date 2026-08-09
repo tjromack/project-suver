@@ -25,8 +25,9 @@ manual pass. Work the queue; **report back** anything that reads wrong, looks of
 - [x] **The hub** now shows **three** platform sections (§1) — Documents · Communications · Data & Analysis.
 - [x] **Communications ×3** — Meeting notes → actions (§8) · Triage messages (§9) · Draft a reply (§10).
 - [x] **Data & Analysis ×3** — Ask (§11) · Summarize (§12) · Chart (§13) your spreadsheet.
-- [ ] **Ask across your documents** (§7½) — the **new N-document tool** (drop a *set*, ask one question, one answer
-  **per document**). *(The most important thing to feel: a fact from one document never leaks into another's answer.)*
+- [x] **Ask across your documents** (§7½) — the **new N-document tool** (drop a *set*, ask one question, one answer
+  **per document**). ✅ **Trevor demo-verified 08-09** — trust proof held (no fact crossed documents); Step C surfaced
+  a recall miss (Acme's "$12,000/month" not found) → fixed same session with **stemmed retrieval** (DEC 031).
 - [ ] **Vertical packs** (§V) — the legal / healthcare / finance field-sets in **Extract** + **Compare**, and the
   **Contract review memo** Draft kind. *(This is the go-to-market proof — worth a careful look.)*
 - [ ] **The 08-06 tuning fixes** (§T) — Summarize lead-fact + Extractor over-flag.
@@ -94,17 +95,17 @@ set) and drop **all three at once** (the drop zone shows "📄 3 files: …"):
 - `acme.txt`: `Master Services Agreement — Acme and Northwind. Initial term of two years from January 1, 2026. Governed by the laws of the State of New York. For billing contact Dana Reyes at dana.reyes@northwind.example.`
 - `globex.txt`: `Software Subscription — Globex Inc. Initial Subscription Term: twelve (12) months. Governing law: the State of California. Liability is capped at the fees paid in the prior twelve months.`
 - `initech.txt`: `Mutual NDA — Initech and Umbrella. Governing law is the State of Delaware. There are no fees under this Agreement.`
-- Ask **"What is the governing law?"** → expect a **per-document** result: **Globex → State of California**, **Initech
-  → State of Delaware**, each with its own citation at ~100% and its own **doc pill** (Acme may show "— not addressed"
-  — it says "governed by the laws of…", a vocabulary miss; that's the honest, conservative behavior). The header reads
-  **"2 of 3 documents address your question — each answer is grounded in that document alone."**
+- Ask **"What is the governing law?"** → expect a **per-document** result, all **3 of 3** answered: **Acme → State of
+  New York**, **Globex → State of California**, **Initech → State of Delaware**, each with its own citation and **doc
+  pill**. The header reads **"3 of 3 documents address your question — each answer is grounded in that document alone."**
 - Ask **"How long is the initial term?"** → **Acme → two years**, **Globex → twelve (12) months**, each attributed to
-  its own document.
-- ⭐ **The trust proof (why per-document matters):** ask **"What is the monthly fee?"** — the Initech NDA says *"there
-  are no fees,"* but that fact stays **inside Initech's row**; it can **never** appear as an answer about Acme or
-  Globex. (An earlier "pool everything and ask once" build got exactly this wrong — it's why the tool answers per
-  document.) Answers are also **subject-neutral** — a doc states *its own* governing law, never mis-attributed to an
-  entity named in your question.
+  its own document (Initech phrases its term differently → "— not addressed", the honest, conservative behavior).
+- ⭐ **The trust proof (why per-document matters):** ask **"What is the monthly fee?"** → **Acme → "$12,000 per month"**
+  (grounded in Acme). The Initech NDA says *"there are no fees"* — that answer stays **inside Initech's own row**
+  (correctly grounded there); it can **never** appear as an answer about **Acme**. *(An earlier "pool everything and
+  ask once" build got exactly this wrong — it answered "Acme has no fees" by pulling the NDA's clause across documents.
+  That's the bug the live demo caught; answering per document makes it impossible.)* Answers are also **subject-neutral**
+  — a doc states *its own* facts, never mis-attributed to an entity named in your question.
 - Ask something off-topic (**"What is the launch schedule?"**) → **every** document shows "— not addressed."
 - The **🛡 trust chip** counts sensitive items handled **across the whole set** (the planted email/phone are tokenized
   before the model, per document); a document that must stay local shows **"🔒 kept local"** and is never searched.

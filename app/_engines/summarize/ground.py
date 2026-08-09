@@ -56,6 +56,39 @@ def support(claim_text: str, span_text: str) -> float:
     return len(claim & content_tokens(span_text)) / len(claim)
 
 
+def _stem(t: str) -> str:
+    """A deliberately tiny, conservative morphological normalizer — plural `-s`/`-ies` and adverb `-ly` only.
+    Applied symmetrically to query and passage tokens so common inflections match ("monthly"↔"month",
+    "fees"↔"fee", "days"↔"day"). Numbers are left exactly as-is (a fact), and short words / `-ss` endings are
+    guarded so we don't over-stem ("is", "class"). Used for **retrieval ranking only** — never for grounding,
+    whose exact-token math (the trust/precision property) is intentionally left unchanged."""
+    if t.isdigit():
+        return t
+    if len(t) > 4 and t.endswith("ly"):
+        t = t[:-2]                       # monthly->month, annually->annual
+    if len(t) > 4 and t.endswith("ies"):
+        return t[:-3] + "y"              # parties->party, companies->company
+    if len(t) > 3 and t.endswith("s") and not t.endswith("ss"):
+        return t[:-1]                    # fees->fee, days->day, terms->term (not "class"->"clas", not "is")
+    return t
+
+
+def content_tokens_stemmed(text: str) -> set[str]:
+    """`content_tokens`, each token passed through the conservative `_stem`. Retrieval-only."""
+    return {_stem(t) for t in content_tokens(text)}
+
+
+def retrieval_support(query_text: str, span_text: str) -> float:
+    """Like `support`, but over **stemmed** tokens — so retrieval surfaces a passage whose wording is a morphological
+    variant of the question ("what is the monthly fee?" finds "$12,000 per month … fees"). Used only to RANK
+    candidate passages; the model's answer is still verified by the unchanged, exact-token `support` grounding gate,
+    so recall improves without loosening the trust guarantee."""
+    q = content_tokens_stemmed(query_text)
+    if not q:
+        return 0.0
+    return len(q & content_tokens_stemmed(span_text)) / len(q)
+
+
 def best_span(claim_text: str, spans: list[Span]) -> tuple[Span | None, float]:
     """The span that best supports the claim, and its support score. Ties → lowest span index."""
     best: Span | None = None

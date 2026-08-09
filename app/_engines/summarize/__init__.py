@@ -17,7 +17,9 @@ from app._engines.summarize.ground import (  # noqa: F401
     GroundingResult,
     best_span,
     content_tokens,
+    content_tokens_stemmed,
     ground,
+    retrieval_support,
     support,
 )
 from app._engines.summarize.spans import Span, by_id, split_document  # noqa: F401

@@ -54,6 +54,27 @@ def test_no_cross_document_contamination():
     assert all("no fees" not in c.span_text.lower() for c in services.citations)
 
 
+def test_morphological_recall_surfaces_the_obvious_answer():
+    """Retrieval is stemmed (plural/-ly), so a question phrased as a morphological variant still finds the passage:
+    'monthly fee' finds a '$12,000 per month … fees' clause. The fix that made Acme answer in the live demo."""
+    from app._engines.summarize import retrieval_support, support
+
+    span = "Fees are $12,000 per month, due net thirty days from the invoice date."
+    # plain (grounding) support misses it — "monthly"≠"month", "fee"≠"fees"; stemmed retrieval finds it
+    assert support("What is the monthly fee?", span) == 0.0
+    assert retrieval_support("What is the monthly fee?", span) > 0.0
+
+    docs = [
+        ("acme.txt", "The fee is $12,000 per month, due net thirty days from the invoice date."),
+        ("nda.txt", "There are no fees under this Agreement. It expires after three years."),
+    ]
+    r = ask_across(docs, "What is the monthly fee?")
+    acme = _answer_for(r, "acme.txt")
+    assert acme.answered and "12,000" in acme.answer
+    # the NDA's "no fees" must stay in the NDA's row — never contaminate the Acme answer
+    assert "no fees" not in (acme.answer or "").lower()
+
+
 def test_searches_every_document_supplied():
     r = ask_across([DOC_A, DOC_B, DOC_C], "What is the governing law?")
     assert r.n_docs == 3

@@ -651,7 +651,39 @@ synonym/compound questions ("auto-renew" ≉ "automatically renews", "fee" ≉ "
 abstain ("— not addressed"). This is the **safe** direction (abstention over hallucination, the product principle);
 chasing recall risks re-introducing weak-passage wrong answers. → BACKLOG (semantic retrieval, later).
 
+**Known limitation (documented, safe).** Retrieval is the shared lexical `support`, so recall is **conservative** on
+synonym/compound questions ("auto-renew" ≉ "automatically renews", "fee" ≉ "shall pay") → a genuinely-present fact can
+abstain ("— not addressed"). This is the **safe** direction (abstention over hallucination, the product principle);
+chasing recall risks re-introducing weak-passage wrong answers. → BACKLOG (semantic retrieval, later). *(Partly
+addressed same-week — see DEC 031.)*
+
 **Status.** Accepted. **161 tests** green (+11: per-doc answer, no-contamination, per-doc attribution, abstain,
 safe-text-across-the-corpus spy, handled-count, paste-as-one-doc, reproducible, + 3 contract/route). Live-verified on
 `anthropic` with a 3-contract corpus (PII planted → tokenized before the model on every doc). New tool
 `app/tools/ask_across.py` + `_ask_across_result.html` (per-document rows). **13 tools · 3 platforms.**
+
+### DEC 031 — Stemmed retrieval: recall without loosening the trust gate (from Trevor's 08-09 §7½ demo-verify)
+**Context.** Trevor Demo-verified Ask-across (`DEMO.md` §7½) live. The trust proof **passed** (no cross-document
+contamination — the NDA's "no fees" never leaked). But **Step C surfaced the documented recall gap at its most
+visible:** asked *"What is the monthly fee?"*, the **Acme** contract — which literally says *"$12,000 per month"* —
+returned "— not addressed." Root cause: retrieval ranks by exact content-token overlap, and the query token
+**"monthly"** doesn't equal the passage's **"month"**, nor **"fee"** the passage's **"fees"** → the fee span never
+cleared the relevance floor → abstain. (Globex only answered because it says "fee" verbatim.)
+
+**The fix — stem retrieval only, never grounding.** Added a deliberately tiny, conservative morphological normalizer
+(`_stem`: plural `-s`/`-ies` and adverb `-ly`, guarded against short words and `-ss`) + `retrieval_support`
+(`content_tokens_stemmed`) in `summarize/ground.py`, and pointed `_retrieve` at it. So "monthly"→"month",
+"fees"→"fee", "laws"→"law" match their variants when **ranking candidate passages**. ⭐ **The grounding math is left
+exactly as-is** — the model's answer is still verified by the unchanged, exact-token `support` gate before anything
+shows. Retrieval is *generous* (more candidates surface); grounding stays *strict* (still guards precision) — so
+recall improves with **zero** loosening of the trust guarantee. Shared by Copilot/Converse/Ask-across (all benefit).
+
+**Re-verified live (`anthropic`, the §7½ corpus).** *"What is the monthly fee?"* → **Acme now answers "$12,000 …";
+the NDA's "no fees" stays in the NDA's own row (correct, grounded there), never on Acme — contamination still
+impossible.** *"What is the governing law?"* → now **3 of 3** (Acme "State of New York" surfaces — "law" now matches
+"laws"). "Initial term" unchanged. No test regressed.
+
+**Status.** Accepted. **162 tests** (+1: stemmed-retrieval recall + a contamination guard). Also committed the §7½
+demo corpus (`data/samples/ask-across-demo/`, synthetic) so the walkthrough travels with the repo. `_stem` is a
+retrieval heuristic, not a linguistics engine — a semantic-retrieval upgrade remains the real ceiling-raiser (BACKLOG).
+**13 tools · 3 platforms.**

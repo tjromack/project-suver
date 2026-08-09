@@ -1,0 +1,8 @@
+MASTER SERVICES AGREEMENT — Acme Corp and Northwind LLC
+
+1. Term. This Agreement begins on January 1, 2026 and continues for an initial term of two years.
+2. Renewal. The Agreement auto-renews for successive one-year terms unless either party gives sixty (60) days
+   written notice of non-renewal before the end of the then-current term.
+3. Fees. Northwind shall pay Acme $12,000 per month, due net thirty (30) days from the invoice date.
+4. Governing Law. This Agreement is governed by the laws of the State of New York.
+For billing questions contact Dana Reyes at dana.reyes@northwind.example or 212-555-0170.
