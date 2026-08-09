@@ -38,10 +38,16 @@ class ToolInput:
     paste2: str | None = None
     # An existing conversation id, for multi-turn tools (Converse). Empty on the first turn.
     session: str | None = None
+    # Several documents at once, for tools that work over a SET (Ask across documents). Each is (filename, bytes).
+    many: list = field(default_factory=list)
 
     @property
     def is_empty(self) -> bool:
         return not (self.data or (self.paste and self.paste.strip()))
+
+    @property
+    def has_many(self) -> bool:
+        return bool(self.many) or bool(self.paste and self.paste.strip())
 
     @property
     def has_second(self) -> bool:
@@ -87,6 +93,9 @@ class Tool:
     # Some tools compare TWO documents (Compare). The shell renders a second drop/paste zone when set.
     needs_second: bool = False
     doc_labels: tuple[str, str] = ("Document A", "Document B")
+    # Some tools work over a SET of documents at once (Ask across documents). The shell renders one multi-file
+    # drop zone (native <input multiple>) when set — a set of inputs, still no prompt.
+    needs_many: bool = False
     # Multi-turn chat tools (Converse): the shell keeps the conversation going — after the first answer it hides the
     # drop zone, keeps the question box, and sends the session id (not the doc) on each follow-up.
     is_chat: bool = False
@@ -140,6 +149,7 @@ def load_builtin() -> None:
     from app.tools import extractor  # noqa: F401  (live — the 4th Documents tool)
     from app.tools import compare  # noqa: F401  (live — the 5th Documents tool; first two-document tool)
     from app.tools import converse  # noqa: F401  (live — the 6th Documents tool; first multi-turn/chat tool)
+    from app.tools import ask_across  # noqa: F401  (live — the 7th Documents tool; first N-document tool)
     from app.tools import meeting_actions  # noqa: F401  (live — platform #2: Communications, 1st tool)
     from app.tools import triage  # noqa: F401  (live — Communications, 2nd tool)
     from app.tools import reply  # noqa: F401  (live — Communications, 3rd tool)

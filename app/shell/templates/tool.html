@@ -52,6 +52,20 @@
   <div class="tagrow">{% for tag in tool.tags %}<span class="tag">{{ tag }}</span>{% endfor %}</div>
 
   <form id="toolform" autocomplete="off">
+    {% if tool.needs_many %}
+    <label class="drop" id="dropmany">
+      <input type="file" name="files" id="files" accept=".pdf,.docx,.txt,.md,.markdown,.text" multiple hidden>
+      <div class="big">Drop several documents here, or click to choose</div>
+      <div class="sub">{{ tool.accepts }} · select 2 or more · each is sanitized before the model, independently</div>
+      <div class="file" id="manylist" hidden>
+        <span id="many-text"></span>
+        <button type="button" class="clearfile" id="clearmany" aria-label="Clear all files">✕ clear all</button>
+      </div>
+    </label>
+
+    <div class="or">or paste one more document</div>
+    <textarea name="paste" id="paste" placeholder="Optionally paste one additional document to include…"></textarea>
+    {% else %}
     {% if tool.needs_second %}<div class="doclabel">{{ tool.doc_labels[0] }}</div>{% endif %}
     <label class="drop" id="drop">
       <input type="file" name="file" id="file" accept=".pdf,.docx,.txt,.md,.markdown,.text" hidden>
@@ -65,6 +79,7 @@
 
     <div class="or">or paste text</div>
     <textarea name="paste" id="paste" placeholder="Paste a document or article here…"></textarea>
+    {% endif %}
 
     {% if tool.needs_second %}
     <div class="doclabel" style="margin-top:24px">{{ tool.doc_labels[1] }}</div>
@@ -125,6 +140,21 @@
       }
       wireDrop('drop','file','filename','fname-text','clearfile');
       wireDrop('drop2','file2','filename2','fname-text2','clearfile2');   // no-op if the tool has one input
+      // Wire the multi-file zone (Ask across documents): show a running count + names, drop replaces the set.
+      (function wireMulti(){
+        const drop=document.getElementById('dropmany'), file=document.getElementById('files'),
+              box=document.getElementById('manylist'), text=document.getElementById('many-text'),
+              clearBtn=document.getElementById('clearmany');
+        if(!drop) return;
+        function show(){ const n=file.files.length;
+          if(n){ box.hidden=false; text.textContent='📄 '+n+' file'+(n>1?'s':'')+': '+Array.from(file.files).map(f=>f.name).join(', '); }
+          else { box.hidden=true; text.textContent=''; } }
+        file.addEventListener('change',show);
+        clearBtn.addEventListener('click',ev=>{ ev.preventDefault(); ev.stopPropagation(); file.value=''; show(); });
+        ['dragenter','dragover'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('hot');}));
+        ['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('hot');}));
+        drop.addEventListener('drop',ev=>{ if(ev.dataTransfer.files.length){ file.files=ev.dataTransfer.files; show(); }});
+      })();
       const isChat={{ 'true' if tool.is_chat else 'false' }};
       let sessionId="";
       form.addEventListener('submit',async ev=>{

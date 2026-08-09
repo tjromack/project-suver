@@ -263,20 +263,23 @@ def _retrieve(safe_query: str, spans: list[Span]) -> list[tuple[Span, float]]:
 
 
 def _answer_over_spans(spans: list[Span], safe_query: str, tmap: dict, provider: str,
-                       *, fallback_query: str | None = None, context: list[str] | None = None):
+                       *, fallback_query: str | None = None, context: list[str] | None = None,
+                       across: bool = False):
     """Answer `safe_query` from already-sanitized spans → (answered, answer_text, citations). Retrieve on the
     question alone first; only if that finds nothing (an **elliptical** follow-up) fall back to `fallback_query`
     (the question + prior-question context — *history resolves the query*). `context` (recent prior questions,
     already sanitized) is handed to the model so a referential follow-up's pronoun resolves — retrieval finds the
-    right passage, context lets the model understand the question. The model answers from the retrieved passages or
-    we abstain. Shared by Copilot (one-shot, no context) and Converse (multi-turn)."""
+    right passage, context lets the model understand the question. `across` selects the cross-document answer
+    style (neutral subject, no section refs) when the same question is asked of each document in a set. The model
+    answers from the retrieved passages or we abstain. Shared by Copilot (one-shot), Converse (multi-turn), and
+    Ask-across (per document)."""
     retrieved = _retrieve(safe_query, spans)
     if not retrieved and fallback_query:
         retrieved = _retrieve(fallback_query, spans)   # elliptical follow-up → resolve with prior questions
     if not retrieved:
         return False, _ABSTAIN, []                     # no vocabulary match → abstain (over hallucination)
     ranked = [sp for sp, _ in retrieved]
-    raw = draft_answer(safe_query, ranked, provider, context=context)
+    raw = draft_answer(safe_query, ranked, provider, context=context, across=across)
     if raw == NOT_IN_DOCUMENT or support(raw, " ".join(sp.text for sp in ranked)) < settings.ground_threshold:
         return False, _ABSTAIN, []
     cites = [
@@ -333,6 +336,121 @@ def answer_document(filename: str, data: bytes | str, query: str, *, provider: s
 def answer_paste(text: str, query: str, *, provider: str | None = None) -> AnswerResult:
     r = from_paste(text)
     return answer_question(r.text, query, kind=r.kind, provider=provider)
+
+
+# --- Ask across your documents: grounded Q&A over a SET of docs — cite the doc, or abstain ------------
+# The first true N-document tool. Every vertical has a *set* (a lawyer's contract library, an HR policy set,
+# a claims batch). Same trust posture as Copilot — the model only ever sees sanitized passages, the answer must
+# ground in a retrieved passage or we abstain — but retrieval runs across the whole corpus and each citation names
+# the document it came from. Each document is sanitized independently before egress; a document that must stay local
+# is skipped (and named), never searched.
+
+
+@dataclass(frozen=True)
+class DocAnswer:
+    doc: str                                        # the document's filename/label
+    answered: bool = False                          # a grounded answer was found in THIS document
+    answer: str | None = None                       # the grounded answer (re-hydrated), or None
+    citations: list[Claim] = field(default_factory=list)   # passages within this document that support it
+    skipped: bool = False                           # kept local (never-egress) → not searched
+
+
+@dataclass(frozen=True)
+class AskAcrossOutcome:
+    query: str = ""
+    per_doc: list[DocAnswer] = field(default_factory=list)   # one entry per document, in the order supplied
+    doc_names: list[str] = field(default_factory=list)       # every document supplied
+    source_docs: list[str] = field(default_factory=list)     # the documents that had a grounded answer
+    skipped: list[str] = field(default_factory=list)         # documents kept local (never-egress) → not searched
+    n_docs: int = 0
+    n_answered: int = 0
+    handled_count: int = 0
+    handled_classes: list[str] = field(default_factory=list)
+    provider: str = "stub"
+    answered: bool = False                                   # at least one document answered
+    blocked: bool = False                                    # the question itself was never-egress
+    block_message: str | None = None
+
+    @property
+    def handled_note(self) -> str:
+        n = self.handled_count
+        if n == 0:
+            return "No sensitive items detected"
+        return f"{n} sensitive {'item' if n == 1 else 'items'} handled before the model"
+
+    @property
+    def summary_line(self) -> str:
+        """A deterministic one-liner — no model, no blending: just how many documents addressed the question."""
+        searched = self.n_docs - len(self.skipped)
+        if self.n_answered == 0:
+            return f"None of your {searched} searched document{'' if searched == 1 else 's'} address that question."
+        return (f"{self.n_answered} of {searched} document{'' if searched == 1 else 's'} address your question — "
+                f"each answer is grounded in that document alone.")
+
+
+def ask_across(docs: list[tuple[str, str]], query: str, *, provider: str | None = None) -> AskAcrossOutcome:
+    """Answer a plain-language question across a SET of documents — one grounded, cited answer **per document**,
+    or an honest "not addressed here." Every document is sanitized independently before anything can leave (a
+    document whose content must stay local is skipped, named, never searched). Answering is scoped to each
+    document's own passages (the proven single-doc path), so no answer can ever blend facts across documents —
+    attribution is correct by construction. Tokens re-hydrate locally for display."""
+    provider = provider or settings.provider
+    q = (query or "").strip()
+
+    ques = sanitize(q, default_policy())
+    handled = len(ques.spans)
+    classes: set[str] = set(ques.classes)
+    doc_names = [((name or "document").strip() or "document") for name, _ in docs]
+
+    # Sanitize every document first so the handled-count/blocked view reflects the whole corpus.
+    sanitized: list[BoundaryResult] = []
+    for _, text in docs:
+        b = sanitize(text, default_policy())
+        sanitized.append(b)
+        handled += len(b.spans)
+        classes |= set(b.classes)
+
+    skipped = [doc_names[i] for i, b in enumerate(sanitized) if b.safe_text is None]
+    base = dict(query=q, doc_names=doc_names, skipped=skipped, n_docs=len(docs),
+                handled_count=handled, handled_classes=sorted(classes), provider=provider)
+
+    if ques.safe_text is None:             # the question itself is never-egress → fail closed
+        return AskAcrossOutcome(**{**base, "blocked": True,
+                                   "block_message": _BLOCK_MSG.format(classes=", ".join(sorted(classes)) or "restricted content")
+                                   + " (your question contains data that must stay on your device.)"})
+
+    per_doc: list[DocAnswer] = []
+    source_docs: list[str] = []
+    for label, b in zip(doc_names, sanitized):
+        if b.safe_text is None:            # kept local → not searched
+            per_doc.append(DocAnswer(doc=label, skipped=True))
+            continue
+        tmap = {**b.token_map, **ques.token_map}
+        spans = split_document(b.safe_text)
+        answered, _text, cites = _answer_over_spans(spans, ques.safe_text, tmap, provider, across=True)
+        if answered:
+            per_doc.append(DocAnswer(doc=label, answered=True, answer=_text, citations=cites))
+            source_docs.append(label)
+        else:
+            per_doc.append(DocAnswer(doc=label, answered=False))
+
+    n_answered = len(source_docs)
+    return AskAcrossOutcome(**{**base, "per_doc": per_doc, "source_docs": source_docs,
+                               "n_answered": n_answered, "answered": n_answered > 0})
+
+
+def ask_across_inputs(many: list[tuple[str, bytes]], paste: str, query: str, *,
+                      provider: str | None = None) -> AskAcrossOutcome:
+    """Resolve each uploaded file (and an optional pasted document) → text, then answer across them. Any
+    `IngestError` propagates as a friendly message. A single pasted document counts as one more document."""
+    docs: list[tuple[str, str]] = []
+    for fname, data in many or []:
+        r = extract_text(fname or "document", data)
+        docs.append((fname or "document", r.text))
+    if paste and paste.strip():
+        r = from_paste(paste)
+        docs.append(("Pasted text", r.text))
+    return ask_across(docs, query, provider=provider)
 
 
 # --- Draft: a grounded memo/brief from the document — cite-or-block, no prompt ------------------------

@@ -63,6 +63,7 @@ async def tool_run(
     file2: UploadFile | None = File(None),
     paste2: str = Form(""),
     session: str = Form(""),
+    files: list[UploadFile] = File([]),
 ):
     tool = get(slug)
     if tool is None or not tool.is_live:
@@ -79,9 +80,14 @@ async def tool_run(
         data2 = await file2.read()
         filename2 = file2.filename
 
+    many: list = []  # several documents at once (Ask across documents): [(filename, bytes), …]
+    for f in files or []:
+        if f is not None and f.filename:
+            many.append((f.filename, await f.read()))
+
     try:
         out = tool.run(ToolInput(filename=filename, data=data, paste=paste, query=query, choice=choice,
-                                 filename2=filename2, data2=data2, paste2=paste2, session=session))
+                                 filename2=filename2, data2=data2, paste2=paste2, session=session, many=many))
     except ToolError as e:  # friendly, user-facing
         return templates.TemplateResponse(request, "_error.html", _ctx(request, message=str(e)))
     except Exception:  # defensive — never leak a stack trace to a consumer

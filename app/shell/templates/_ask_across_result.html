@@ -1,0 +1,84 @@
+<style>
+  .res{padding:22px}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:999px;font-size:13px;
+    font-weight:600;background:var(--good-soft);color:var(--good)}
+  .chip.none{background:var(--accent-soft);color:var(--accent)}
+  .metaline{color:var(--faint);font-size:12.5px;margin-top:10px}
+  .asked{margin:16px 0 4px;font-size:13px;color:var(--faint)}
+  .asked b{color:var(--muted);font-weight:600}
+  .summary{margin:12px 0 4px;font-size:14px;font-weight:600;color:var(--ink)}
+  .docrow{margin-top:16px;padding:16px 18px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+  .docrow.miss{opacity:.72}
+  .docrow.skip{background:var(--warn-soft);border-color:transparent}
+  .dochead{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .docpill{display:inline-block;padding:2px 10px;border-radius:999px;background:var(--accent-soft);color:var(--accent);
+    font-size:11.5px;font-weight:700}
+  .docstate{font-size:11.5px;color:var(--faint);font-weight:600;letter-spacing:.02em}
+  .docstate.ok{color:var(--good)}
+  .answer{font-size:15px;line-height:1.55;color:var(--ink)}
+  .sources{margin-top:12px}
+  details.src{margin:0 0 6px}
+  details.src summary{cursor:pointer;color:var(--accent);font-size:12px;font-weight:600;list-style:none}
+  details.src summary::-webkit-details-marker{display:none}
+  details.src summary::before{content:"› ";}
+  details.src[open] summary::before{content:"⌄ ";}
+  .span{margin-top:8px;padding:10px 12px;border-left:3px solid var(--accent);background:var(--accent-soft);
+    border-radius:0 8px 8px 0;font-size:13px;color:var(--muted)}
+  .span .lbl{display:block;color:var(--faint);font-size:11px;font-weight:700;letter-spacing:.03em;margin-bottom:4px}
+  .miss .why{font-size:13px;color:var(--faint)}
+  .skip .why{font-size:13px;color:var(--warn)}
+  .blocked{padding:20px;border-radius:12px;background:var(--warn-soft);color:var(--warn)}
+  .blocked strong{display:block;margin-bottom:4px;font-size:15px}
+</style>
+
+<div class="panel res">
+  {% if r.handled_count > 0 %}
+    <span class="chip">🛡 {{ r.handled_note }}</span>
+  {% else %}
+    <span class="chip none">🛡 {{ r.handled_note }}</span>
+  {% endif %}
+  <div class="metaline">
+    searched <strong>{{ r.n_docs - r.skipped|length }}</strong> of {{ r.n_docs }} document{{ "" if r.n_docs == 1 else "s" }}
+    {% if r.handled_classes %}· handled: {{ r.handled_classes | join(", ") }}{% endif %}
+    · answered by: {{ r.provider }}
+  </div>
+
+  {% if r.query %}<div class="asked">You asked: <b>{{ r.query }}</b></div>{% endif %}
+
+  {% if r.blocked %}
+    <div class="blocked" style="margin-top:12px">
+      <strong>Kept on your device — not sent.</strong>
+      {{ r.block_message }}
+    </div>
+  {% else %}
+    <div class="summary">{{ r.summary_line }}</div>
+    {% for d in r.per_doc %}
+      {% if d.skipped %}
+        <div class="docrow skip">
+          <div class="dochead"><span class="docpill">{{ d.doc }}</span><span class="docstate">🔒 kept local</span></div>
+          <div class="why">Contains data that must stay on your device — not searched, nothing sent.</div>
+        </div>
+      {% elif d.answered %}
+        <div class="docrow">
+          <div class="dochead"><span class="docpill">{{ d.doc }}</span><span class="docstate ok">✓ answered</span></div>
+          <div class="answer">{{ d.answer }}</div>
+          {% if d.citations %}
+            <div class="sources">
+              {% for c in d.citations %}
+                <details class="src">
+                  <summary>{{ c.span_id }} · relevance {{ "%.0f"|format(c.support*100) }}%</summary>
+                  <div class="span"><span class="lbl">{{ c.span_id }}</span>{{ c.span_text }}</div>
+                </details>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      {% else %}
+        <div class="docrow miss">
+          <div class="dochead"><span class="docpill">{{ d.doc }}</span><span class="docstate">— not addressed</span></div>
+          <div class="why">This document doesn’t cover that — the tool won’t guess.</div>
+        </div>
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+</div>

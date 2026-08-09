@@ -127,6 +127,26 @@ _ANSWER_PROMPT = (
     "QUESTION: {q}\n\nPASSAGES:\n{passages}"
 )
 
+# The cross-document variant (Ask across your documents): the same question is asked of EACH document separately,
+# so the passages here are from ONE document that may NOT be the one the question names. Two extra rules prevent the
+# two failure modes a corpus creates: (1) never attribute a fact to a company/product/agreement named in the
+# question — the passages might be a different document, so state facts about *this* document only; (2) don't cite
+# passage/section numbers or write "per the document" — just state the fact (this also removes the "[S#]" artifacts).
+_ANSWER_PROMPT_ACROSS = (
+    "You are answering a question using ONLY the numbered passages from ONE of the user's documents below. The SAME\n"
+    "question is being asked of each document separately, so these passages may be from a DIFFERENT document than the\n"
+    "one the question names.\n"
+    "Rules:\n"
+    "- Answer in 1–3 sentences using ONLY facts stated in the passages. Do not use outside knowledge.\n"
+    "- State the facts about THIS document only. Do NOT attribute them to any company, product, or agreement named\n"
+    "  in the question — the question may refer to a different document. If these passages don't answer the question,\n"
+    "  reply with EXACTLY this and nothing else: {sentinel}\n"
+    "- Do NOT mention passage or section numbers, and do NOT write phrases like \"per the document\" or \"according\n"
+    "  to\" — just state the fact plainly.\n"
+    "- Some names/identifiers may appear as bracketed tokens like [PERSON_NAME_1]; keep such tokens exactly.\n"
+    "QUESTION: {q}\n\nPASSAGES:\n{passages}"
+)
+
 
 def _passages(spans: list[Span]) -> str:
     return "\n".join(f"[{sp.id}] {sp.text}" for sp in spans)
@@ -151,7 +171,8 @@ def _stub_answer(safe_query: str, retrieved: list[Span]) -> str:
     return retrieved[0].text
 
 
-def _anthropic_answer(safe_query: str, retrieved: list[Span], context: list[str] | None = None) -> str:
+def _anthropic_answer(safe_query: str, retrieved: list[Span], context: list[str] | None = None,
+                      across: bool = False) -> str:
     import truststore
 
     truststore.inject_into_ssl()
@@ -162,20 +183,30 @@ def _anthropic_answer(safe_query: str, retrieved: list[Span], context: list[str]
     if not retrieved:
         return NOT_IN_DOCUMENT
     client = Anthropic()
-    prompt = _ANSWER_PROMPT.format(sentinel=NOT_IN_DOCUMENT, q=safe_query, passages=_passages(retrieved),
-                                   history=_history_block(context))
+    if across:   # cross-document: neutral subject, no passage-number references (see _ANSWER_PROMPT_ACROSS)
+        prompt = _ANSWER_PROMPT_ACROSS.format(sentinel=NOT_IN_DOCUMENT, q=safe_query, passages=_passages(retrieved))
+    else:
+        prompt = _ANSWER_PROMPT.format(sentinel=NOT_IN_DOCUMENT, q=safe_query, passages=_passages(retrieved),
+                                       history=_history_block(context))
     msg = client.messages.create(
         model=settings.anthropic_model,
         max_tokens=512,
         messages=[{"role": "user", "content": prompt}],
     )
     raw = "".join(getattr(b, "text", "") for b in msg.content).strip()
+    if raw == NOT_IN_DOCUMENT:
+        return raw
     # Drop any inline [S#] citation markers the model echoes from the labeled passages (citations show separately);
     # boundary tokens like [PERSON_NAME_1] are left untouched.
-    return raw if raw == NOT_IN_DOCUMENT else _re.sub(r"\s*\[S\d+\]", "", raw).strip()
+    cleaned = _re.sub(r"\s*\[S\d+\]", "", raw)
+    # Repair fragments a stripped marker can leave, e.g. "Per [S2], the…" → "Per, the…" → "the…":
+    cleaned = _re.sub(r"\s+([,.;:])", r"\1", cleaned)          # orphaned space before punctuation
+    cleaned = _re.sub(r"^(Per|Per section|According to|As stated in)[,;:]?\s+", "", cleaned, flags=_re.I)
+    return cleaned.strip()
 
 
-def draft_answer(safe_query: str, retrieved: list[Span], provider: str, *, context: list[str] | None = None) -> str:
+def draft_answer(safe_query: str, retrieved: list[Span], provider: str, *, context: list[str] | None = None,
+                 across: bool = False) -> str:
     """Answer the question from the retrieved (sanitized) passages, or return NOT_IN_DOCUMENT. `context` is the
     recent prior questions of a conversation (Converse follow-ups) — already sanitized — so the model can resolve a
     referential follow-up ("what did that force?"); Copilot passes none. The model only ever sees safe passages +
@@ -183,7 +214,7 @@ def draft_answer(safe_query: str, retrieved: list[Span], provider: str, *, conte
     any model error, degrade to the offline stub."""
     if provider == "anthropic":
         try:
-            return _anthropic_answer(safe_query, retrieved, context)
+            return _anthropic_answer(safe_query, retrieved, context, across=across)
         except Exception:
             return _stub_answer(safe_query, retrieved)
     return _stub_answer(safe_query, retrieved)

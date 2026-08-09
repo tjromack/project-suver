@@ -25,11 +25,13 @@ manual pass. Work the queue; **report back** anything that reads wrong, looks of
 - [x] **The hub** now shows **three** platform sections (§1) — Documents · Communications · Data & Analysis.
 - [x] **Communications ×3** — Meeting notes → actions (§8) · Triage messages (§9) · Draft a reply (§10).
 - [x] **Data & Analysis ×3** — Ask (§11) · Summarize (§12) · Chart (§13) your spreadsheet.
+- [ ] **Ask across your documents** (§7½) — the **new N-document tool** (drop a *set*, ask one question, one answer
+  **per document**). *(The most important thing to feel: a fact from one document never leaks into another's answer.)*
 - [ ] **Vertical packs** (§V) — the legal / healthcare / finance field-sets in **Extract** + **Compare**, and the
   **Contract review memo** Draft kind. *(This is the go-to-market proof — worth a careful look.)*
 - [ ] **The 08-06 tuning fixes** (§T) — Summarize lead-fact + Extractor over-flag.
 
-*(Documents §1–§7 you've already passed; re-run any if you like.)*
+*(Documents §1–§7 you've already passed; re-run any if you like. §7½ is new.)*
 
 ---
 
@@ -82,6 +84,30 @@ in B"** — each difference with a plain note, and the line **"the tool never pi
 - Ask something off-topic → an honest **"not in your document."**
 - *(If you restart the server mid-chat, a follow-up will say "conversation expired — re-add the document." That's
   expected — state is in-memory.)*
+
+---
+
+## 7½. Ask across your documents  *(the first N-document tool — one answer PER document; added 2026-08-09, DEC 030)*
+Open **Ask across your documents**. This tool takes a **set** — a contract library, a policy set — and one question,
+and answers it **per document** (never blending facts across them). Make three small `.txt` files (or reuse any real
+set) and drop **all three at once** (the drop zone shows "📄 3 files: …"):
+- `acme.txt`: `Master Services Agreement — Acme and Northwind. Initial term of two years from January 1, 2026. Governed by the laws of the State of New York. For billing contact Dana Reyes at dana.reyes@northwind.example.`
+- `globex.txt`: `Software Subscription — Globex Inc. Initial Subscription Term: twelve (12) months. Governing law: the State of California. Liability is capped at the fees paid in the prior twelve months.`
+- `initech.txt`: `Mutual NDA — Initech and Umbrella. Governing law is the State of Delaware. There are no fees under this Agreement.`
+- Ask **"What is the governing law?"** → expect a **per-document** result: **Globex → State of California**, **Initech
+  → State of Delaware**, each with its own citation at ~100% and its own **doc pill** (Acme may show "— not addressed"
+  — it says "governed by the laws of…", a vocabulary miss; that's the honest, conservative behavior). The header reads
+  **"2 of 3 documents address your question — each answer is grounded in that document alone."**
+- Ask **"How long is the initial term?"** → **Acme → two years**, **Globex → twelve (12) months**, each attributed to
+  its own document.
+- ⭐ **The trust proof (why per-document matters):** ask **"What is the monthly fee?"** — the Initech NDA says *"there
+  are no fees,"* but that fact stays **inside Initech's row**; it can **never** appear as an answer about Acme or
+  Globex. (An earlier "pool everything and ask once" build got exactly this wrong — it's why the tool answers per
+  document.) Answers are also **subject-neutral** — a doc states *its own* governing law, never mis-attributed to an
+  entity named in your question.
+- Ask something off-topic (**"What is the launch schedule?"**) → **every** document shows "— not addressed."
+- The **🛡 trust chip** counts sensitive items handled **across the whole set** (the planted email/phone are tokenized
+  before the model, per document); a document that must stay local shows **"🔒 kept local"** and is never searched.
 
 ---
 

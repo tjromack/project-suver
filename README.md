@@ -11,12 +11,14 @@ every tool. Pick one tool, or a platform of them.
 This repo is Suver's home: the reusable **tool-app shell**, the **hub launcher**, and the tools. The first tool —
 and this repo's flagship pilot — is **Summarize**.
 
-> **Status — a multi-platform hub: 12 tools across 3 platforms on one shell.** **Platform #1 — Documents**
-> (*read · ask · write · pull data · compare · chat*): **Summarize** (→ cited summary), **Copilot** ("Ask this
-> document" → a grounded, cited answer or an honest "not in your document"), **Draft** (pick a kind → a grounded
-> memo, *cite-or-block*), **Extractor** (pick a field-set → a **typed table**, the uncertain **flagged**),
+> **Status — a multi-platform hub: 13 tools across 3 platforms on one shell.** **Platform #1 — Documents**
+> (*read · ask · write · pull data · compare · chat · ask across*): **Summarize** (→ cited summary), **Copilot**
+> ("Ask this document" → a grounded, cited answer or an honest "not in your document"), **Draft** (pick a kind → a
+> grounded memo, *cite-or-block*), **Extractor** (pick a field-set → a **typed table**, the uncertain **flagged**),
 > **Compare** (drop **two** documents → every difference, type-aware, grounded in both — the tool never picks a
-> winner), and **Converse** (add a document, then **chat** — multi-turn, grounded, follow-ups and all).
+> winner), **Converse** (add a document, then **chat** — multi-turn, grounded, follow-ups and all), and **Ask across
+> your documents** (add a **set** of documents + one question → one grounded, cited answer **per document** — the
+> first N-document tool; answered per document so a fact from one can never contaminate another's answer).
 > **Platform #2 — Communications**: **Meeting notes → actions** (drop notes/a transcript → **action items**
 > — *who · what · by when* — grounded; cite-or-drop the action, owner/due only if stated), **Triage messages**
 > (paste a thread → each message sorted *Needs reply · Action · FYI · Ignore*, ambiguous ones flagged Review, never
@@ -27,12 +29,12 @@ and this repo's flagship pilot — is **Summarize**.
 > → honest abstention) and **Summarize a spreadsheet** (a CSV → a plain-language overview + a computed column
 > profile — the model narrates, the code computes, so every figure is calculated, not invented) and **Chart your
 > spreadsheet** (a CSV → bar charts, each numeric column totalled by category — computed from your rows, fully local,
-> no model). 150 tests (stub-backed,
+> no model). 161 tests (stub-backed,
 > no network); verified end-to-end on real PDFs/transcripts/CSVs with both the offline `stub` and the real `anthropic`
 > model. Sensitive data is sanitized before the model and re-hydrated only in the local view — on every tool. The
 > reusable **shell + hub + tool-app contract** made each tool a small add (a *question*, two *picks*, a *second
-> document*, a *conversation* — and a whole **second platform** that needed no new field). Long docs are handled
-> (200K window + map-reduce). Next: a third platform, the accounts/persistence bridge, or packaging go-to-market.
+> document*, a *conversation*, a *set of documents* — and a whole **second platform** that needed no new field).
+> Long docs are handled (200K window + map-reduce). Next: the accounts/persistence bridge, or packaging go-to-market.
 
 ## The first tool: Summarize
 **Drop a real document → get a cited summary.** Open Summarize, drop a PDF / DOCX / TXT / MD (or paste text), and

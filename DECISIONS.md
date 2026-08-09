@@ -613,3 +613,45 @@ fuller contract surfaces Points to Review).
 **Status.** Accepted. Tests updated (chart now groups by the richer column; reply/draft carry a copy button) — **150
 tests** green. **Backlogged (Trevor's future notes):** an app-wide **UI/branding polish** pass (unique look), and the
 one still-withheld Byzantine fact (~0.40 support — safe/transparent). Still **12 tools · 3 platforms.**
+
+### DEC 030 — Ask across your documents (13th tool; first N-document tool; map-don't-blend)
+**Context.** Every tool so far works on one document (Compare on two). But every vertical is a **set** — a lawyer's
+contract library, an HR policy set, a claims batch — and the natural question is asked *of the whole set*: "which of
+these auto-renew?", "what's the governing law of each?". This is the corpus gap, and the highest-value next capability.
+
+**The contract grew one field.** A `Tool.needs_many` flag + a `ToolInput.many` list ([(filename, bytes), …]); the
+route accepts `files: list[UploadFile]`; the shell renders **one multi-file drop zone** (native `<input multiple>`,
+with a running file-count/name list + "clear all"). Still no prompt — a *set* of inputs and a plain question. Sixth
+proof the shell generalizes (a *question* → `query`; two *picks* → `choice`; a *second document* → `data2`; a
+*conversation* → `session`; now a *set* → `many`). Documents grows 6 → **7**; hub tally adds "· ask across".
+
+**The design decision that matters: map, don't blend.** The first cut pooled passages from *all* documents and asked
+the model once. Live-verified on a 3-contract corpus — and it produced a **confident WRONG answer**: asked "the
+monthly fee under the Acme agreement," the model answered *"there are no fees,"* stitching "no fees" from a **different
+document** (an NDA) onto the Acme question — classic cross-document contamination. That violates the product's core
+principle (*never a confident fabrication*). **Redesigned to answer the question strictly *within each document***
+(reusing the proven, tested single-doc `_answer_over_spans`), then present each document's own cited answer. This
+makes contamination **impossible by construction** (every answer grounds in exactly one document's passages) and
+gives perfect attribution — "which contracts auto-renew?" becomes N clearly-labelled answers, not one lossy blend. A
+document that must stay local is **skipped** (named), never searched. Deterministic summary line ("2 of 3 documents
+address your question — each grounded in that document alone"); no model reduce (that's where contamination lived).
+
+**Two follow-on fixes the re-verify surfaced (`_ANSWER_PROMPT_ACROSS`).** The same question is asked of each doc, so a
+doc's passages may **not** be the one the question names. (a) An NDA answered *"the governing law of the Globex
+subscription is Delaware"* — grounded in its *own* Delaware clause but **echoing the question's entity** onto a
+different doc (misleading). (b) A stripped `[S#]` marker left a *"Per, the Agreement…"* fragment. A cross-doc-only
+prompt variant fixes both: **state facts about *this* document only, never attribute to a company/product named in
+the question; don't cite section numbers.** Re-verified: Globex → *"The governing law is the State of California,"*
+NDA → *"…the State of Delaware"* — each neutral, correct, attributed by its doc pill (both cite 100%). Off-topic
+questions abstain everywhere. The `across` flag threads `_answer_over_spans → draft_answer → _anthropic_answer`;
+Copilot/Converse unchanged.
+
+**Known limitation (documented, safe).** Retrieval is the shared lexical `support`, so recall is **conservative** on
+synonym/compound questions ("auto-renew" ≉ "automatically renews", "fee" ≉ "shall pay") → a genuinely-present fact can
+abstain ("— not addressed"). This is the **safe** direction (abstention over hallucination, the product principle);
+chasing recall risks re-introducing weak-passage wrong answers. → BACKLOG (semantic retrieval, later).
+
+**Status.** Accepted. **161 tests** green (+11: per-doc answer, no-contamination, per-doc attribution, abstain,
+safe-text-across-the-corpus spy, handled-count, paste-as-one-doc, reproducible, + 3 contract/route). Live-verified on
+`anthropic` with a 3-contract corpus (PII planted → tokenized before the model on every doc). New tool
+`app/tools/ask_across.py` + `_ask_across_result.html` (per-document rows). **13 tools · 3 platforms.**
