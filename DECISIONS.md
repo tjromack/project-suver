@@ -727,3 +727,39 @@ grounding-gate-unaffected · Ask-across-expands-once-per-question-not-per-doc). 
 all three retrieval tools, trust guarantee unchanged. **Backlogged (Trevor's decision):** true dense embeddings via an
 external vendor (new key · new egress · per-span cost) — a bigger ceiling-raiser, but a vendor/security call. **13 tools
 · 3 platforms.**
+
+### DEC 033 — Trust & Quality Eval harness: measure the core claim, don't just assert it
+**Context.** The product's whole differentiator is *never a confident fabrication* — but that had only been shown
+**anecdotally** (demos, one-off live checks). A buyer's first question is "how do we know it won't hallucinate?", and
+we had no number. With the product feature-complete + demo-verified, the highest-leverage solo lap was to **measure**
+the guarantee.
+
+**What it is.** A labeled evaluation (`eval/`): `cases.py` — 20 self-contained cases across four categories that map to
+the promises (**answerable** → recall · **unanswerable** → abstention/anti-hallucination · **adversarial** →
+no-fabrication + cross-document non-contamination · **sensitive** → PII-handled-before-the-model); `run.py` — runs each
+case through the real pipeline (Copilot for one doc, Ask-across for a set), scores it with **deterministic substring/
+flag checks** (no model scores the model), and writes a **scorecard** (`eval/SCORECARD.md`). One-doc cases use
+`answer_question`; multi-doc use `ask_across` so per-document attribution is exercised. Run deliberately against the
+real model (`python -m eval.run`); a **stub-mode smoke test** (`tests/test_eval_harness.py`) covers the plumbing offline
+so CI needs no key.
+
+**The number (real model, `anthropic`).** **20/20 (100%)** — Recall 6/6 · Abstention 5/5 · No-fabrication/
+non-contamination 5/5 · PII-handled 4/4; **0 hallucination incidents, 0 fabrication/contamination incidents.** Notable:
+`s2` — the model saw only a `[PERSON_NAME_1]` token yet the answer re-hydrated to the real name locally (the full
+boundary loop, measured); `x1` — asked Acme's fee across the 3-contract set, Acme answered "$12,000" and the NDA's
+"no fees" never entered Acme's row (contamination guard, measured).
+
+**A finding the eval surfaced about itself.** The first run flagged `x4` as a "fabrication" — but the model was
+**correct** ("this year's budget is $300,000, down from $500,000 last year"); the doc states both figures, so mentioning
+last year's as context is grounded, not invented. My `forbid "$500,000"` check was a bad proxy — an eval is only as good
+as its checks. Fixed the check to the true intent (`expect_answer="300,000"` — a wrong answer would surface 500,000 and
+miss 300,000) → 20/20. Lesson banked: **calibrate the eval's checks, not just the model.**
+
+**Why this matters.** It converts the trust story into a measurable, repeatable artifact — the single most persuasive
+GTM proof ("0 fabrications on 20 adversarial cases, on the real model"), a permanent **regression guard** for every
+future change, and it composes the suite's eval-Harness DNA. It is deliberately a **real-model measurement** (the stub's
+behavior differs from the product), run on demand, not on every CI push.
+
+**Status.** Accepted. **169 tests** (+3 harness smoke tests; the 20 eval cases are scored by `eval/run.py`, not
+pytest). `eval/SCORECARD.md` committed as the current baseline (regenerate with `python -m eval.run`). **13 tools ·
+3 platforms.**

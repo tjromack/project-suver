@@ -29,7 +29,9 @@ and this repo's flagship pilot — is **Summarize**.
 > → honest abstention) and **Summarize a spreadsheet** (a CSV → a plain-language overview + a computed column
 > profile — the model narrates, the code computes, so every figure is calculated, not invented) and **Chart your
 > spreadsheet** (a CSV → bar charts, each numeric column totalled by category — computed from your rows, fully local,
-> no model). 166 tests (stub-backed,
+> no model). A **Trust & Quality eval** (`eval/`, `python -m eval.run`) measures the core guarantee on the real model —
+> the current scorecard is **20/20: recall 6/6 · abstention 5/5 · no-fabrication 5/5 · PII-handled 4/4; 0 hallucination
+> incidents, 0 fabrication incidents** (`eval/SCORECARD.md`). 169 tests (stub-backed,
 > no network); verified end-to-end on real PDFs/transcripts/CSVs with both the offline `stub` and the real `anthropic`
 > model. Sensitive data is sanitized before the model and re-hydrated only in the local view — on every tool. The
 > reusable **shell + hub + tool-app contract** made each tool a small add (a *question*, two *picks*, a *second
