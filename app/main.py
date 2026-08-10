@@ -12,6 +12,8 @@ the pipeline the tool calls, so every tool inherits them. Modern `TemplateRespon
 
 from __future__ import annotations
 
+import time
+from collections import deque
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
@@ -124,8 +126,27 @@ async def tool_run(
 # --- Accounts & saved work (persistence MVP, DEC 034) — anonymous use is untouched; sign-in ADDS save/history ----
 
 def _set_session(resp: RedirectResponse, token: str) -> RedirectResponse:
-    resp.set_cookie(settings.session_cookie, token, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 30)
+    resp.set_cookie(settings.session_cookie, token, httponly=True, samesite="lax",
+                    secure=settings.cookie_secure, max_age=86400 * settings.session_ttl_days)
     return resp
+
+
+# A tiny in-memory rate limiter for the auth endpoints — blunts credential-stuffing/brute-force. Single-process MVP
+# (documented in CLIENT-ADAPTATION.md / DESIGN-PARTNER-KIT.md; a multi-instance deploy moves this to a shared store).
+_auth_hits: dict[str, deque] = {}
+
+
+def _rate_limited(request: Request) -> bool:
+    ip = request.client.host if request.client else "?"
+    now = time.time()
+    window, cap = settings.auth_rate_window_s, settings.auth_rate_max
+    hits = _auth_hits.setdefault(ip, deque())
+    while hits and now - hits[0] > window:
+        hits.popleft()
+    if len(hits) >= cap:
+        return True
+    hits.append(now)
+    return False
 
 
 @app.get("/login", response_class=HTMLResponse)
@@ -138,6 +159,11 @@ def login_page(request: Request, next: str = "/"):
 @app.post("/register", response_class=HTMLResponse)
 def register(request: Request, email: str = Form(""), password: str = Form(""), org: str = Form(""),
              next: str = Form("/")):
+    if _rate_limited(request):
+        return templates.TemplateResponse(request, "login.html",
+                                          _ctx(request, next=next, mode="register",
+                                               error="Too many attempts — wait a minute and try again."),
+                                          status_code=429)
     try:
         user = store.create_user(email, password, org)
     except AccountError as e:
@@ -148,6 +174,11 @@ def register(request: Request, email: str = Form(""), password: str = Form(""), 
 
 @app.post("/login", response_class=HTMLResponse)
 def login(request: Request, email: str = Form(""), password: str = Form(""), next: str = Form("/")):
+    if _rate_limited(request):
+        return templates.TemplateResponse(request, "login.html",
+                                          _ctx(request, next=next, mode="login",
+                                               error="Too many attempts — wait a minute and try again."),
+                                          status_code=429)
     try:
         user = store.authenticate(email, password)
     except AccountError as e:

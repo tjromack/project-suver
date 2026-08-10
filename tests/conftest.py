@@ -20,3 +20,14 @@ for p in (_test_db, Path(str(_test_db) + "-wal"), Path(str(_test_db) + "-shm")):
     except FileNotFoundError:
         pass
 os.environ["SUVER_DB"] = str(_test_db)
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _reset_auth_rate_limiter():
+    """The auth rate limiter (DEC 035) is in-memory and keyed by client IP; TestClient shares one IP, so clear it
+    before each test — otherwise auth POSTs bleed across tests and trip the limit."""
+    import app.main as _m
+    _m._auth_hits.clear()
+    yield

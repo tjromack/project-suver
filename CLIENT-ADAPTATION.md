@@ -42,16 +42,16 @@ two functions; **callers and templates don't change**. Recommended ladder:
   and a cost model (their spend). Generalizes today's `PROVIDER=anthropic|stub`.
 
 ### 5. Production hardening (before real user data)
-The MVP is demo-grade on these; each is a known, bounded lap:
+**Done in DEC 035 (pilot-grade):** ✅ server-side **session expiry** (`SESSION_TTL_DAYS`) · ✅ **auth rate-limiting** on
+`/login`+`/register` · ✅ **Secure cookie** flag behind HTTPS (`COOKIE_SECURE`; already `HttpOnly`+`SameSite=Lax`) · ✅ a
+**Dockerfile** deploy path. Remaining, each a known bounded lap (none block a controlled pilot):
+- **CSRF:** add a token to the state-changing POSTs (`/save`, `/logout`, `/register`, `/login`); `SameSite=Lax` is the
+  current mitigation, a token is the belt-and-suspenders for GA.
 - **Storage:** encrypt documents at rest (or store only references / re-fetch); consider not persisting raw docs for
-  the most sensitive clients (save a pointer + re-upload). Swap SQLite → Postgres by changing `app/store.py` only.
-- **Sessions:** add expiry / rotation (tokens currently don't expire); `Secure` cookie flag behind HTTPS; the cookie is
-  already `HttpOnly` + `SameSite=Lax`.
-- **CSRF:** add a token to the state-changing POSTs (`/save`, `/logout`, `/register`, `/login`); `SameSite=Lax` covers
-  the common case but a token is the belt-and-suspenders for production.
-- **Abuse:** rate-limit `/login` + `/register` (lockout / backoff); add password-reset (needs an email sender).
-- **Ops:** backups of the DB; audit log of sign-ins; a real `SECRET`/deployment config.
-- *None block a pilot on synthetic or low-sensitivity content; all are standard and scoped.*
+  the most sensitive clients. Swap SQLite → Postgres by changing `app/store.py` only.
+- **Abuse/accounts:** password reset (needs an email sender); move the in-memory rate limiter to a shared store for a
+  multi-instance deploy.
+- **Ops:** DB backups; audit log of sign-ins; a real `SECRET`/deployment config.
 
 ## The one-line pitch to a design partner
 > *"It already works anonymously. Turn on accounts and your team saves and resumes their work; put your firm's name and

@@ -76,6 +76,12 @@ class Settings:
     db_path: Path = REPO_ROOT / os.getenv("SUVER_DB", "data/suver.db")
     session_cookie: str = os.getenv("SESSION_COOKIE", "suver_session")
     org_name: str = os.getenv("ORG_NAME", "Northwind Legal (demo)")
+    # Pilot-grade hardening (DEC 035). Sessions expire after N days; the cookie is marked Secure in production (behind
+    # HTTPS — set COOKIE_SECURE=1 on deploy); sign-in/registration is rate-limited to blunt credential-stuffing.
+    session_ttl_days: int = int(os.getenv("SESSION_TTL_DAYS", "30"))
+    cookie_secure: bool = os.getenv("COOKIE_SECURE", "0").strip().lower() in ("1", "true", "yes", "on")
+    auth_rate_max: int = int(os.getenv("AUTH_RATE_MAX", "8"))          # attempts per window, per client IP
+    auth_rate_window_s: int = int(os.getenv("AUTH_RATE_WINDOW_S", "300"))
 
     def provenance(self) -> dict:
         return {"app_version": __version__, "provider": self.provider}

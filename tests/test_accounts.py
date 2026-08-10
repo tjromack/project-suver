@@ -100,3 +100,38 @@ def test_save_then_resume_roundtrip():
     page = c.get(f"/t/copilot?item={item.id}")
     assert page.status_code == 200
     assert "The rent is $2,400 per month." in page.text and "What is the rent?" in page.text  # prefilled to resume
+
+
+# --- pilot-grade hardening (DEC 035) -----------------------------------------------------------------
+
+def test_expired_session_is_rejected_and_cleared():
+    import time as _t
+
+    from app.config import settings
+    u = store.create_user("expire@example.com", "goodpass12")
+    tok = store.create_session(u.id)
+    assert store.session_user(tok) is not None
+    # backdate the session past its TTL → it must be rejected AND deleted
+    with store._conn() as con:
+        con.execute("UPDATE sessions SET created_at = ? WHERE token = ?",
+                    (_t.time() - (settings.session_ttl_days * 86400 + 10), tok))
+    assert store.session_user(tok) is None
+    with store._conn() as con:
+        assert con.execute("SELECT 1 FROM sessions WHERE token = ?", (tok,)).fetchone() is None
+
+
+def test_auth_endpoints_are_rate_limited():
+    from app.config import settings
+    c = TestClient(app)
+    # exhaust the window with bad logins (each 400), then the next attempt is throttled (429)
+    for _ in range(settings.auth_rate_max):
+        assert c.post("/login", data={"email": "x@example.com", "password": "nope12345"}).status_code == 400
+    assert c.post("/login", data={"email": "x@example.com", "password": "nope12345"}).status_code == 429
+
+
+def test_session_cookie_is_httponly():
+    c = TestClient(app)
+    r = c.post("/register", data={"email": "cookie@example.com", "password": "goodpass12"},
+               follow_redirects=False)
+    set_cookie = r.headers.get("set-cookie", "")
+    assert "suver_session=" in set_cookie and "httponly" in set_cookie.lower() and "samesite=lax" in set_cookie.lower()

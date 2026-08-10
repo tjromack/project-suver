@@ -794,3 +794,34 @@ user's text locally (SQLite on the server) — documented plainly, with the prod
 sessions · per-user item isolation · anonymous-still-works · register/login/logout routes · save-then-resume). MVP is
 demo-grade on production hardening (documented). Related: `EMBEDDINGS-PLAN.md` (the per-org model/key direction rides on
 this org record). **13 tools · 3 platforms + accounts.**
+
+### DEC 035 — Pilot-grade hardening + a deployment path + the design-partner kit (readiness, no partner yet)
+**Context.** Trevor has no design partner yet and asked what we can **flesh out now so we can move the day one
+appears.** The gap between the accounts MVP (DEC 034, explicitly "demo-grade") and something a **legal** firm's due
+diligence accepts is (a) a few concrete security hardenings, (b) an actual way to *stand it up*, and (c) an operational
+runbook. Also republished the showcase mirror (current: 13 tools, the 20/20 scorecard, accounts) at Trevor's request.
+
+**Hardened to pilot-grade (low-risk, additive).** (1) **Server-side session expiry** — `session_user` rejects and
+deletes sessions older than `SESSION_TTL_DAYS` (30), so a stolen/forgotten cookie doesn't live forever. (2) **Auth
+rate-limiting** — a tiny in-memory sliding window (`AUTH_RATE_MAX`/`AUTH_RATE_WINDOW_S`, default 8 / 5 min per client
+IP) on `/login` + `/register` blunts credential-stuffing (429 when exceeded). (3) **Secure cookie behind HTTPS** —
+`COOKIE_SECURE` flag (on in prod); the cookie was already `HttpOnly` + `SameSite=Lax`. +3 tests (expiry rejected+
+cleared · endpoints rate-limited · cookie flags) → **180 tests**. A conftest autouse fixture clears the limiter between
+tests. *(CSRF tokens, password reset, audit logging, encryption-at-rest, and a shared-store rate limiter are the
+remaining pre-GA items — SameSite=Lax is the current CSRF mitigation; all listed in `CLIENT-ADAPTATION.md §5` and the
+kit, non-blocking for a controlled pilot.)*
+
+**Deployment path.** A `Dockerfile` (+ `.dockerignore`): `docker build`/`run` with an env-file for the key and a named
+volume for `data/` (the SQLite DB). One worker keeps the in-memory limiter/sessions coherent for a pilot; scaling out
+moves those to a shared store (documented). So a partner instance can actually be stood up — previously there was no
+deploy story.
+
+**The design-partner kit** (`_LEARNING/DESIGN-PARTNER-KIT.md`). A ready-to-execute onboarding runbook: a readiness
+table (what exists vs. per-partner), stand-up steps, a 2-week pilot plan (Day-0 trust proof by running the eval on
+*their* sample contracts · Week-1 enablement · Week-2 usage + feedback), success metrics, the security Q&A a legal
+firm will ask, the per-partner build list (branding · SSO · isolation · GA hardening · BYO-model), and the first-meeting
+assets. Beachhead = legal (GO-TO-MARKET §4a).
+
+**Status.** Accepted. **180 tests.** Nothing here needs a partner to exist — it's runway. New: `Dockerfile`,
+`.dockerignore`, `DESIGN-PARTNER-KIT.md`; hardening in `store.py`/`main.py`/`config.py`. **13 tools · 3 platforms +
+accounts, pilot-grade + deployable.**

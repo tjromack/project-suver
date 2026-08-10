@@ -161,9 +161,16 @@ def session_user(token: str | None) -> User | None:
         return None
     with _conn() as con:
         row = con.execute(
-            "SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ?", (token,)
+            "SELECT u.*, s.created_at AS s_created FROM sessions s JOIN users u ON u.id = s.user_id "
+            "WHERE s.token = ?", (token,)
         ).fetchone()
-    return User(row["id"], row["email"], row["org"], row["created_at"]) if row else None
+    if row is None:
+        return None
+    # Expire stale sessions server-side (pilot-grade; a stolen/forgotten cookie doesn't live forever).
+    if time.time() - row["s_created"] > settings.session_ttl_days * 86400:
+        end_session(token)
+        return None
+    return User(row["id"], row["email"], row["org"], row["created_at"])
 
 
 def end_session(token: str | None) -> None:
