@@ -850,3 +850,9 @@ Anonymous + accounts UI both re-skinned. No behavioural change — pure presenta
 citations render. Fonts are zero-dependency system stacks (a self-hosted display face remains an option). Further
 per-component polish is expected during ongoing testing (Trevor: "necessary tweaks as needed"). **13 tools · 3
 platforms + accounts · new visual identity.**
+
+**Follow-on — in-app theme toggle.** The app followed the OS theme only, with no way to switch. Added a header toggle:
+the CSS moved to the three-state structure (bare `:root` = light; `@media (prefers-color-scheme: dark)` guarded as
+`:root:not([data-theme="light"])` so an explicit light choice beats a dark OS; `:root[data-theme="dark"]` so the toggle
+wins the other way), the choice persists in `localStorage`, and a tiny pre-paint script in `<head>` applies it before
+first paint (no flash). The button shows the destination (☾ go dark / ☀ go light). Purely additive; 180 tests still green.
