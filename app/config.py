@@ -70,6 +70,12 @@ class Settings:
     chart_max_bars: int = int(os.getenv("CHART_MAX_BARS", "12"))
     chart_max_measures: int = int(os.getenv("CHART_MAX_MEASURES", "3"))
     samples_dir: Path = REPO_ROOT / os.getenv("SAMPLES_DIR", "data/samples")
+    # Accounts & saved work (persistence MVP, DEC 034). One SQLite file — trivial to run/back up/hand to a client;
+    # swap for Postgres by changing app/store.py only. Cookie name for the opaque session token. Anonymous use needs
+    # neither. The name of the (generic, made-up) demo org shown in the account UI — rebrand per client.
+    db_path: Path = REPO_ROOT / os.getenv("SUVER_DB", "data/suver.db")
+    session_cookie: str = os.getenv("SESSION_COOKIE", "suver_session")
+    org_name: str = os.getenv("ORG_NAME", "Northwind Legal (demo)")
 
     def provenance(self) -> dict:
         return {"app_version": __version__, "provider": self.provider}

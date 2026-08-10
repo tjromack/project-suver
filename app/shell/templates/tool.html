@@ -78,7 +78,7 @@
     </label>
 
     <div class="or">or paste text</div>
-    <textarea name="paste" id="paste" placeholder="Paste a document or article here…"></textarea>
+    <textarea name="paste" id="paste" placeholder="Paste a document or article here…">{% if prefill %}{{ prefill.text }}{% endif %}</textarea>
     {% endif %}
 
     {% if tool.needs_second %}
@@ -99,7 +99,8 @@
     {% if tool.needs_query %}
     <div class="queryblock">
       <label class="qlabel" for="query">{{ tool.query_label }}</label>
-      <input type="text" name="query" id="query" placeholder="{{ tool.query_placeholder }}" autocomplete="off">
+      <input type="text" name="query" id="query" placeholder="{{ tool.query_placeholder }}" autocomplete="off"
+             value="{% if prefill %}{{ prefill.query }}{% endif %}">
     </div>
     {% endif %}
 
@@ -114,8 +115,10 @@
 
     <div class="actions">
       <button class="btn" id="go" type="submit">{{ tool.action_label }}</button>
-      <span class="faint">{% if tool.needs_query %}Ask in plain words — no prompt craft.{% elif tool.has_options %}Pick what to make — no prompt.{% else %}No prompt to write. One click.{% endif %}</span>
+      {% if user %}<button type="button" class="clearfile" id="savebtn" title="Keep this document + question in My work">💾 Save to my work</button>{% endif %}
+      <span class="faint" id="hint">{% if tool.needs_query %}Ask in plain words — no prompt craft.{% elif tool.has_options %}Pick what to make — no prompt.{% else %}No prompt to write. One click.{% endif %}</span>
     </div>
+    {% if user %}<div class="faint" id="savemsg" style="margin-top:8px" aria-live="polite"></div>{% endif %}
   </form>
 
   <div id="result" aria-live="polite"></div>
@@ -181,6 +184,22 @@
           result.insertAdjacentHTML('beforeend','<div class="panel" style="padding:20px">Couldn’t reach the server. Try again.</div>');
         }finally{ go.disabled=false; }
       });
+      // Save to my work (signed-in only): keep the current document + question so it can be re-opened later.
+      const savebtn=document.getElementById('savebtn'), savemsg=document.getElementById('savemsg');
+      if(savebtn){
+        savebtn.addEventListener('click',async ()=>{
+          const fd=new FormData(form); fd.set('tool_slug','{{ tool.slug }}');
+          fd.delete('choice'); fd.delete('file2'); fd.delete('paste2'); fd.delete('files'); fd.delete('session');
+          savebtn.disabled=true; savemsg.textContent='Saving…';
+          try{
+            const resp=await fetch('/save',{method:'POST',body:fd});
+            if(resp.status===401){ savemsg.innerHTML='Please <a href="/login">sign in</a> to save.'; }
+            else if(!resp.ok){ savemsg.textContent='Nothing to save yet — add a document or a question first.'; }
+            else { savemsg.innerHTML=await resp.text(); }
+          }catch(e){ savemsg.textContent='Couldn’t save. Try again.'; }
+          finally{ savebtn.disabled=false; }
+        });
+      }
     })();
   </script>
   {% endif %}

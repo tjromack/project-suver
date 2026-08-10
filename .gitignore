@@ -10,3 +10,11 @@ uploads/
 # real test documents (local only; the synthetic sample.txt is the committed fixture)
 data/samples/real/*.pdf
 data/samples/real/*.docx
+
+# Accounts/persistence — runtime SQLite DB (DEC 034), never committed
+data/suver.db
+data/suver.db-wal
+data/suver.db-shm
+*.db
+*.db-wal
+*.db-shm

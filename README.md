@@ -31,7 +31,9 @@ and this repo's flagship pilot — is **Summarize**.
 > spreadsheet** (a CSV → bar charts, each numeric column totalled by category — computed from your rows, fully local,
 > no model). A **Trust & Quality eval** (`eval/`, `python -m eval.run`) measures the core guarantee on the real model —
 > the current scorecard is **20/20: recall 6/6 · abstention 5/5 · no-fabrication 5/5 · PII-handled 4/4; 0 hallucination
-> incidents, 0 fabrication incidents** (`eval/SCORECARD.md`). 169 tests (stub-backed,
+> incidents, 0 fabrication incidents** (`eval/SCORECARD.md`). Optional **accounts + saved work** (`app/store.py`,
+> SQLite) let a signed-in user save a document + question and resume it later — anonymous use is untouched; see
+> `CLIENT-ADAPTATION.md` for adopting it to a specific org. 177 tests (stub-backed,
 > no network); verified end-to-end on real PDFs/transcripts/CSVs with both the offline `stub` and the real `anthropic`
 > model. Sensitive data is sanitized before the model and re-hydrated only in the local view — on every tool. The
 > reusable **shell + hub + tool-app contract** made each tool a small add (a *question*, two *picks*, a *second

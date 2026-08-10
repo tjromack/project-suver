@@ -46,6 +46,13 @@
       background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:600}
     code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.9em;
       background:var(--accent-soft);padding:1px 6px;border-radius:6px}
+    .acct{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--faint)}
+    .acct a:hover{color:var(--accent)}
+    .acct form{display:inline} .acct .who{color:var(--muted);font-weight:600}
+    .linkbtn{appearance:none;border:0;background:none;color:var(--faint);font:inherit;cursor:pointer;padding:0}
+    .linkbtn:hover{color:var(--accent)}
+    .signin{padding:5px 12px;border:1px solid var(--line);border-radius:9px;color:var(--muted);font-weight:600}
+    .signin:hover{border-color:var(--accent);color:var(--accent)}
   </style>
   {% block head %}{% endblock %}
 </head>
@@ -53,6 +60,15 @@
   <header class="top">
     <a class="brand" href="/"><span class="dot"></span>Suver <small>tools, not prompts</small></a>
     <nav class="crumbs">{% block crumbs %}{% endblock %}</nav>
+    <div class="acct" style="margin-left:14px">
+      {% if user %}
+        <span class="who" title="{{ user.email }}{% if user.org %} · {{ user.org }}{% endif %}">{{ user.email }}</span>
+        <a href="/workspace">My work</a>
+        <form method="post" action="/logout"><button class="linkbtn" type="submit">Sign out</button></form>
+      {% else %}
+        <a class="signin" href="/login">Sign in</a>
+      {% endif %}
+    </div>
   </header>
   <main class="wrap">{% block body %}{% endblock %}</main>
   <footer class="foot">

@@ -763,3 +763,34 @@ behavior differs from the product), run on demand, not on every CI push.
 **Status.** Accepted. **169 tests** (+3 harness smoke tests; the 20 eval cases are scored by `eval/run.py`, not
 pytest). `eval/SCORECARD.md` committed as the current baseline (regenerate with `python -m eval.run`). **13 tools ·
 3 platforms.**
+
+### DEC 034 — Persistence MVP: accounts + saved work (the adoption bridge; Trevor's 08-10 pick)
+**Context.** The product was feature-complete but **ephemeral** — nothing saved, no accounts. That's the gap between an
+impressive demo and something an org adopts: users expect to sign in, save their work, walk away, and come back. Trevor
+asked for this as a **generic MVP that transfers to a real client with minimal change** — "here's how it looks for a
+(made-up) client, with a clear path to adapt for a real org."
+
+**What shipped.** A lean, **dependency-free** persistence layer (stdlib `sqlite3`): `app/store.py` — users (email +
+salted `pbkdf2_hmac` password), sessions (opaque token in an `HttpOnly`/`SameSite=Lax` cookie), and saved_items (a
+tool + a document + a question). Routes in `main.py`: `/login` · `/register` · `/logout` · `/workspace` (My work) ·
+`/save` · `/item/{id}/delete`, plus `?item=ID` **resume** on a tool page (pre-fills the document + question, ready to
+re-run). UI: a `login.html` (sign-in / create-account tabs), a `workspace.html` (saved items with Open/Delete), a
+header account nav, and a **💾 Save to my work** button in the shell (signed-in only).
+
+**Two principles held.** (1) **Anonymous use is untouched** — no tool requires an account; sign-in only *adds*
+save/history (a test asserts the full anonymous run still works + protected routes redirect/401). (2) **Transferable by
+design** — email+password is the only universal, zero-dependency auth (no per-client OAuth setup); it sits behind
+`store.authenticate()`/`create_user()` so **Google/Microsoft social login and org-SSO (OIDC/SAML) slot in without
+touching callers**. Every user carries an `org` field — the hook for per-org branding, policy, and (later) a per-org
+model choice / bring-your-own-key. `CLIENT-ADAPTATION.md` is the full "make it theirs" guide (branding · the auth
+ladder · per-org isolation · production hardening: encryption-at-rest, session expiry, CSRF, rate-limiting — each a
+known, bounded, non-blocking lap). Auth choice + the auth ladder recommendation are Trevor's, confirmed 08-10.
+
+**Trust posture.** The store never calls a model; sanitize-before-egress is unchanged. Saving a document stores the
+user's text locally (SQLite on the server) — documented plainly, with the production hardening options in
+`CLIENT-ADAPTATION.md`. The DB (`data/suver.db`) is gitignored; tests use a throwaway DB (conftest).
+
+**Status.** Accepted. **177 tests** (+8: password-hashing · auth roundtrip + wrong-password · dup/weak rejection ·
+sessions · per-user item isolation · anonymous-still-works · register/login/logout routes · save-then-resume). MVP is
+demo-grade on production hardening (documented). Related: `EMBEDDINGS-PLAN.md` (the per-org model/key direction rides on
+this org record). **13 tools · 3 platforms + accounts.**

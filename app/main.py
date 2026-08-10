@@ -15,12 +15,15 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app import __version__
+from app import store
 from app.config import settings
+from app.ingest import IngestError, extract_text, from_paste
+from app.store import AccountError, User
 from app.tools import ToolError, ToolInput, all_tools, by_platform, get, load_builtin
 
 BASE = Path(__file__).resolve().parent
@@ -28,14 +31,24 @@ templates = Jinja2Templates(directory=str(BASE / "shell" / "templates"))
 
 app = FastAPI(title="Project Suver", version=__version__)
 load_builtin()
+store.init_db()
 
 _static = BASE / "shell" / "static"
 if _static.exists():
     app.mount("/static", StaticFiles(directory=str(_static)), name="static")
 
 
+def _current_user(request: Request) -> User | None:
+    """The signed-in user for this request, or None. Anonymous is fully supported — no tool requires an account."""
+    return store.session_user(request.cookies.get(settings.session_cookie))
+
+
 def _ctx(request: Request, **extra) -> dict:
-    return {"request": request, "app_version": __version__, "provider": settings.provider, **extra}
+    # `user` is always present (None when anonymous) so the nav/templates render login state everywhere.
+    base = {"request": request, "app_version": __version__, "provider": settings.provider,
+            "org_name": settings.org_name}
+    base.setdefault("user", _current_user(request))
+    return {**base, **extra}
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -45,11 +58,18 @@ def hub(request: Request):
 
 
 @app.get("/t/{slug}", response_class=HTMLResponse)
-def tool_page(request: Request, slug: str):
+def tool_page(request: Request, slug: str, item: int | None = None):
     tool = get(slug)
     if tool is None:
         return templates.TemplateResponse(request, "not_found.html", _ctx(request), status_code=404)
-    return templates.TemplateResponse(request, "tool.html", _ctx(request, tool=tool))
+    prefill = None  # resume a saved item: pre-fill the paste box + question, ready to re-run
+    if item is not None:
+        user = _current_user(request)
+        if user is not None:
+            saved = store.get_item(user.id, item)
+            if saved is not None and saved.tool_slug == slug:
+                prefill = saved
+    return templates.TemplateResponse(request, "tool.html", _ctx(request, tool=tool, prefill=prefill))
 
 
 @app.post("/t/{slug}/run", response_class=HTMLResponse)
@@ -99,6 +119,90 @@ async def tool_run(
         )
 
     return templates.TemplateResponse(request, out.template, _ctx(request, tool=tool, r=out.result))
+
+
+# --- Accounts & saved work (persistence MVP, DEC 034) — anonymous use is untouched; sign-in ADDS save/history ----
+
+def _set_session(resp: RedirectResponse, token: str) -> RedirectResponse:
+    resp.set_cookie(settings.session_cookie, token, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 30)
+    return resp
+
+
+@app.get("/login", response_class=HTMLResponse)
+def login_page(request: Request, next: str = "/"):
+    if _current_user(request) is not None:
+        return RedirectResponse("/workspace", status_code=303)
+    return templates.TemplateResponse(request, "login.html", _ctx(request, next=next, error=None))
+
+
+@app.post("/register", response_class=HTMLResponse)
+def register(request: Request, email: str = Form(""), password: str = Form(""), org: str = Form(""),
+             next: str = Form("/")):
+    try:
+        user = store.create_user(email, password, org)
+    except AccountError as e:
+        return templates.TemplateResponse(request, "login.html",
+                                          _ctx(request, next=next, error=str(e), mode="register"), status_code=400)
+    return _set_session(RedirectResponse(next or "/", status_code=303), store.create_session(user.id))
+
+
+@app.post("/login", response_class=HTMLResponse)
+def login(request: Request, email: str = Form(""), password: str = Form(""), next: str = Form("/")):
+    try:
+        user = store.authenticate(email, password)
+    except AccountError as e:
+        return templates.TemplateResponse(request, "login.html",
+                                          _ctx(request, next=next, error=str(e), mode="login"), status_code=400)
+    return _set_session(RedirectResponse(next or "/", status_code=303), store.create_session(user.id))
+
+
+@app.post("/logout")
+def logout(request: Request):
+    store.end_session(request.cookies.get(settings.session_cookie))
+    resp = RedirectResponse("/", status_code=303)
+    resp.delete_cookie(settings.session_cookie)
+    return resp
+
+
+@app.get("/workspace", response_class=HTMLResponse)
+def workspace(request: Request):
+    user = _current_user(request)
+    if user is None:
+        return RedirectResponse("/login?next=/workspace", status_code=303)
+    items = store.list_items(user.id)
+    return templates.TemplateResponse(request, "workspace.html",
+                                      _ctx(request, items=items, tool_of=get))
+
+
+@app.post("/save")
+async def save(request: Request, tool_slug: str = Form(""), title: str = Form(""),
+               file: UploadFile | None = File(None), paste: str = Form(""), query: str = Form("")):
+    user = _current_user(request)
+    if user is None:
+        return HTMLResponse("sign-in-required", status_code=401)
+    text = ""
+    name = ""
+    try:
+        if file is not None and file.filename:
+            name = file.filename
+            text = extract_text(file.filename, await file.read()).text
+        elif paste and paste.strip():
+            text = from_paste(paste).text
+    except IngestError:
+        text = paste or ""
+    if not (text.strip() or query.strip()):
+        return HTMLResponse("nothing-to-save", status_code=400)
+    title = (title.strip() or name or (query.strip()[:60]) or (text.strip()[:60]) or "Saved item")
+    item = store.save_item(user.id, tool_slug or "copilot", title, text=text, query=query)
+    return HTMLResponse(f'Saved ✓ — <a href="/workspace">My work</a> (#{item.id})')
+
+
+@app.post("/item/{item_id}/delete")
+def delete_item(request: Request, item_id: int):
+    user = _current_user(request)
+    if user is not None:
+        store.delete_item(user.id, item_id)
+    return RedirectResponse("/workspace", status_code=303)
 
 
 @app.get("/healthz")
