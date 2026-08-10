@@ -240,6 +240,31 @@ income · period · currency — grounded; Extract pulls what's written (the **D
 - **Extract → Amounts & totals** on the FSOC PDF → the large clearly-stated figures ($1 trillion, $29 trillion, $38
   trillion, etc.) should read **95% · ok** with **0 flagged** (they used to show a batch flagged at 50% · review).
 
+---
+
+# §A — Accounts & saved work  *(DEC 034–035; anonymous use is untouched)*
+- **Anonymous first:** run any tool **without signing in** — it should work exactly as before (accounts only *add*).
+- Click **Sign in** (top-right) → **Create account** (email + 8+ char password). You land back on the hub, now showing
+  your email + **My work** + **Sign out**.
+- Open a tool, run it, click **💾 Save to my work** → a "Saved ✓" confirmation. Open **My work** → your item is listed.
+- Click **Open** on a saved item → the tool re-loads with the **document + question pre-filled**, ready to re-run.
+- **Sign out**, close the tab, come back → your saved work is still there when you sign back in.
+- *(Pilot-grade: sessions expire, sign-in is rate-limited, the cookie is HttpOnly/SameSite. For a real client:
+  `CLIENT-ADAPTATION.md` + `DESIGN-PARTNER-KIT.md`.)*
+
+# §E — The Trust & Quality eval  *(DEC 033 — the measured trust proof)*
+- Run it: `PYTHONUTF8=1 .venv\Scripts\python.exe -m eval.run` (uses the real model). Expect the scorecard printed +
+  written to `eval/SCORECARD.md`: **20/20 — recall 6/6 · abstention 5/5 · no-fabrication 5/5 · PII-handled 4/4;
+  0 hallucination, 0 fabrication incidents.**
+- This is the artifact for a buyer's "how do we know it won't hallucinate?" — and it re-runs on *their* documents.
+
+# §U — The look  *(DEC 036 — new visual identity)*
+- The whole app now wears the **OG-Apple black/white** identity: colour carries meaning (**blue=action · green=
+  grounded/cited · amber=flagged · red=held-back**), a four-colour signature stripe, serif headings + clean sans,
+  softly-rounded surfaces. Use the **☾/☀ toggle** (top-right) to switch light/dark — your choice persists.
+
+---
+
 ## What to look for across everything
 - Every result shows **"by: anthropic"** + the **🛡** trust chip.
 - Answers/points **cite** the source (or honestly **abstain / omit / block / Review / [placeholder]** — never a

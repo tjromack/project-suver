@@ -1,5 +1,10 @@
 # TODO — Project Suver · the Summarize tool-app (phased build)
 
+> ⚠️ **Superseded / historical (as of 2026-08-10).** This was the phased build plan for the **original Summarize
+> pilot**. Suver is now a **13-tool, 3-platform, pilot-ready product** (accounts · a 20/20 trust eval · a visual
+> identity). The **live task/decision source is now:** `DECISIONS.md` (DEC log, current = DEC 037 next),
+> `../_PLATFORM/BACKLOG.md` (open items), and `../_PLATFORM/NEXT-SESSION.md` (what opens next). Kept for provenance.
+
 Build in phases. **Every phase ends demoable** (a `make` target or a page) and with `pytest` green against the
 **stub** (no network). Commit at the end of each phase. Read `DESIGN.md` for the spec and `CLAUDE.md` for the
 contract. Trust behavior always ships with a test — and **"the model only ever sees Data-Boundary-safe text"

@@ -5,7 +5,13 @@ suite becomes: an AI **tool hub that removes the prompt.** This repo is Suver's 
 the hub launcher, and the tools). `DESIGN.md` holds the original spec (written when Summarize was the pilot); this
 file is the *how we work* contract. Product North Star: `../_PLATFORM/VISION.md`.
 
-## What this is  *(status: a multi-platform hub — 13 live tools across 3 platforms, 2026-08-09)*
+## What this is  *(status: a multi-platform hub — 13 live tools across 3 platforms, 2026-08-10)*
+> *Beyond the tools (as of 2026-08-10): a measured **Trust & Quality eval** (`eval/`, real-model scorecard **20/20** —
+> 0 hallucination, 0 fabrication; DEC 033); an optional, **pilot-grade accounts + saved-work** layer (`app/store.py`,
+> SQLite; sign in → save a document + question → resume; anonymous use untouched; `Dockerfile` + `DESIGN-PARTNER-KIT.md`
+> + `CLIENT-ADAPTATION.md`; DEC 034–035); retrieval deepened with stemming + model-assisted query expansion (DEC
+> 031–032, grounding gate untouched); and a distinct **OG-Apple visual identity** — token-driven in `base.html`,
+> colour-does-a-job, serif+sans, light/dark toggle, softly-rounded (DEC 036). 180 tests. Beachhead = legal (GO-TO-MARKET §4a).*
 A **consumer-grade tool hub** on one shell — each tool: bring only your input (one or two documents; at most a plain
 **question** or a **pick**), get the output; **no prompt, no config**; sensitive data **sanitized before the model**
 and re-hydrated locally. **Platform #1 — Documents** (*read · ask · write · pull data · compare · chat · ask across*):
