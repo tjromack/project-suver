@@ -825,3 +825,28 @@ assets. Beachhead = legal (GO-TO-MARKET §4a).
 **Status.** Accepted. **180 tests.** Nothing here needs a partner to exist — it's runway. New: `Dockerfile`,
 `.dockerignore`, `DESIGN-PARTNER-KIT.md`; hardening in `store.py`/`main.py`/`config.py`. **13 tools · 3 platforms +
 accounts, pilot-grade + deployable.**
+
+### DEC 036 — Visual identity: an "OG-Apple" black/white design system (Trevor's direction, ported live)
+**Context.** The default UI read generic. Trevor wanted a **unique but minimal** look. Via a design-direction artifact
+(two rounds), he chose: **quiet & editorial → refined to OG-Apple black/white minimal · near-monochrome with
+primary-colour pops · serif display over clean sans · sharp flat hairline surfaces.** Then: "port it to the real app."
+
+**The system (token-driven, so it cascades to all 13 tools from `base.html`).** Kept every token *name* stable and
+changed only values, so templates re-skin without rewrites. **Palette:** Apple's own system neutrals — paper `#FFFFFF`,
+ink `#1D1D1F`, grey `#6E6E73`, hairline `#D2D2D7` (dark: `#000` ground · `#1C1C1E` surface · `#F5F5F7` text), no warmth.
+**Colour does a job** (the tasteful way to use primaries — it's information, not decoration, mapped to Suver's own
+trust vocabulary): **blue = action** (`--accent`), **green = grounded/cited** (`--good`, `--shield`; the citation rails
+are now green), **amber = flagged** (`--warn`), **red = held back** (`--bad`, new). A four-colour **signature stripe**
+under the masthead is the OG-Apple nod, in those colours. **Type:** serif display (`Iowan/Palatino/Georgia`, zero-CDN)
+for the wordmark + `h1–h3`; Helvetica-clean system sans for body; mono for labels. **Shape:** sharp — `--radius:0`,
+`--shadow:none`, 1px hairline borders (a blanket pass squared 77 corner radii across templates; the circular spinner +
+status dots were preserved). Buttons are **blue-filled, square**; the wordmark is **Suver.** with a blue period.
+
+**Scope.** `base.html` fully reworked (tokens · fonts · header/footer · `.btn`/`.panel`/`.pill`/nav · the signature
+stripe); every template's rectangle radii squared; citation passages switched blue→green in the six result partials.
+Anonymous + accounts UI both re-skinned. No behavioural change — pure presentation.
+
+**Status.** Accepted. **180 tests** still green; every page + tool run renders 200; verified serif wordmark + green
+citations render. Fonts are zero-dependency system stacks (a self-hosted display face remains an option). Further
+per-component polish is expected during ongoing testing (Trevor: "necessary tweaks as needed"). **13 tools · 3
+platforms + accounts · new visual identity.**
