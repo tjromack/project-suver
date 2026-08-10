@@ -50,6 +50,12 @@ class Settings:
     # relevance below which we abstain ("not in your document") rather than answer.
     copilot_top_k: int = int(os.getenv("COPILOT_TOP_K", "4"))
     copilot_min_relevance: float = float(os.getenv("COPILOT_MIN_RELEVANCE", "0.12"))
+    # Semantic-recall retrieval (DEC 032): the model expands the sanitized question into a few alternative phrasings,
+    # and a passage is ranked by the BEST match against any phrasing — so a synonym/paraphrase ("auto-renew" ≈
+    # "automatically renews", "fee" ≈ "shall pay") still surfaces. Expansion runs once per question (not per doc);
+    # the grounding gate is UNCHANGED, so recall rises without loosening the trust guarantee. Off → today's behavior.
+    retrieval_expand: bool = os.getenv("RETRIEVAL_EXPAND", "1").strip().lower() not in ("0", "false", "no", "")
+    retrieval_max_expansions: int = int(os.getenv("RETRIEVAL_MAX_EXPANSIONS", "6"))
     # Extractor: confidence below this (or a value that fails type-validation) → the field is flagged for review.
     extract_threshold: float = float(os.getenv("EXTRACT_THRESHOLD", "0.75"))
     # Triage ("Triage messages"): cap the messages processed in one pass; a classification below the confidence

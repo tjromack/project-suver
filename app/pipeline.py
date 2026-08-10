@@ -39,6 +39,7 @@ from app.provider import (
     draft_candidates,
     draft_reply,
     draft_section,
+    expand_query,
     extract_action_items,
     extract_items,
     narrate_table,
@@ -260,29 +261,43 @@ class AnswerResult:
 _ABSTAIN = "I couldn't find an answer to that in your document. Try rephrasing, or ask about something the document covers."
 
 
-def _retrieve(safe_query: str, spans: list[Span]) -> list[tuple[Span, float]]:
-    """Rank passages by question↔passage token overlap, over lightly **stemmed** tokens so a passage phrased as a
-    morphological variant of the question still surfaces ("monthly fee?" finds "$12,000 per month … fees"). Returns
-    the top-K above the relevance floor, most-relevant first. No model, no embeddings. Retrieval is generous on
-    purpose — the model's answer is still verified by the unchanged, exact-token grounding gate before anything shows."""
-    scored = [(sp, retrieval_support(safe_query, sp.text)) for sp in spans]
+def _retrieve(safe_query: str, spans: list[Span],
+              phrasings: list[str] | None = None) -> list[tuple[Span, float]]:
+    """Rank passages by question↔passage token overlap, over lightly **stemmed** tokens so a morphological variant
+    still surfaces ("monthly fee?" finds "$12,000 per month … fees"). With `phrasings` (the question + a few
+    model-generated alternative phrasings, DEC 032), a passage is ranked by its **best** match against *any* phrasing,
+    so a synonym/paraphrase ("shall pay … per month") surfaces too. Returns the top-K above the relevance floor,
+    most-relevant first. No embeddings. Retrieval is generous on purpose — the model's answer is still verified by the
+    unchanged, exact-token grounding gate before anything shows (so wider recall never loosens the trust guarantee)."""
+    queries = phrasings or [safe_query]
+    scored = [(sp, max(retrieval_support(q, sp.text) for q in queries)) for sp in spans]
     scored = [(sp, s) for sp, s in scored if s >= settings.copilot_min_relevance]
     scored.sort(key=lambda t: (-t[1], t[0].index))
     return scored[: settings.copilot_top_k]
 
 
+def _phrasings(safe_query: str, provider: str) -> list[str]:
+    """The question plus a few model-generated alternative phrasings for semantic-recall retrieval (DEC 032).
+    Computed ONCE per user question (never per document) and threaded into `_answer_over_spans`. Stub/no-key →
+    just `[safe_query]` (unchanged behavior). Only the safe query is ever sent; grounding is unaffected."""
+    if not (safe_query and settings.retrieval_expand):
+        return [safe_query] if safe_query else []
+    return [safe_query] + expand_query(safe_query, provider, n=settings.retrieval_max_expansions)
+
+
 def _answer_over_spans(spans: list[Span], safe_query: str, tmap: dict, provider: str,
                        *, fallback_query: str | None = None, context: list[str] | None = None,
-                       across: bool = False):
+                       across: bool = False, phrasings: list[str] | None = None):
     """Answer `safe_query` from already-sanitized spans → (answered, answer_text, citations). Retrieve on the
     question alone first; only if that finds nothing (an **elliptical** follow-up) fall back to `fallback_query`
     (the question + prior-question context — *history resolves the query*). `context` (recent prior questions,
     already sanitized) is handed to the model so a referential follow-up's pronoun resolves — retrieval finds the
-    right passage, context lets the model understand the question. `across` selects the cross-document answer
-    style (neutral subject, no section refs) when the same question is asked of each document in a set. The model
-    answers from the retrieved passages or we abstain. Shared by Copilot (one-shot), Converse (multi-turn), and
-    Ask-across (per document)."""
-    retrieved = _retrieve(safe_query, spans)
+    right passage, context lets the model understand the question. `phrasings` (the question + model-generated
+    alternatives, DEC 032) widens retrieval recall to synonyms/paraphrase — computed once by the caller. `across`
+    selects the cross-document answer style (neutral subject, no section refs) when the same question is asked of
+    each document in a set. The model answers from the retrieved passages or we abstain. Shared by Copilot
+    (one-shot), Converse (multi-turn), and Ask-across (per document)."""
+    retrieved = _retrieve(safe_query, spans, phrasings)
     if not retrieved and fallback_query:
         retrieved = _retrieve(fallback_query, spans)   # elliptical follow-up → resolve with prior questions
     if not retrieved:
@@ -329,7 +344,8 @@ def answer_question(text: str, query: str, *, kind: str = "text", provider: str 
     tmap = {**doc.token_map, **ques.token_map}
     spans = split_document(doc.safe_text)
 
-    answered, answer_text, cites = _answer_over_spans(spans, ques.safe_text, tmap, provider)
+    phrasings = _phrasings(ques.safe_text, provider)   # semantic-recall expansion, once per question (DEC 032)
+    answered, answer_text, cites = _answer_over_spans(spans, ques.safe_text, tmap, provider, phrasings=phrasings)
     if not answered:
         return AnswerResult(**{**base, "answered": False, "abstained": True,
                                "abstain_reason": "the document doesn't support an answer to that question",
@@ -428,6 +444,7 @@ def ask_across(docs: list[tuple[str, str]], query: str, *, provider: str | None 
                                    "block_message": _BLOCK_MSG.format(classes=", ".join(sorted(classes)) or "restricted content")
                                    + " (your question contains data that must stay on your device.)"})
 
+    phrasings = _phrasings(ques.safe_text, provider)   # expand ONCE for the whole set, not per document (DEC 032)
     per_doc: list[DocAnswer] = []
     source_docs: list[str] = []
     for label, b in zip(doc_names, sanitized):
@@ -436,7 +453,8 @@ def ask_across(docs: list[tuple[str, str]], query: str, *, provider: str | None 
             continue
         tmap = {**b.token_map, **ques.token_map}
         spans = split_document(b.safe_text)
-        answered, _text, cites = _answer_over_spans(spans, ques.safe_text, tmap, provider, across=True)
+        answered, _text, cites = _answer_over_spans(spans, ques.safe_text, tmap, provider,
+                                                    across=True, phrasings=phrasings)
         if answered:
             per_doc.append(DocAnswer(doc=label, answered=True, answer=_text, citations=cites))
             source_docs.append(label)
@@ -868,9 +886,10 @@ def _converse_answer(session, raw_question: str, ques) -> ConverseResult:
     safe_query = ques.safe_text
     prior = session.safe_questions[-2:]              # recent prior questions — the referent + conversation context
     fallback = (safe_query + " " + prior[-1]).strip() if prior else None
+    phrasings = _phrasings(safe_query, session.provider)   # semantic-recall expansion, once per turn (DEC 032)
     answered, answer_text, cites = _answer_over_spans(
         session.spans, safe_query, session.token_map, session.provider,
-        fallback_query=fallback, context=(prior or None))
+        fallback_query=fallback, context=(prior or None), phrasings=phrasings)
     session.safe_questions.append(safe_query)
     session.turns.append(ConverseTurn(question=rehydrate(safe_query, session.token_map),
                                       answer=answer_text, citations=cites, answered=answered))

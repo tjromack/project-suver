@@ -220,6 +220,63 @@ def draft_answer(safe_query: str, retrieved: list[Span], provider: str, *, conte
     return _stub_answer(safe_query, retrieved)
 
 
+# --- Semantic-recall retrieval: expand the question into alternative phrasings (DEC 032) --------------
+# Retrieval ranks passages by token overlap; a passage that states the answer in different words ("shall pay …
+# per month" for "monthly fee") can be missed. Here the model expands the SANITIZED question into a few short
+# alternative phrasings/terms a document might use; the pipeline then ranks each passage by its BEST match against
+# any phrasing. The model only ever sees the safe query (same posture as `draft_answer`), returns generic search
+# terms (no user data), and — crucially — the grounding gate is untouched: expansion widens what's RETRIEVED, the
+# exact-token grounding still VERIFIES the answer before anything shows. "The model plans, the code computes."
+
+_EXPAND_PROMPT = (
+    "A user is searching their own documents for the answer to the QUESTION below. List a few short ALTERNATIVE\n"
+    "PHRASINGS or key terms a document might use to STATE that answer — synonyms and paraphrases of what's being\n"
+    "asked, NOT the answer itself and NOT the literal question again.\n"
+    "Rules:\n"
+    "- Output ONLY the phrasings, one per line, at most {n}. No numbering, no commentary, no blank lines.\n"
+    "- Each is 1–4 words, concrete (e.g. for \"monthly fee\": \"per month\", \"monthly payment\", \"compensation\").\n"
+    "- If the question is already unambiguous with no useful synonyms, output nothing.\n"
+    "QUESTION: {q}"
+)
+
+
+def _anthropic_expand(safe_query: str, n: int) -> list[str]:
+    import truststore
+
+    truststore.inject_into_ssl()
+    from anthropic import Anthropic
+
+    from app.config import settings
+
+    client = Anthropic()
+    msg = client.messages.create(
+        model=settings.anthropic_model,
+        max_tokens=120,
+        messages=[{"role": "user", "content": _EXPAND_PROMPT.format(n=n, q=safe_query)}],
+    )
+    raw = "".join(getattr(b, "text", "") for b in msg.content)
+    terms: list[str] = []
+    ql = safe_query.strip().lower()
+    for line in raw.splitlines():
+        t = line.strip().lstrip("-•*0123456789. ").strip()
+        if t and t.lower() != ql and t.lower() not in (x.lower() for x in terms):
+            terms.append(t)
+    return terms[:n]
+
+
+def expand_query(safe_query: str, provider: str, *, n: int = 6) -> list[str]:
+    """Alternative phrasings of the (already-sanitized) question for semantic-recall retrieval — or `[]`. The stub
+    returns `[]` (retrieval falls back to the literal question → deterministic, offline, unchanged behavior); on any
+    model error we also degrade to `[]`. Never sends anything but the safe query; never affects grounding."""
+    q = (safe_query or "").strip()
+    if provider != "anthropic" or not q:
+        return []
+    try:
+        return _anthropic_expand(q, n)
+    except Exception:
+        return []
+
+
 # --- Draft: write one memo SECTION from the salient passages (clean prose, no preamble, no inline markers) -------
 
 import re as _re

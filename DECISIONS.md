@@ -687,3 +687,43 @@ impossible.** *"What is the governing law?"* → now **3 of 3** (Acme "State of 
 demo corpus (`data/samples/ask-across-demo/`, synthetic) so the walkthrough travels with the repo. `_stem` is a
 retrieval heuristic, not a linguistics engine — a semantic-retrieval upgrade remains the real ceiling-raiser (BACKLOG).
 **13 tools · 3 platforms.**
+
+### DEC 032 — Semantic-recall retrieval via model-assisted query expansion (Trevor's 08-10 pick)
+**Context.** Even with DEC 031 stemming, retrieval ranks by token overlap, so a passage that STATES the answer in
+different words is missed: *"What compensation is owed each month?"* shares no tokens with *"$12,000 per month"* → the
+fee span never surfaces → honest abstention. The real recall ceiling-raiser is **semantic** matching. Trevor picked
+this as the highest-leverage solo lap.
+
+**The approach — and a vendor decision deliberately NOT taken.** "Semantic retrieval" has two implementations: (a)
+**true dense embeddings**, which need *either* a heavy local model (torch, ~GB — breaks the lean/dependency-free
+principle) *or* a **new external vendor** (Voyage/OpenAI: a new key, a new **egress destination** for user text,
+per-span cost — and a second vendor complicates a product whose pitch is "safe by construction via *one* governed
+model"); or (b) **model-assisted query expansion within the current stack**. Chose (b): the external-embeddings path is
+a security/cost/trust-story decision for Trevor, not one to take unilaterally (flagged as a future fork). Model-assisted
+expansion delivers the recall win *inside* the existing trust boundary — no new vendor, no new dependency, offline stub
+preserved.
+
+**How it works.** New `expand_query(safe_query, provider)` (`provider.py`): the model expands the **sanitized**
+question into a few short alternative phrasings/terms a document might use to state the answer (e.g. "monthly fee" →
+"per month", "monthly payment", "compensation"; "auto-renew" → "automatically renews", "evergreen clause"). `_retrieve`
+becomes **hybrid**: a passage is ranked by its **best** `retrieval_support` over `[question] + expansions`, so a
+synonym/paraphrase surfaces. Expansion runs **once per question** (a `_phrasings` helper threaded through
+`_answer_over_spans`; for Ask-across it's computed once for the whole set, **not** per document). ⭐ **The grounding
+gate is untouched** — expansion widens what's RETRIEVED; the exact-token `support` still VERIFIES the answer before
+anything shows (the DEC 031 discipline). The model only ever sees the **safe** query and returns generic search terms
+(no user data). Shared by **Copilot · Converse · Ask-across**. Config: `RETRIEVAL_EXPAND` (default on),
+`RETRIEVAL_MAX_EXPANSIONS` (6). **Stub returns `[]`** → `_phrasings` degrades to the literal question → today's exact
+behavior offline (so the whole suite stays deterministic).
+
+**Live-verified (`anthropic`, the §7½ corpus).** *"What compensation is owed each month?"* (zero lexical overlap) →
+**Acme now answers "$12,000 per month"** (would have abstained before). *"Does the contract renew automatically?"* →
+**3 of 3** (Acme + Globex + Initech, the last correctly stating it does *not* renew) — the exact question that in the
+DEC 030 live test found only 1 of 2. *"What is the governing law?"* still 3/3. **Off-topic → all abstain** (precision
+held — expansion caused no false positives), and **no cross-document contamination** (each answer grounded in its own
+doc).
+
+**Status.** Accepted. **166 tests** (+4: stub-returns-no-expansion/behavior-unchanged · phrasings-widen-retrieval ·
+grounding-gate-unaffected · Ask-across-expands-once-per-question-not-per-doc). Recall up on synonym/paraphrase across
+all three retrieval tools, trust guarantee unchanged. **Backlogged (Trevor's decision):** true dense embeddings via an
+external vendor (new key · new egress · per-span cost) — a bigger ceiling-raiser, but a vendor/security call. **13 tools
+· 3 platforms.**

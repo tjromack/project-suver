@@ -29,7 +29,7 @@ and this repo's flagship pilot — is **Summarize**.
 > → honest abstention) and **Summarize a spreadsheet** (a CSV → a plain-language overview + a computed column
 > profile — the model narrates, the code computes, so every figure is calculated, not invented) and **Chart your
 > spreadsheet** (a CSV → bar charts, each numeric column totalled by category — computed from your rows, fully local,
-> no model). 162 tests (stub-backed,
+> no model). 166 tests (stub-backed,
 > no network); verified end-to-end on real PDFs/transcripts/CSVs with both the offline `stub` and the real `anthropic`
 > model. Sensitive data is sanitized before the model and re-hydrated only in the local view — on every tool. The
 > reusable **shell + hub + tool-app contract** made each tool a small add (a *question*, two *picks*, a *second
