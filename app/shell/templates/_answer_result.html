@@ -1,6 +1,6 @@
 <style>
   .res{padding:22px}
-  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:0;font-size:13px;
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:var(--radius);font-size:13px;
     font-weight:600;background:var(--good-soft);color:var(--good)}
   .chip.none{background:var(--accent-soft);color:var(--accent)}
   .metaline{color:var(--faint);font-size:12.5px;margin-top:10px}
@@ -15,12 +15,12 @@
   details.src summary::before{content:"› ";}
   details.src[open] summary::before{content:"⌄ ";}
   .span{margin-top:8px;padding:11px 13px;border-left:3px solid var(--good);background:var(--good-soft);
-    border-radius:0;font-size:13.5px;color:var(--muted)}
+    border-radius:var(--radius);font-size:13.5px;color:var(--muted)}
   .span .lbl{display:block;color:var(--faint);font-size:11px;font-weight:700;letter-spacing:.03em;margin-bottom:4px}
-  .abstain{margin-top:14px;padding:16px 18px;border-radius:0;background:var(--accent-soft)}
+  .abstain{margin-top:14px;padding:16px 18px;border-radius:var(--radius);background:var(--accent-soft)}
   .abstain strong{display:block;margin-bottom:4px;font-size:15px;color:var(--accent)}
   .abstain .why{color:var(--muted);font-size:13px;margin-top:6px}
-  .blocked{padding:20px;border-radius:0;background:var(--warn-soft);color:var(--warn)}
+  .blocked{padding:20px;border-radius:var(--radius);background:var(--warn-soft);color:var(--warn)}
   .blocked strong{display:block;margin-bottom:4px;font-size:15px}
 </style>
 

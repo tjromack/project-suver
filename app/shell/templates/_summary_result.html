@@ -1,10 +1,10 @@
 <style>
   .res{padding:22px}
-  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:0;font-size:13px;
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:var(--radius);font-size:13px;
     font-weight:600;background:var(--good-soft);color:var(--good)}
   .chip.none{background:var(--accent-soft);color:var(--accent)}
   .metaline{color:var(--faint);font-size:12.5px;margin-top:10px}
-  .note{margin-top:12px;padding:10px 13px;border-radius:0;background:var(--warn-soft);color:var(--warn);font-size:13px}
+  .note{margin-top:12px;padding:10px 13px;border-radius:var(--radius);background:var(--warn-soft);color:var(--warn);font-size:13px}
   .points{list-style:none;margin:18px 0 0;padding:0}
   .points li{padding:14px 0;border-top:1px solid var(--line)}
   .points li:first-child{border-top:0}
@@ -18,13 +18,13 @@
   details.src summary::before{content:"› ";}
   details.src[open] summary::before{content:"⌄ ";}
   .span{margin-top:8px;padding:11px 13px;border-left:3px solid var(--good);background:var(--good-soft);
-    border-radius:0;font-size:13.5px;color:var(--muted)}
+    border-radius:var(--radius);font-size:13.5px;color:var(--muted)}
   .span .lbl{display:block;color:var(--faint);font-size:11px;font-weight:700;letter-spacing:.03em;margin-bottom:4px}
-  .withheld{margin-top:22px;padding:16px 18px;border-radius:0;background:var(--warn-soft)}
+  .withheld{margin-top:22px;padding:16px 18px;border-radius:var(--radius);background:var(--warn-soft)}
   .withheld h4{margin:0 0 4px;font-size:13.5px;color:var(--warn)}
   .withheld ul{margin:8px 0 0;padding-left:18px;color:var(--muted);font-size:13px}
   .withheld li{margin:4px 0}
-  .blocked{padding:20px;border-radius:0;background:var(--warn-soft);color:var(--warn)}
+  .blocked{padding:20px;border-radius:var(--radius);background:var(--warn-soft);color:var(--warn)}
   .blocked strong{display:block;margin-bottom:4px;font-size:15px}
 </style>
 

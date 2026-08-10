@@ -1,24 +1,24 @@
 <style>
   .res{padding:22px}
-  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:0;font-size:13px;
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:var(--radius);font-size:13px;
     font-weight:600;background:var(--good-soft);color:var(--good)}
   .chip.none{background:var(--accent-soft);color:var(--accent)}
   .metaline{color:var(--faint);font-size:12.5px;margin-top:10px}
   .replybox{position:relative;margin-top:16px}
-  .reply{padding:16px 18px;border:1px solid var(--line);border-radius:0;background:var(--panel);
+  .reply{padding:16px 18px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);
     white-space:pre-wrap;line-height:1.55;font-size:14.5px;color:var(--ink)}
   .copybtn{position:absolute;top:9px;right:9px;display:inline-flex;align-items:center;gap:5px;padding:5px 10px;
     font-size:12px;font-weight:600;color:var(--muted);background:var(--panel);border:1px solid var(--line);
-    border-radius:0;cursor:pointer;transition:color .12s,border-color .12s}
+    border-radius:var(--radius);cursor:pointer;transition:color .12s,border-color .12s}
   .copybtn:hover{color:var(--accent);border-color:var(--accent)}
   .copybtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-  .note{margin-top:14px;padding:11px 14px;border-radius:0;font-size:13px}
+  .note{margin-top:14px;padding:11px 14px;border-radius:var(--radius);font-size:13px}
   .note.fill{background:var(--accent-soft);color:var(--accent)}
   .note.verify{background:var(--warn-soft);color:var(--warn);font-weight:600}
   .note ul{margin:7px 0 0;padding-left:18px}
   .note li{margin:3px 0}
   .foot{color:var(--faint);font-size:12.5px;margin-top:14px}
-  .blocked{padding:20px;border-radius:0;background:var(--warn-soft);color:var(--warn)}
+  .blocked{padding:20px;border-radius:var(--radius);background:var(--warn-soft);color:var(--warn)}
   .blocked strong{display:block;margin-bottom:4px;font-size:15px}
 </style>
 

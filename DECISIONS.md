@@ -856,3 +856,9 @@ the CSS moved to the three-state structure (bare `:root` = light; `@media (prefe
 `:root:not([data-theme="light"])` so an explicit light choice beats a dark OS; `:root[data-theme="dark"]` so the toggle
 wins the other way), the choice persists in `localStorage`, and a tiny pre-paint script in `<head>` applies it before
 first paint (no flash). The button shows the destination (☾ go dark / ☀ go light). Purely additive; 180 tests still green.
+
+**Follow-on — softened corners.** Trevor: hard 90° corners felt too sharp — round them slightly, consistently. Set the
+`--radius` token to **6px** (was 0) and routed *every* corner through it (a blanket pass replaced the squared
+`border-radius:0` with `border-radius:var(--radius)` across all templates + the base `.btn`/`.pill`/`.signin`/`.themebtn`
+/`code` rules; the circular spinner + status dots at `50%` were left alone). One token now controls the slight rounding
+on every button, tile, input, and chip app-wide — change it once to retune. Still 180 tests green.

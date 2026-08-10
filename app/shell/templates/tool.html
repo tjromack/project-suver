@@ -15,24 +15,24 @@
   .drop .file{margin-top:10px;color:var(--accent);font-weight:600;font-size:14px;
     display:inline-flex;align-items:center;gap:10px}
   .clearfile{appearance:none;border:1px solid var(--line);background:var(--panel);color:var(--muted);
-    font:inherit;font-size:12px;font-weight:600;padding:3px 9px;border-radius:0;cursor:pointer}
+    font:inherit;font-size:12px;font-weight:600;padding:3px 9px;border-radius:var(--radius);cursor:pointer}
   .clearfile:hover{border-color:var(--accent);color:var(--accent)}
   .or{display:flex;align-items:center;gap:12px;color:var(--faint);font-size:12px;margin:14px 0}
   .or::before,.or::after{content:"";height:1px;background:var(--line);flex:1}
-  textarea{width:100%;min-height:110px;resize:vertical;padding:14px;border-radius:0;
+  textarea{width:100%;min-height:110px;resize:vertical;padding:14px;border-radius:var(--radius);
     border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-size:14.5px}
   textarea:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
   .doclabel{font-size:13px;font-weight:700;letter-spacing:.02em;color:var(--muted);margin-bottom:8px}
   .queryblock{margin-top:16px}
   .qlabel{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px}
-  input[type=text],select{width:100%;padding:13px 14px;border-radius:0;border:1px solid var(--line);
+  input[type=text],select{width:100%;padding:13px 14px;border-radius:var(--radius);border:1px solid var(--line);
     background:var(--panel);color:var(--ink);font:inherit;font-size:15px}
   input[type=text]:focus,select:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
   select{cursor:pointer;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
     background-position:calc(100% - 18px) 55%,calc(100% - 13px) 55%;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:38px}
   .actions{display:flex;align-items:center;gap:14px;margin-top:16px}
   .tag{display:inline-block;font-size:11.5px;color:var(--muted);background:var(--accent-soft);
-    padding:2px 9px;border-radius:0;margin-right:6px}
+    padding:2px 9px;border-radius:var(--radius);margin-right:6px}
   #result{margin-top:24px}
   .working{display:flex;align-items:center;gap:10px;color:var(--muted);padding:18px}
   .spin{width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--accent);

@@ -1,14 +1,14 @@
 <style>
   .res{padding:22px}
-  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:0;font-size:13px;
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:var(--radius);font-size:13px;
     font-weight:600;background:var(--good-soft);color:var(--good)}
   .chip.none{background:var(--accent-soft);color:var(--accent)}
   .metaline{color:var(--faint);font-size:12.5px;margin-top:10px}
-  .draft{position:relative;margin-top:18px;padding:20px 22px;border:1px solid var(--line);border-radius:0;background:var(--panel)}
+  .draft{position:relative;margin-top:18px;padding:20px 22px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel)}
   .draft .title{font-size:18px;font-weight:700;letter-spacing:-.01em;margin:0 40px 14px 0}
   .copybtn{position:absolute;top:12px;right:12px;display:inline-flex;align-items:center;gap:5px;padding:5px 10px;
     font-size:12px;font-weight:600;color:var(--muted);background:var(--panel);border:1px solid var(--line);
-    border-radius:0;cursor:pointer;transition:color .12s,border-color .12s}
+    border-radius:var(--radius);cursor:pointer;transition:color .12s,border-color .12s}
   .copybtn:hover{color:var(--accent);border-color:var(--accent)}
   .copybtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .sec{padding:12px 0;border-top:1px solid var(--line)}
@@ -21,10 +21,10 @@
   details.src summary::before{content:"› ";}
   details.src[open] summary::before{content:"⌄ ";}
   .span{margin-top:7px;padding:10px 12px;border-left:3px solid var(--good);background:var(--good-soft);
-    border-radius:0;font-size:13px;color:var(--muted)}
+    border-radius:var(--radius);font-size:13px;color:var(--muted)}
   .span .lbl{display:block;color:var(--faint);font-size:11px;font-weight:700;letter-spacing:.03em;margin-bottom:4px}
-  .omitted{margin-top:14px;padding:11px 14px;border-radius:0;background:var(--warn-soft);color:var(--warn);font-size:13px}
-  .blocked{padding:20px;border-radius:0;background:var(--warn-soft);color:var(--warn)}
+  .omitted{margin-top:14px;padding:11px 14px;border-radius:var(--radius);background:var(--warn-soft);color:var(--warn);font-size:13px}
+  .blocked{padding:20px;border-radius:var(--radius);background:var(--warn-soft);color:var(--warn)}
   .blocked strong{display:block;margin-bottom:4px;font-size:15px}
 </style>
 

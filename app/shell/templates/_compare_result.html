@@ -1,15 +1,15 @@
 <style>
   .res{padding:22px}
-  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:0;font-size:13px;
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:var(--radius);font-size:13px;
     font-weight:600;background:var(--good-soft);color:var(--good)}
   .chip.none{background:var(--accent-soft);color:var(--accent)}
   .metaline{color:var(--faint);font-size:12.5px;margin-top:10px}
   .summary{margin-top:14px;font-size:14px}
   .summary .d{font-weight:700;color:var(--warn)} .summary .m{font-weight:700;color:var(--good)}
-  .empty,.blocked{margin-top:14px;padding:18px;border-radius:0}
+  .empty,.blocked{margin-top:14px;padding:18px;border-radius:var(--radius)}
   .empty{background:var(--accent-soft);color:var(--muted)}
   .blocked{background:var(--warn-soft);color:var(--warn)} .blocked strong{display:block;margin-bottom:4px;font-size:15px}
-  .tablewrap{margin-top:16px;overflow-x:auto;border:1px solid var(--line);border-radius:0}
+  .tablewrap{margin-top:16px;overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius)}
   table{width:100%;border-collapse:collapse;font-size:14px}
   th{text-align:left;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);
     padding:10px 14px;border-bottom:1px solid var(--line);background:var(--accent-soft)}
@@ -18,7 +18,7 @@
   td.field{color:var(--muted);white-space:nowrap;font-weight:500}
   td.val{color:var(--ink)}
   tr.differ td.val,tr.only_a td.val,tr.only_b td.val{color:var(--warn)}
-  .st{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:0}
+  .st{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:var(--radius)}
   .st.match{background:var(--good-soft);color:var(--good)}
   .st.differ,.st.only_a,.st.only_b{background:var(--warn-soft);color:var(--warn)}
   .note{color:var(--muted);font-size:12.5px;margin-top:5px}
