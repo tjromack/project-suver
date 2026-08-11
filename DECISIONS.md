@@ -895,3 +895,14 @@ audit · encryption-at-rest — mostly zero-cost), the two launch shapes (demo-l
 conftest autouse fixture resets the per-IP counters between tests. ⭐ UX lesson banked: **a built-in example must be
 live-verified to actually answer** — a sample that abstains is the worst first impression. **13 tools · 3 platforms ·
 accounts + quotas + tiers · demo-ready + launch-inching.**
+
+### DEC 038 — Global daily cap + a live public demo (Render)
+**Context.** The demo went live on Render (`suver-demo.onrender.com`, real model) so it can go on a résumé / to
+interviewers. Every model-run there spends the owner's Anthropic key. DEC 037's **per-IP** quota caps each visitor, but
+nothing capped the **total** across many IPs. **Fix:** a global daily ceiling — `quota_global_daily` (env
+`QUOTA_GLOBAL_DAILY`, default 400 total model-runs/day), checked *before* the per-subject cap in `main.py` and bumped
+alongside it (subject `"global"` in the same `usage` table); over it → `_limit.html` shows a "this demo is at today's
+limit" message. Chart stays exempt (no model call). Recommended companion (owner-side, free): a **spend limit on the
+Anthropic account** as the ultimate backstop. Also made the `Dockerfile` bind the host `$PORT` (Render/Fly/Railway)
+and added `DEPLOY.md`. **Status.** Accepted. **190 tests** (+1: global cap backstops total cost). The live demo is the
+job-search flagship — a clickable, cost-protected AI product. **13 tools · 3 platforms · demo LIVE + cost-capped.**

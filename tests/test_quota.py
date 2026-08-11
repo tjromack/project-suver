@@ -54,6 +54,16 @@ def test_chart_is_exempt_from_the_quota():
     assert store.usage_today("ip:testclient") == settings.quota_anon + 5
 
 
+def test_global_daily_cap_backstops_total_cost():
+    # even a brand-new IP is blocked once the whole demo hits its total daily ceiling (protects the API budget)
+    with store._conn() as con:
+        con.execute("INSERT OR REPLACE INTO usage (subject, day, count) VALUES ('global', ?, ?)",
+                    (store._today(), settings.quota_global_daily))
+    r = client.post("/t/copilot/run", data=_DOC)
+    assert r.status_code == 429
+    assert "this demo is at today" in r.text.lower()
+
+
 def test_pro_plan_gets_the_higher_ceiling_end_to_end():
     c = TestClient(app)
     c.post("/register", data={"email": "pro@example.com", "password": "goodpass12"})

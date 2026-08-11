@@ -23,7 +23,8 @@
    | `ANTHROPIC_API_KEY` | *your key* | mark **Secret** |
    | `PROVIDER` | `anthropic` | use the real model |
    | `COOKIE_SECURE` | `1` | Render serves HTTPS |
-   | `QUOTA_ANON` | `10` | tighter cap for a public demo *(optional)* |
+   | `QUOTA_ANON` | `10` | tighter per-IP cap for a public demo *(optional)* |
+   | `QUOTA_GLOBAL_DAILY` | `300` | **total** model-runs/day across everyone — the budget backstop *(optional)* |
    | `ORG_NAME` | `Suver` | *(optional — hides the "Northwind Legal (demo)" default)* |
 6. *(Optional)* **Health Check Path:** `/healthz`.
 7. **Create Web Service** → it builds the image + deploys (~3–5 min). When it's live, open the URL and click

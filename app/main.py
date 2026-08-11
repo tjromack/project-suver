@@ -110,6 +110,10 @@ async def tool_run(
     # per-subject daily cap set by tier; Chart is fully local (no model) so it's exempt. Enforced BEFORE the run.
     user = _current_user(request)
     if slug not in _NO_MODEL_TOOLS:
+        # global backstop first — caps the whole demo's daily API cost regardless of how many IPs hit it (DEC 038)
+        if store.usage_today("global") >= settings.quota_global_daily:
+            return templates.TemplateResponse(
+                request, "_limit.html", _ctx(request, global_limit=True), status_code=429)
         subject, limit = _quota_subject(request, user)
         if store.usage_today(subject) >= limit:
             return templates.TemplateResponse(
@@ -145,8 +149,9 @@ async def tool_run(
             status_code=500,
         )
 
-    if slug not in _NO_MODEL_TOOLS:                     # a model call happened → count it against the daily quota
+    if slug not in _NO_MODEL_TOOLS:                     # a model call happened → count it (per-subject + global)
         store.bump_usage(subject)
+        store.bump_usage("global")
     return templates.TemplateResponse(request, out.template, _ctx(request, tool=tool, r=out.result))
 
 

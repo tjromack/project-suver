@@ -9,7 +9,12 @@
 </style>
 <div class="panel limit">
   <span class="tag">⏳ DAILY LIMIT REACHED</span>
-  {% if not authed %}
+  {% if global_limit %}
+    <h3>This demo is at today’s limit</h3>
+    <p>This shared demo caps its total runs per day to keep it free and available for everyone. Please check back
+      tomorrow — or reach out for a full walkthrough / a dedicated instance.</p>
+    <div class="cta"><span class="faint">The demo resets at midnight.</span></div>
+  {% elif not authed %}
     <h3>You’ve used today’s free runs</h3>
     <p>Anonymous use is capped at <b>{{ limit }} runs a day</b> to keep the service fast and safe for everyone.
       <b>Sign in</b> for a higher daily allowance — or come back tomorrow, when it resets.</p>

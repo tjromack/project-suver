@@ -88,6 +88,9 @@ class Settings:
     quota_anon: int = int(os.getenv("QUOTA_ANON", "15"))
     quota_free: int = int(os.getenv("QUOTA_FREE", "75"))
     quota_pro: int = int(os.getenv("QUOTA_PRO", "100000"))
+    # A ceiling on TOTAL model-runs/day across everyone (DEC 038) — the backstop that caps the whole demo's API cost
+    # regardless of how many visitors/IPs hit it. Tune per your budget on the deploy (e.g. QUOTA_GLOBAL_DAILY=300).
+    quota_global_daily: int = int(os.getenv("QUOTA_GLOBAL_DAILY", "400"))
 
     def provenance(self) -> dict:
         return {"app_version": __version__, "provider": self.provider}
