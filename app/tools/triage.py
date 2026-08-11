@@ -43,6 +43,10 @@ TRIAGE = register(
         run=run,
         status="live",
         tags=("Communications", "Sorted", "Flags the unsure"),
+        sample_text=("Can you approve the Q3 budget by end of day? We can't proceed without it.\n\n"
+                     "FYI — the office will be closed Monday for the holiday.\n\n"
+                     "Following up on my last email about the vendor contract — any update?\n\n"
+                     "Thanks, that's everything I needed. No reply necessary."),
         platform="Communications",
         lane="Triage",
     )

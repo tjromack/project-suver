@@ -44,6 +44,9 @@ MEETING_ACTIONS = register(
         run=run,
         status="live",
         tags=("Communications", "Grounded", "Owner · due"),
+        sample_text=("Product sync — notes. Dana will send the revised spec to Legal by Friday. Raj to fix the export "
+                     "bug before the demo. We agreed to push the launch to May 6. Priya will book the venue once the "
+                     "date is confirmed. Good discussion on pricing, but no decision was made."),
         platform="Communications",
         lane="Meetings",
     )

@@ -41,6 +41,8 @@ EXTRACTOR = register(
         run=run,
         status="live",
         tags=("Documents", "Typed", "Flags the uncertain"),
+        sample_text=("INVOICE #4471. Bill to: Dana Reyes. Invoice date: May 3, 2026. Due date: June 2, 2026. "
+                     "Subtotal $4,000. Tax $320. Total due $4,320. Payment terms: net 30 days."),
         options=tuple((fs.slug, fs.label) for fs in all_fieldsets()),
         choice_label="What to pull",
     )

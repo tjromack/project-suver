@@ -39,6 +39,7 @@ class User:
     email: str
     org: str
     created_at: float
+    plan: str = "free"          # "free" | "pro" — the daily-quota tier; billing (deferred) just flips this
 
 
 @dataclass(frozen=True)
@@ -72,6 +73,7 @@ def init_db() -> None:
                 pw_salt TEXT NOT NULL,
                 pw_hash TEXT NOT NULL,
                 org TEXT NOT NULL DEFAULT '',
+                plan TEXT NOT NULL DEFAULT 'free',
                 created_at REAL NOT NULL
             );
             CREATE TABLE IF NOT EXISTS sessions (
@@ -88,8 +90,25 @@ def init_db() -> None:
                 query TEXT NOT NULL DEFAULT '',
                 created_at REAL NOT NULL
             );
+            -- Per-day usage counter (DEC 037): one row per subject ("u:<id>" or "ip:<addr>") per day. Protects the
+            -- API budget once the product is exposed publicly; the daily cap depends on the subject's plan tier.
+            CREATE TABLE IF NOT EXISTS usage (
+                subject TEXT NOT NULL,
+                day TEXT NOT NULL,
+                count INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (subject, day)
+            );
             """
         )
+        # migrate an older users table (created before the plan column existed)
+        cols = {r["name"] for r in con.execute("PRAGMA table_info(users)").fetchall()}
+        if "plan" not in cols:
+            con.execute("ALTER TABLE users ADD COLUMN plan TEXT NOT NULL DEFAULT 'free'")
+
+
+def _user(row) -> User:
+    return User(id=row["id"], email=row["email"], org=row["org"], created_at=row["created_at"],
+                plan=(row["plan"] if "plan" in row.keys() else "free"))
 
 
 # --- password hashing (stdlib pbkdf2; the seam behind which real auth/SSO can slot) ------------------
@@ -127,7 +146,7 @@ def create_user(email: str, password: str, org: str = "") -> User:
             uid = cur.lastrowid
     except sqlite3.IntegrityError as e:
         raise AccountError("That email is already registered — sign in instead.") from e
-    return User(id=uid, email=email, org=(org or "").strip(), created_at=now)
+    return User(id=uid, email=email, org=(org or "").strip(), created_at=now, plan="free")
 
 
 def authenticate(email: str, password: str) -> User:
@@ -137,13 +156,19 @@ def authenticate(email: str, password: str) -> User:
         row = con.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
     if row is None or not _verify_password(password or "", row["pw_salt"], row["pw_hash"]):
         raise AccountError("That email and password don't match.")
-    return User(id=row["id"], email=row["email"], org=row["org"], created_at=row["created_at"])
+    return _user(row)
 
 
 def get_user(user_id: int) -> User | None:
     with _conn() as con:
         row = con.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-    return User(row["id"], row["email"], row["org"], row["created_at"]) if row else None
+    return _user(row) if row else None
+
+
+def set_plan(user_id: int, plan: str) -> None:
+    """Set a user's tier ("free" | "pro"). Manual for now; billing (deferred) flips this — the seam it plugs into."""
+    with _conn() as con:
+        con.execute("UPDATE users SET plan = ? WHERE id = ?", (plan, user_id))
 
 
 # --- sessions (a random opaque token in an httponly cookie; validated server-side) -------------------
@@ -170,7 +195,7 @@ def session_user(token: str | None) -> User | None:
     if time.time() - row["s_created"] > settings.session_ttl_days * 86400:
         end_session(token)
         return None
-    return User(row["id"], row["email"], row["org"], row["created_at"])
+    return _user(row)
 
 
 def end_session(token: str | None) -> None:
@@ -212,3 +237,28 @@ def get_item(user_id: int, item_id: int) -> SavedItem | None:
 def delete_item(user_id: int, item_id: int) -> None:
     with _conn() as con:
         con.execute("DELETE FROM saved_items WHERE id = ? AND user_id = ?", (item_id, user_id))
+
+
+# --- daily usage / quota (DEC 037) — protect the API budget before public exposure -------------------
+
+def _today() -> str:
+    return time.strftime("%Y-%m-%d")
+
+
+def usage_today(subject: str) -> int:
+    """How many model-invoking runs `subject` ("u:<id>" or "ip:<addr>") has made today."""
+    with _conn() as con:
+        r = con.execute("SELECT count FROM usage WHERE subject = ? AND day = ?", (subject, _today())).fetchone()
+    return r["count"] if r else 0
+
+
+def bump_usage(subject: str) -> int:
+    """Record one run for `subject` today; returns the new count. Uses an upsert so it's a single atomic write."""
+    with _conn() as con:
+        con.execute(
+            "INSERT INTO usage (subject, day, count) VALUES (?,?,1) "
+            "ON CONFLICT(subject, day) DO UPDATE SET count = count + 1",
+            (subject, _today()),
+        )
+        r = con.execute("SELECT count FROM usage WHERE subject = ? AND day = ?", (subject, _today())).fetchone()
+    return r["count"] if r else 1

@@ -25,9 +25,15 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
-def _reset_auth_rate_limiter():
-    """The auth rate limiter (DEC 035) is in-memory and keyed by client IP; TestClient shares one IP, so clear it
-    before each test — otherwise auth POSTs bleed across tests and trip the limit."""
+def _reset_per_test_state():
+    """TestClient shares one IP across the whole suite, so per-IP counters would bleed between tests. Reset them
+    before each test: the in-memory auth rate limiter (DEC 035) and the daily usage/quota table (DEC 037)."""
     import app.main as _m
     _m._auth_hits.clear()
+    try:
+        from app import store
+        with store._conn() as con:
+            con.execute("DELETE FROM usage")
+    except Exception:
+        pass
     yield

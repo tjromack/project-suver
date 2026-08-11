@@ -1,0 +1,26 @@
+<style>
+  .limit{padding:24px}
+  .limit .tag{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11.5px;
+    letter-spacing:.04em;color:var(--warn);background:var(--warn-soft);padding:5px 11px;border-radius:var(--radius)}
+  .limit h3{font-family:var(--serif);font-size:20px;margin:14px 0 6px}
+  .limit p{color:var(--muted);font-size:14.5px;line-height:1.55;margin:0 0 8px;max-width:56ch}
+  .limit .cta{margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .limit .cta a.btn{display:inline-block;text-decoration:none}
+</style>
+<div class="panel limit">
+  <span class="tag">⏳ DAILY LIMIT REACHED</span>
+  {% if not authed %}
+    <h3>You’ve used today’s free runs</h3>
+    <p>Anonymous use is capped at <b>{{ limit }} runs a day</b> to keep the service fast and safe for everyone.
+      <b>Sign in</b> for a higher daily allowance — or come back tomorrow, when it resets.</p>
+    <div class="cta">
+      <a class="btn" href="/login">Sign in for more</a>
+      <span class="faint">Your daily count resets at midnight.</span>
+    </div>
+  {% else %}
+    <h3>You’ve reached today’s limit</h3>
+    <p>You’ve used your <b>{{ limit }} runs</b> for today. Your allowance resets tomorrow.
+      Higher limits are coming with paid plans.</p>
+    <div class="cta"><span class="faint">Thanks for using Suver — your daily count resets at midnight.</span></div>
+  {% endif %}
+</div>

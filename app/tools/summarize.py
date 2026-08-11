@@ -39,5 +39,9 @@ SUMMARIZE = register(
         run=run,
         status="live",
         tags=("Documents", "Cited", "Safe on sensitive data"),
+        sample_text=("Project Atlas — status update. The migration finished on March 12, two weeks ahead of schedule, "
+                     "moving all 4,200 customer accounts with zero data loss. Monthly infrastructure cost dropped "
+                     "from $48,000 to $31,000. One open risk remains: the legacy billing API is deprecated on June 30 "
+                     "and three integrations still depend on it. The next review is scheduled for April 5."),
     )
 )

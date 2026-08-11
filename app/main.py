@@ -45,6 +45,19 @@ def _current_user(request: Request) -> User | None:
     return store.session_user(request.cookies.get(settings.session_cookie))
 
 
+# Tools that never call a model (fully local) → exempt from the daily API-cost quota. Chart computes bars from the
+# rows and sends nothing.
+_NO_MODEL_TOOLS = {"chart"}
+
+
+def _quota_subject(request: Request, user: User | None) -> tuple[str, int]:
+    """(subject, daily_limit) for this request — per user by plan tier when signed in, else per client IP."""
+    if user is not None:
+        return f"u:{user.id}", (settings.quota_pro if user.plan == "pro" else settings.quota_free)
+    ip = request.client.host if request.client else "?"
+    return f"ip:{ip}", settings.quota_anon
+
+
 def _ctx(request: Request, **extra) -> dict:
     # `user` is always present (None when anonymous) so the nav/templates render login state everywhere.
     base = {"request": request, "app_version": __version__, "provider": settings.provider,
@@ -93,6 +106,18 @@ async def tool_run(
             request, "_error.html", _ctx(request, message="That tool isn't available yet."), status_code=404
         )
 
+    # Daily quota (DEC 037): a stranger must not be able to run up the API bill. Model-invoking tools count against a
+    # per-subject daily cap set by tier; Chart is fully local (no model) so it's exempt. Enforced BEFORE the run.
+    user = _current_user(request)
+    if slug not in _NO_MODEL_TOOLS:
+        subject, limit = _quota_subject(request, user)
+        if store.usage_today(subject) >= limit:
+            return templates.TemplateResponse(
+                request, "_limit.html",
+                _ctx(request, limit=limit, authed=user is not None, plan=(user.plan if user else None)),
+                status_code=429,
+            )
+
     filename = data = None
     if file is not None and file.filename:
         data = await file.read()
@@ -120,6 +145,8 @@ async def tool_run(
             status_code=500,
         )
 
+    if slug not in _NO_MODEL_TOOLS:                     # a model call happened → count it against the daily quota
+        store.bump_usage(subject)
     return templates.TemplateResponse(request, out.template, _ctx(request, tool=tool, r=out.result))
 
 

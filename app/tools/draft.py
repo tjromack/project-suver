@@ -41,6 +41,12 @@ DRAFT = register(
         run=run,
         status="live",
         tags=("Documents", "Grounded", "Cite-or-block"),
+        sample_text=("MASTER SERVICES AGREEMENT between Acme Corp and Northwind LLC. The initial term is two years, "
+                     "beginning January 1, 2026. The agreement auto-renews for successive one-year terms unless either "
+                     "party gives sixty (60) days written notice. Fees are $12,000 per month, net thirty days. Either "
+                     "party may terminate for material breach on thirty (30) days notice. Governing law is the State "
+                     "of New York. Liability is capped at the fees paid in the preceding twelve months."),
+        sample_choice="contract-memo",
         options=tuple((k.slug, k.label) for k in all_kinds()),
         choice_label="What to make",
     )

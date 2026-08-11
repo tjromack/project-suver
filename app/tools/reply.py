@@ -43,6 +43,8 @@ REPLY = register(
         run=run,
         status="live",
         tags=("Communications", "Grounded", "Placeholders, not guesses"),
+        sample_text=("Hi — we'd like to move our onboarding call to next week. Does Tuesday or Wednesday afternoon "
+                     "work for you? Also, could you send the pricing sheet over beforehand? Thanks, Jordan."),
         platform="Communications",
         lane="Reply",
         options=tuple(reply_intents()),

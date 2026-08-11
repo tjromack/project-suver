@@ -115,9 +115,13 @@
 
     <div class="actions">
       <button class="btn" id="go" type="submit">{{ tool.action_label }}</button>
+      {% if tool.has_sample %}<button type="button" class="clearfile" id="trybtn" title="Load a sample and run it">✨ Try an example</button>{% endif %}
       {% if user %}<button type="button" class="clearfile" id="savebtn" title="Keep this document + question in My work">💾 Save to my work</button>{% endif %}
       <span class="faint" id="hint">{% if tool.needs_query %}Ask in plain words — no prompt craft.{% elif tool.has_options %}Pick what to make — no prompt.{% else %}No prompt to write. One click.{% endif %}</span>
     </div>
+    {% if tool.has_sample %}
+    <script type="application/json" id="sampledata">{{ {"text": tool.sample_text, "query": tool.sample_query, "choice": tool.sample_choice}|tojson }}</script>
+    {% endif %}
     {% if user %}<div class="faint" id="savemsg" style="margin-top:8px" aria-live="polite"></div>{% endif %}
   </form>
 
@@ -184,6 +188,19 @@
           result.insertAdjacentHTML('beforeend','<div class="panel" style="padding:20px">Couldn’t reach the server. Try again.</div>');
         }finally{ go.disabled=false; }
       });
+      // Try an example (DEC 037): load the curated sample into the fields, then run it — a first-time visitor sees
+      // a real cited result in one click, no document needed.
+      const trybtn=document.getElementById('trybtn'), sampleEl=document.getElementById('sampledata');
+      if(trybtn && sampleEl){
+        trybtn.addEventListener('click',()=>{
+          let s={}; try{ s=JSON.parse(sampleEl.textContent); }catch(e){ return; }
+          const paste=document.getElementById('paste'); if(paste && s.text){ paste.value=s.text; }
+          const q=document.getElementById('query'); if(q && s.query){ q.value=s.query; }
+          const ch=document.getElementById('choice'); if(ch && s.choice){ ch.value=s.choice; }
+          const f=document.getElementById('file'); if(f){ f.value=''; }   // ignore any picked file — use the sample text
+          if(form.requestSubmit){ form.requestSubmit(); } else { form.dispatchEvent(new Event('submit',{cancelable:true})); }
+        });
+      }
       // Save to my work (signed-in only): keep the current document + question so it can be re-opened later.
       const savebtn=document.getElementById('savebtn'), savemsg=document.getElementById('savemsg');
       if(savebtn){

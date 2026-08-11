@@ -40,6 +40,10 @@ COPILOT = register(
         run=run,
         status="live",
         tags=("Documents", "Cited answers", "Won’t guess"),
+        sample_text=("MASTER SERVICES AGREEMENT. The initial term is two years, beginning January 1, 2026. The "
+                     "agreement auto-renews for successive one-year terms unless either party gives sixty (60) days "
+                     "written notice. Fees are $12,000 per month, net thirty days. Governing law is the State of New York."),
+        sample_query="What is the governing law?",
         needs_query=True,
         query_label="Your question",
         query_placeholder="e.g. What are the key deadlines, and who is responsible?",

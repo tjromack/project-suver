@@ -862,3 +862,36 @@ first paint (no flash). The button shows the destination (☾ go dark / ☀ go l
 `border-radius:0` with `border-radius:var(--radius)` across all templates + the base `.btn`/`.pill`/`.signin`/`.themebtn`
 /`code` rules; the circular spinner + status dots at `50%` were left alone). One token now controls the slight rounding
 on every button, tile, input, and chip app-wide — change it once to retune. Still 180 tests green.
+
+### DEC 037 — Launch-inching: usage quotas + plan tiers, "Try an example", and a readiness doc (Trevor's 08-11 pick)
+**Context.** Trevor's two north-lines: **demo-able to employers/partners** and **near letting anyone pay to use it** —
+while staying **cost-averse** (only the existing Anthropic API; no new paid vendors). The product doesn't need more
+features for either; it needs to be **safe to expose** (a stranger must not be able to run up the API bill) and
+**effortless to try** (a first visitor shouldn't face an empty drop zone). Both are zero-cost. Billing/hosting/embeddings
+stay parked behind documented seams.
+
+**Track A — usage quotas + plan tiers (the public-exposure guardrail).** A `plan` column on users (`free`|`pro`,
+migrated in) + a `usage` table (per-subject per-day count). `main.py` enforces a **daily cap before every model call**:
+anonymous → per-IP (`QUOTA_ANON`=15), signed-in free → per-user (`QUOTA_FREE`=75), pro → `QUOTA_PRO`=100000; over the
+cap → a friendly `_limit.html` (429) nudging sign-in/upgrade. The fully-local **Chart** tool is exempt (no model call).
+Billing is deferred — `store.set_plan()` flips the tier for now; a payment webhook flips it later (that's the entire
+integration point). This is the single thing most needed before public exposure, built at zero cost.
+
+**Track B — "Try an example".** A curated built-in `sample_text`(+`sample_query`/`sample_choice`) on every single-input
+tool; a **✨ Try an example** button loads it and runs it, so a first-time visitor sees a real cited result in one
+click. **All 11 samples were live-verified on `anthropic`** to produce a strong, non-abstaining result — which caught
+two demo-killers a green suite wouldn't: Copilot's *compound* sample question abstained (the model's answer picked up
+question-words absent from the span, dropping grounding <0.6 → switched to a single question whose answer echoes the
+doc), and Draft came back empty on a short doc (→ switched to the DEC-029-verified contract + `contract-memo` kind).
+Also fixed Triage's sample (the splitter wants blank-line-separated messages). Multi-document tools (Compare,
+Ask-across) opt out — their input shape doesn't fit one-click paste.
+
+**Track C — `LAUNCH-READINESS.md`.** The path from demo to public-paid: the tier table, the GA checklist (CSRF · reset ·
+audit · encryption-at-rest — mostly zero-cost), the two launch shapes (demo-link now vs. public-paid later), and
+**exactly where billing plugs in** (a Stripe webhook → `set_plan`). Turns "someday we charge" into a small scoped flip.
+
+**Status.** Accepted. 180 → **189 tests** (+5 quota: tiers · anon-enforced · counts-a-run · chart-exempt · pro-ceiling;
++4 samples: every single-input tool has one · multi-doc opt out · the page offers it · a sample runs end-to-end). A
+conftest autouse fixture resets the per-IP counters between tests. ⭐ UX lesson banked: **a built-in example must be
+live-verified to actually answer** — a sample that abstains is the worst first impression. **13 tools · 3 platforms ·
+accounts + quotas + tiers · demo-ready + launch-inching.**

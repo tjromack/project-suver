@@ -99,6 +99,15 @@ class Tool:
     # Multi-turn chat tools (Converse): the shell keeps the conversation going — after the first answer it hides the
     # drop zone, keeps the question box, and sends the session id (not the doc) on each follow-up.
     is_chat: bool = False
+    # A curated built-in example (DEC 037) — "Try an example" fills the paste box (+ question / pick) with this and
+    # runs it, so a first-time visitor sees a real cited result in one click without bringing their own document.
+    sample_text: str = ""
+    sample_query: str = ""
+    sample_choice: str = ""
+
+    @property
+    def has_sample(self) -> bool:
+        return bool(self.sample_text.strip())
 
     @property
     def has_options(self) -> bool:

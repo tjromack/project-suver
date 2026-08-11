@@ -47,6 +47,10 @@ CONVERSE = register(
         run=run,
         status="live",
         tags=("Documents", "Multi-turn", "Grounded · won’t guess"),
+        sample_text=("Employee handbook — time off. Full-time employees accrue 20 paid vacation days per year, plus "
+                     "10 paid holidays. Up to 5 unused vacation days carry over into the next year. Sick leave is "
+                     "tracked separately and is not paid out on termination."),
+        sample_query="How many paid vacation days do full-time employees get each year?",
         needs_query=True,
         query_label="Your question",
         query_placeholder="Ask about the document… (follow-ups welcome)",

@@ -82,6 +82,12 @@ class Settings:
     cookie_secure: bool = os.getenv("COOKIE_SECURE", "0").strip().lower() in ("1", "true", "yes", "on")
     auth_rate_max: int = int(os.getenv("AUTH_RATE_MAX", "8"))          # attempts per window, per client IP
     auth_rate_window_s: int = int(os.getenv("AUTH_RATE_WINDOW_S", "300"))
+    # Daily usage quotas (DEC 037) — the guardrail that makes public exposure safe: a stranger can't run up the API
+    # bill. Counted per model-invoking run, per subject (anonymous → per IP; signed-in → per user, by plan tier).
+    # Billing is deferred; "pro" is set manually for now (`store.set_plan`) and just raises the cap.
+    quota_anon: int = int(os.getenv("QUOTA_ANON", "15"))
+    quota_free: int = int(os.getenv("QUOTA_FREE", "75"))
+    quota_pro: int = int(os.getenv("QUOTA_PRO", "100000"))
 
     def provenance(self) -> dict:
         return {"app_version": __version__, "provider": self.provider}

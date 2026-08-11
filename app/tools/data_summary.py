@@ -43,6 +43,8 @@ DATA_SUMMARY = register(
         run=run,
         status="live",
         tags=("Data & Analysis", "Computed profile", "Grounded overview"),
+        sample_text=("Rep,Region,Units,Revenue\nAlice,West,120,9600\nBob,East,90,7200\nAlice,West,60,4800\n"
+                     "Carol,East,150,12000\nBob,West,45,3600"),
         platform="Data & Analysis",
         lane="Overview",
     )
