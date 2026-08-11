@@ -1,5 +1,9 @@
 # Project Suver
 
+> **© 2026 Trevor J. Romack. Source-available for review — not open-source.** Public for portfolio/evaluation and the
+> [live demo](https://suver-demo.onrender.com); **no reuse or commercial use without permission** (see [LICENSE](LICENSE)).
+> Built by Trevor Romack · [github.com/tjromack](https://github.com/tjromack) · tjromack@gmail.com.
+
 **The product the suite becomes: an AI tool hub that removes the prompt.** Click a tool, give only your input, get
 the output. It wraps any LLM (we manage it) and is safe by construction — the trust control plane runs underneath
 every tool. Pick one tool, or a platform of them.
