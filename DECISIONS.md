@@ -906,3 +906,29 @@ limit" message. Chart stays exempt (no model call). Recommended companion (owner
 Anthropic account** as the ultimate backstop. Also made the `Dockerfile` bind the host `$PORT` (Render/Fly/Railway)
 and added `DEPLOY.md`. **Status.** Accepted. **190 tests** (+1: global cap backstops total cost). The live demo is the
 job-search flagship — a clickable, cost-protected AI product. **13 tools · 3 platforms · demo LIVE + cost-capped.**
+
+### DEC 039 — Public + protected: source-available launch, an outward-facing README, and the career workspace
+**Context.** With the demo live and Suver serving as Trevor's job-search flagship, the repos needed to be *seen* by
+recruiters/hiring managers — but the code is Trevor's IP and shouldn't be freely reusable. Two goals in tension:
+**public visibility** (so it can be browsed as a portfolio) and **protection** (not open-source; no free commercial
+reuse). Resolved with a **source-available** posture, not open-source.
+
+**What shipped.**
+- **Went public under a proprietary source-available license:** `project-suver` + all **four** applied-AI engine repos
+  (`agentic-workflow-orchestrator` · `llm-eval-guardrails-harness` · `payment-integrity-reviewer` ·
+  `ai-usecase-intake-console`) are now **public**. Each carries a `LICENSE` — *"© 2026 Trevor J. Romack. All rights
+  reserved. SOURCE-AVAILABLE — NOT OPEN SOURCE"* (view-for-evaluation only; no use/copy/modify/deploy/commercialize
+  without permission) — plus a visible **README notice** blockquote pointing at it. Viewable as a portfolio; not
+  reusable.
+- **Rewrote Suver's README outward-facing** — dropped the internal framing ("the product the suite becomes", the
+  status wall) for a clean user/recruiter-facing overview: a live-demo callout, "why it's different", the 13 tools by
+  platform, the measured 20/20 trust story, how-it's-built, run-locally, license.
+- **Repo descriptions + demo homepage** set on the public repos via `gh` (Suver's homepage → the live demo).
+- **Career workspace as its own private repo** (`tjromack/career-workspace`, **private**) — the full job-search toolkit
+  (bio · résumé content + 3 role PDFs · target companies · cover-letter kit · LinkedIn · **a GitHub profile README** ·
+  an **`APPLICATIONS.md`** tracker with the concrete Day-1 legal-AI batch + weekly cadence). Previously local-only
+  (gitignored under `c:/ai`); now versioned + referenceable, still private.
+
+**Status.** Accepted. No product code/tests changed (190 tests unchanged) — this is a **visibility + IP-protection +
+career-infra** lap. ⭐ Posture banked: **source-available, not open-source** — public enough to be a portfolio, licensed
+enough to stay Trevor's. **13 tools · 3 platforms · demo LIVE · flagship repos PUBLIC + protected.** Next entry = **DEC 040**.
