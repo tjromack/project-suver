@@ -19,4 +19,5 @@ RUN mkdir -p /app/data
 EXPOSE 8000
 # One worker keeps the in-memory rate limiter + sessions coherent for a pilot; scale out → move those to a shared
 # store (see CLIENT-ADAPTATION.md / DESIGN-PARTNER-KIT.md) and raise workers.
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Shell form so we honour the host's $PORT (Render/Fly/Railway inject it); falls back to 8000 locally.
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
