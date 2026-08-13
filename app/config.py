@@ -56,6 +56,14 @@ class Settings:
     # the grounding gate is UNCHANGED, so recall rises without loosening the trust guarantee. Off → today's behavior.
     retrieval_expand: bool = os.getenv("RETRIEVAL_EXPAND", "1").strip().lower() not in ("0", "false", "no", "")
     retrieval_max_expansions: int = int(os.getenv("RETRIEVAL_MAX_EXPANSIONS", "6"))
+    # LLM re-ranking (DEC 040): after lexical retrieval pulls a WIDER candidate pool, the model re-orders those
+    # (already-sanitized) passages by how well each actually answers the question, and we keep the top-K. This lifts
+    # recall on synonym/compound questions that lexical order buries — a passage that *states* the answer in different
+    # words gets promoted into the K the model actually reads. Only the safe query + safe passages are ever sent, and —
+    # like expansion — the grounding gate is UNCHANGED (rerank widens/reorders what's RETRIEVED; exact-token grounding
+    # still VERIFIES before anything shows). Opt-in (adds one model call per question) — off → today's behavior.
+    retrieval_rerank: bool = os.getenv("RETRIEVAL_RERANK", "0").strip().lower() in ("1", "true", "yes", "on")
+    retrieval_rerank_pool: int = int(os.getenv("RETRIEVAL_RERANK_POOL", "12"))
     # Extractor: confidence below this (or a value that fails type-validation) → the field is flagged for review.
     extract_threshold: float = float(os.getenv("EXTRACT_THRESHOLD", "0.75"))
     # Triage ("Triage messages"): cap the messages processed in one pass; a classification below the confidence

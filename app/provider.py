@@ -277,6 +277,60 @@ def expand_query(safe_query: str, provider: str, *, n: int = 6) -> list[str]:
         return []
 
 
+# --- Re-rank: order retrieved passages by how well each ANSWERS the question (DEC 040) --------------------------
+# After lexical retrieval pulls a wide candidate pool, the model re-orders those passages so the ones that actually
+# STATE the answer land in the top-K the answerer reads — lifting recall on synonym/compound questions. Only the safe
+# query + already-sanitized passages are sent (same posture as draft_answer); the grounding gate is untouched. The
+# model ranks, the code slices — "the model plans, the code computes." Stub/error → [] (no-op; today's lexical order).
+
+_RERANK_PROMPT = (
+    "You are ranking passages by how well each one helps ANSWER the question below.\n"
+    "Reply with ONLY the passage numbers in order, MOST relevant first, comma-separated (e.g. 3,1,4).\n"
+    "List every passage number exactly once. No words, no commentary.\n\n"
+    "QUESTION: {q}\n\nPASSAGES:\n{passages}"
+)
+
+
+def rerank_passages(safe_query: str, passages: list[str], provider: str) -> list[int]:
+    """Return the passage indices (0-based) ordered most→least relevant to `safe_query`, or `[]`. The stub returns
+    `[]` (retrieval keeps its deterministic lexical order → offline/tests unchanged); on any model error we also
+    degrade to `[]`. Never sends anything but the safe query + the already-sanitized passages; never touches grounding."""
+    q = (safe_query or "").strip()
+    if provider != "anthropic" or not q or len(passages) < 2:
+        return []
+    try:
+        return _anthropic_rerank(q, passages)
+    except Exception:
+        return []
+
+
+def _anthropic_rerank(safe_query: str, passages: list[str]) -> list[int]:
+    import re
+
+    import truststore
+
+    truststore.inject_into_ssl()
+    from anthropic import Anthropic
+
+    from app.config import settings
+
+    numbered = "\n".join(f"[{i + 1}] {p}" for i, p in enumerate(passages))
+    client = Anthropic()
+    msg = client.messages.create(
+        model=settings.anthropic_model,
+        max_tokens=60,
+        messages=[{"role": "user", "content": _RERANK_PROMPT.format(q=safe_query, passages=numbered)}],
+    )
+    raw = "".join(getattr(b, "text", "") for b in msg.content)
+    order: list[int] = []
+    for tok in re.split(r"[^0-9]+", raw):
+        if tok.isdigit():
+            idx = int(tok) - 1
+            if 0 <= idx < len(passages) and idx not in order:
+                order.append(idx)
+    return order
+
+
 # --- Draft: write one memo SECTION from the salient passages (clean prose, no preamble, no inline markers) -------
 
 import re as _re

@@ -932,3 +932,30 @@ reuse). Resolved with a **source-available** posture, not open-source.
 **Status.** Accepted. No product code/tests changed (190 tests unchanged) — this is a **visibility + IP-protection +
 career-infra** lap. ⭐ Posture banked: **source-available, not open-source** — public enough to be a portfolio, licensed
 enough to stay Trevor's. **13 tools · 3 platforms · demo LIVE · flagship repos PUBLIC + protected.** Next entry = **DEC 040**.
+
+### DEC 040 — LLM re-ranking: lift retrieval recall without loosening the grounding gate
+**Context.** Suver's one documented weakness (BACKLOG) is that retrieval is *conservative*: lexical ranking (even with
+DEC 031 stemming + DEC 032 query expansion) can bury a passage that **states** the answer in different words below the
+top-K the answerer reads, so the tool **abstains** on some synonym/compound questions rather than answer. Dense
+embeddings would help but were parked on cost/vendor grounds (DEC 032). This is the highest-leverage retrieval move that
+stays on the **existing Anthropic API** (no new vendor).
+
+**Decision.** Add an optional **LLM re-ranking** step. When on, `_retrieve` returns a **wider candidate pool**
+(`retrieval_rerank_pool`, default 12) instead of the final K; the model then re-orders those passages by how well each
+actually **answers** the question, and the code keeps the top-K (`copilot_top_k`). Implemented as `rerank_passages()`
+in `provider.py` (anthropic-only; returns passage indices most→least relevant) + `_rerank()` in `pipeline.py`, wired
+into the shared `_answer_over_spans` — so **Copilot, Converse, and Ask-across all benefit**. Behind a flag
+(`RETRIEVAL_RERANK`, **default off** — it adds one model call per question, so opt-in keeps cost predictable).
+
+**Trust posture (unchanged, non-negotiable).** Only the **sanitized** query + **already-sanitized** passage text is
+ever sent (same posture as `draft_answer`/`expand_query`). ⭐ **The grounding gate is untouched** — re-ranking only
+changes *what is retrieved/ordered*; the exact-token grounding still **verifies** every claim before anything shows, so
+wider/better recall **cannot** loosen the "never a confident fabrication" guarantee. The model *ranks*, the code
+*slices* ("the model plans, the code computes"). A passage the model omits is **appended, never dropped** (re-order, not
+filter). Stub/no-key/any model error → `[]` → the pool keeps its deterministic lexical order (**offline behavior + all
+existing tests unchanged**).
+
+**Status.** Accepted. 190 → **195 tests** (+5: stub no-op · off-by-default · reorder-and-append-missing · empty-order
+no-op · pool-widening-and-reorder). Live before/after recall is a **Trevor demo checkpoint** (`python -m eval.run` with
+`RETRIEVAL_RERANK=1`; confirm recall ↑ and fabrications still 0 — the eval delta is the interview artifact). ⭐ Discipline
+banked, third time (DEC 031/032/040): **improve retrieval; never touch the grounding gate.** Next entry = **DEC 041**.

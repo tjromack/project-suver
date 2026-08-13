@@ -44,6 +44,7 @@ from app.provider import (
     extract_items,
     narrate_table,
     plan_query,
+    rerank_passages,
 )
 from app.sessions import ConverseTurn, create_session, get_session
 from app.table import ColumnProfile, TableData, parse_table, to_number
@@ -262,7 +263,7 @@ _ABSTAIN = "I couldn't find an answer to that in your document. Try rephrasing, 
 
 
 def _retrieve(safe_query: str, spans: list[Span],
-              phrasings: list[str] | None = None) -> list[tuple[Span, float]]:
+              phrasings: list[str] | None = None, *, limit: int | None = None) -> list[tuple[Span, float]]:
     """Rank passages by question↔passage token overlap, over lightly **stemmed** tokens so a morphological variant
     still surfaces ("monthly fee?" finds "$12,000 per month … fees"). With `phrasings` (the question + a few
     model-generated alternative phrasings, DEC 032), a passage is ranked by its **best** match against *any* phrasing,
@@ -273,7 +274,27 @@ def _retrieve(safe_query: str, spans: list[Span],
     scored = [(sp, max(retrieval_support(q, sp.text) for q in queries)) for sp in spans]
     scored = [(sp, s) for sp, s in scored if s >= settings.copilot_min_relevance]
     scored.sort(key=lambda t: (-t[1], t[0].index))
-    return scored[: settings.copilot_top_k]
+    return scored[: (limit or settings.copilot_top_k)]
+
+
+def _rerank(safe_query: str, scored: list[tuple[Span, float]], provider: str) -> list[tuple[Span, float]]:
+    """Re-order a candidate pool by the model's relevance ranking (DEC 040), then the caller keeps the top-K. Only
+    the safe query + already-sanitized passage text is sent. Stub/error → the pool is returned unchanged (lexical
+    order), so offline behavior and the grounding gate are untouched; any passage the model omits is appended after
+    the ones it ranked (we never silently drop a candidate — we only re-order)."""
+    order = rerank_passages(safe_query, [sp.text for sp, _ in scored], provider)
+    if not order:
+        return scored
+    seen: set[int] = set()
+    out: list[tuple[Span, float]] = []
+    for i in order:
+        if 0 <= i < len(scored) and i not in seen:
+            seen.add(i)
+            out.append(scored[i])
+    for i, item in enumerate(scored):
+        if i not in seen:
+            out.append(item)
+    return out
 
 
 def _phrasings(safe_query: str, provider: str) -> list[str]:
@@ -297,11 +318,17 @@ def _answer_over_spans(spans: list[Span], safe_query: str, tmap: dict, provider:
     selects the cross-document answer style (neutral subject, no section refs) when the same question is asked of
     each document in a set. The model answers from the retrieved passages or we abstain. Shared by Copilot
     (one-shot), Converse (multi-turn), and Ask-across (per document)."""
-    retrieved = _retrieve(safe_query, spans, phrasings)
+    # When re-ranking is on (DEC 040), retrieve a WIDER candidate pool so the model has real choices to promote;
+    # otherwise retrieve the usual top-K. The grounding gate downstream is identical either way.
+    rerank_on = settings.retrieval_rerank and provider == "anthropic"
+    pool = settings.retrieval_rerank_pool if rerank_on else None
+    retrieved = _retrieve(safe_query, spans, phrasings, limit=pool)
     if not retrieved and fallback_query:
-        retrieved = _retrieve(fallback_query, spans)   # elliptical follow-up → resolve with prior questions
+        retrieved = _retrieve(fallback_query, spans, limit=pool)   # elliptical follow-up → resolve with prior questions
     if not retrieved:
         return False, _ABSTAIN, []                     # no vocabulary match → abstain (over hallucination)
+    if rerank_on:
+        retrieved = _rerank(safe_query, retrieved, provider)[: settings.copilot_top_k]
     ranked = [sp for sp, _ in retrieved]
     raw = draft_answer(safe_query, ranked, provider, context=context, across=across)
     if raw == NOT_IN_DOCUMENT or support(raw, " ".join(sp.text for sp in ranked)) < settings.ground_threshold:
