@@ -34,11 +34,27 @@ def test_bad_verdict_rejected():
         store.add_feedback("copilot", "meh")
 
 
-def test_no_document_content_is_stored():
-    # the schema has NO column for document/answer text — feedback is signal-only (privacy by design)
+def test_no_raw_content_column_exists():
+    # the schema holds the signal + a SANITIZED question (context) — but NO document/answer body column (privacy by design)
     with store._conn() as con:
         cols = {r["name"] for r in con.execute("PRAGMA table_info(feedback)").fetchall()}
-    assert cols == {"id", "tool_slug", "verdict", "note", "subject", "created_at"}
+    assert cols == {"id", "tool_slug", "verdict", "note", "subject", "context", "created_at"}
+
+
+def test_add_feedback_stores_context():
+    store.add_feedback("copilot", "flag", "note", "ip:x", context="what is [PERSON_NAME_1]'s fee?")
+    fb = store.recent_feedback(only_review=True)[0]
+    assert "[PERSON_NAME_1]" in fb.context
+
+
+def test_route_sanitizes_the_question_context():
+    """⭐ DEC 043: the question is captured for review, but PII is tokenized BEFORE storage — never raw."""
+    r = client.post("/feedback", data={"slug": "copilot", "verdict": "flag", "note": "weird",
+                                        "context": "what is jane@example.com owed?"})
+    assert r.status_code == 200
+    fb = store.recent_feedback(only_review=True)[0]
+    assert fb.context                                   # a (sanitized) question WAS captured...
+    assert "jane@example.com" not in fb.context         # ...but the email was tokenized, not stored raw
 
 
 def test_feedback_route_records():
@@ -59,7 +75,8 @@ def test_reviews_page_shows_the_queue():
     assert r.status_code == 200
     assert "Review queue" in r.text
     assert "invented a clause" in r.text                             # the flagged note surfaces
-    assert "no document" in r.text.lower()                           # the privacy-by-design note is stated
+    assert "sanitized" in r.text.lower()                             # the privacy-by-design note (DEC 043) is stated
+    assert "never stored" in r.text.lower()
 
 
 def test_tool_shell_shows_the_feedback_bar():

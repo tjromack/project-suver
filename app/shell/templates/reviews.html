@@ -16,6 +16,8 @@
   .item .v{font-size:18px}
   .item .body{flex:1;min-width:0}
   .item .top{font-weight:600;font-size:14px}
+  .item .ctx{color:var(--ink);font-size:13.5px;margin-top:5px}
+  .item .ctx .cl{color:var(--faint);font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;margin-right:6px}
   .item .note{color:var(--muted);font-size:13.5px;margin-top:4px;white-space:pre-wrap}
   .item .meta{color:var(--faint);font-size:12px;margin-top:4px}
   .empty{background:var(--panel);border:1px dashed var(--line);border-radius:var(--radius);padding:34px;text-align:center;color:var(--muted)}
@@ -26,8 +28,9 @@
 <div class="rv">
   <h1>Review queue</h1>
   <p class="lede">The <b>online-eval</b> signal — how the tools do with real use. 👎 and ⚑ items are the queue a human
-    curates into the offline eval set (<code>eval/</code>). <b>Privacy by design:</b> no document or answer text is ever
-    stored — only which tool, the verdict, and any note the user chose to type.</p>
+    curates into the offline eval set (<code>eval/</code>). <b>Privacy by design:</b> we store the signal (tool · verdict ·
+    note) plus the <b>sanitized</b> question — any PII is tokenized <em>before</em> it's saved (e.g. “[PERSON_NAME_1]”).
+    Document and answer bodies are never stored, and no raw content ever is.</p>
 
   <div class="tally">
     <div class="stat up"><div class="n">{{ counts.get('up', 0) }}</div><div class="l">👍 useful</div></div>
@@ -42,7 +45,8 @@
         <span class="v">{{ '👎' if f.verdict == 'down' else '⚑' }}</span>
         <div class="body">
           <div class="top">{{ f.tool_slug }}</div>
-          {% if f.note %}<div class="note">{{ f.note }}</div>{% endif %}
+          {% if f.context %}<div class="ctx"><span class="cl">Question (sanitized)</span>{{ f.context }}</div>{% endif %}
+          {% if f.note %}<div class="note"><span class="cl" style="color:var(--faint);font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;margin-right:6px">Note</span>{{ f.note }}</div>{% endif %}
           <div class="meta">{{ f.verdict }} · {{ f.created_at | int }}</div>
         </div>
       </div>

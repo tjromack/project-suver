@@ -153,6 +153,8 @@
         let note='';
         if(b.dataset.v!=='up'){ note=(prompt('Optional — what was off, or worth reviewing? (No document text is stored.)','')||''); }
         const fd=new FormData(); fd.set('slug','{{ tool.slug }}'); fd.set('verdict',b.dataset.v); fd.set('note',note);
+        const qEl=document.getElementById('query');                 // the question, if this tool has one — sanitized server-side
+        if(qEl && qEl.value.trim()){ fd.set('context', qEl.value.trim()); }
         try{ const r=await fetch('/feedback',{method:'POST',body:fd}); th.textContent=await r.text(); }
         catch(e){ th.textContent='Thanks.'; }
         th.hidden=false; bar.querySelectorAll('.fbbtn').forEach(x=>x.disabled=true);

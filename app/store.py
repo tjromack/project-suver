@@ -106,8 +106,9 @@ def init_db() -> None:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 tool_slug TEXT NOT NULL,
                 verdict TEXT NOT NULL,            -- 'up' | 'down' | 'flag'
-                note TEXT NOT NULL DEFAULT '',    -- optional; user-typed only (never document content)
+                note TEXT NOT NULL DEFAULT '',    -- optional; user-typed only
                 subject TEXT NOT NULL DEFAULT '',
+                context TEXT NOT NULL DEFAULT '', -- the SANITIZED question (PII tokenized before storage); never raw content (DEC 043)
                 created_at REAL NOT NULL
             );
             """
@@ -116,6 +117,10 @@ def init_db() -> None:
         cols = {r["name"] for r in con.execute("PRAGMA table_info(users)").fetchall()}
         if "plan" not in cols:
             con.execute("ALTER TABLE users ADD COLUMN plan TEXT NOT NULL DEFAULT 'free'")
+        # migrate an older feedback table (created before the sanitized-context column, DEC 043)
+        fcols = {r["name"] for r in con.execute("PRAGMA table_info(feedback)").fetchall()}
+        if "context" not in fcols:
+            con.execute("ALTER TABLE feedback ADD COLUMN context TEXT NOT NULL DEFAULT ''")
 
 
 def _user(row) -> User:
@@ -251,7 +256,9 @@ def delete_item(user_id: int, item_id: int) -> None:
         con.execute("DELETE FROM saved_items WHERE id = ? AND user_id = ?", (item_id, user_id))
 
 
-# --- feedback → review queue (DEC 042) — the online-eval signal (privacy by design: no content stored) ----
+# --- feedback → review queue (DEC 042/043) — the online-eval signal (privacy by design: sanitized-only) ----
+# Stores the SIGNAL (tool · verdict · typed note) plus an optional SANITIZED question (DEC 043 — the route tokenizes
+# any PII before it reaches here). Never stores document or answer bodies, and never raw content.
 
 @dataclass(frozen=True)
 class Feedback:
@@ -261,18 +268,21 @@ class Feedback:
     note: str
     subject: str
     created_at: float
+    context: str = ""       # the SANITIZED question (PII tokenized before it reached here); never raw content (DEC 043)
 
 
-def add_feedback(tool_slug: str, verdict: str, note: str = "", subject: str = "") -> int:
-    """Record a 👍/👎/flag on a result + an optional user note. Never stores document/answer content — only the tool,
-    the verdict, and the typed note. Raises ValueError on a bad verdict (the route swallows it into a friendly reply)."""
+def add_feedback(tool_slug: str, verdict: str, note: str = "", subject: str = "", context: str = "") -> int:
+    """Record a 👍/👎/flag on a result + an optional user note + an optional `context` (the SANITIZED question — the
+    caller tokenizes PII before it ever reaches the store). Never stores document/answer bodies or any raw content.
+    Raises ValueError on a bad verdict (the route swallows it into a friendly reply)."""
     verdict = (verdict or "").strip().lower()
     if verdict not in ("up", "down", "flag"):
         raise ValueError("verdict must be up|down|flag")
     with _conn() as con:
         cur = con.execute(
-            "INSERT INTO feedback (tool_slug, verdict, note, subject, created_at) VALUES (?,?,?,?,?)",
-            ((tool_slug or "").strip()[:80], verdict, (note or "").strip()[:500], (subject or "")[:80], time.time()),
+            "INSERT INTO feedback (tool_slug, verdict, note, subject, context, created_at) VALUES (?,?,?,?,?,?)",
+            ((tool_slug or "").strip()[:80], verdict, (note or "").strip()[:500], (subject or "")[:80],
+             (context or "").strip()[:400], time.time()),
         )
         return cur.lastrowid
 
@@ -285,7 +295,8 @@ def recent_feedback(limit: int = 100, *, only_review: bool = False) -> list[Feed
     q += " ORDER BY id DESC LIMIT ?"
     with _conn() as con:
         rows = con.execute(q, (int(limit),)).fetchall()
-    return [Feedback(r["id"], r["tool_slug"], r["verdict"], r["note"], r["subject"], r["created_at"]) for r in rows]
+    return [Feedback(r["id"], r["tool_slug"], r["verdict"], r["note"], r["subject"], r["created_at"],
+                     (r["context"] if "context" in r.keys() else "")) for r in rows]
 
 
 def feedback_counts() -> dict[str, int]:

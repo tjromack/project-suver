@@ -1012,3 +1012,23 @@ needed to give feedback).
 schema-has-no-content-column · route records · route never-errors-on-bad-verdict · reviews page renders the queue ·
 shell shows the bar). Demo checkpoint (Trevor): click 👍/👎 on a result, then open **/reviews** and see it land. This
 closes the build→**learn-from-use**→sharpen loop. **14 tools · 3 platforms · online-eval signal live.** Next entry = **DEC 043**.
+
+### DEC 043 — Make the review queue actionable with a *sanitized* question (not blind, not raw)
+**Context.** DEC 042 stored feedback as signal-only (tool · verdict · note) — maximally private, but a reviewer sees
+"summarize was flagged: 'wrong'" with no idea *what* was flagged. Trevor flagged this: note-only is too thin to act on.
+The tension: adding context means storing some user content, which weakens the pure "we store zero content" story — a
+**privacy decision**, so it was Trevor's call. He chose **Option B: capture the SANITIZED question.**
+
+**Decision.** The feedback bar now also sends the tool's **question** (when it has one); the `/feedback` route runs it
+through the **data boundary** (`sanitize()`), storing only the tokenized result in a new `feedback.context` column
+(migrated in). So the review queue shows, e.g., *Question (sanitized): "what is [PERSON_NAME_1]'s monthly fee?"* — enough
+to know what was flagged, with any PII tokenized **before** it's stored. ⭐ **Still no raw content, ever:** the question
+is sanitized (never raw), and **document and answer bodies are never captured** (the client's visible answer is
+re-hydrated, so it's deliberately not sent — only the question the user typed goes, and even that is tokenized
+server-side). Why the *question* and not the answer: it's the least-sensitive, most-identifying piece, and it's already
+the thing the model sees sanitized — storing that same sanitized form is consistent with the whole product ethos.
+
+**Status.** Accepted. 210 → **212 tests** (+2: add_feedback stores context · the route tokenizes an email in the
+question before storage). The reviews page's privacy note is updated to state the sanitized-snippet posture honestly.
+⭐ Posture banked: **capture the signal and a sanitized breadcrumb — never raw content.** **14 tools · 3 platforms.**
+Next entry = **DEC 044**.

@@ -158,12 +158,23 @@ async def tool_run(
 # --- Feedback → review queue (DEC 042): the online-eval signal (privacy by design — no content is stored) -------
 
 @app.post("/feedback", response_class=HTMLResponse)
-async def feedback(request: Request, slug: str = Form(""), verdict: str = Form(""), note: str = Form("")):
-    """Record a 👍/👎/flag on a result + an optional user note. Never stores document/answer content. A feedback
-    click must never fail loudly — any error still returns a calm thanks."""
+async def feedback(request: Request, slug: str = Form(""), verdict: str = Form(""), note: str = Form(""),
+                   context: str = Form("")):
+    """Record a 👍/👎/flag on a result + an optional user note + the optional question `context`. ⭐ DEC 043: the
+    question is SANITIZED here (any PII tokenized by the data boundary) BEFORE it's stored, so the review queue is
+    reviewable without ever retaining raw content; document/answer bodies are never captured. A feedback click must
+    never fail loudly — any error still returns a calm thanks."""
+    from app._engines.boundary import default_policy, sanitize
+
     subject, _ = _quota_subject(request, _current_user(request))
+    safe_ctx = ""
+    if context and context.strip():
+        try:
+            safe_ctx = (sanitize(context, default_policy()).safe_text or "")[:400]
+        except Exception:
+            safe_ctx = ""
     try:
-        store.add_feedback(slug, verdict, note, subject=subject)
+        store.add_feedback(slug, verdict, note, subject=subject, context=safe_ctx)
     except Exception:
         return HTMLResponse("Thanks.")
     return HTMLResponse("Thanks — logged for review.")
