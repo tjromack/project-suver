@@ -1032,3 +1032,28 @@ the thing the model sees sanitized — storing that same sanitized form is consi
 question before storage). The reviews page's privacy note is updated to state the sanitized-snippet posture honestly.
 ⭐ Posture banked: **capture the signal and a sanitized breadcrumb — never raw content.** **14 tools · 3 platforms.**
 Next entry = **DEC 044**.
+
+### DEC 044 — Platform #4: Learning (turn a document into study material — cite-or-drop on every answer)
+**Context.** Three platforms cover prose documents, communications, and tabular data. A fourth widens the hub into a
+genuinely new **output modality** — *study material* — and does it the Suver way: config/small-add, no new engine, no
+new vendor (existing Anthropic API). It also proves the shell generalizes a fifth time (a new platform needed **no new
+contract field**), and it's thematically on-brand (the same cite-or-drop discipline as Summarize, applied to learning).
+
+**Decision.** Ship the **Learning** platform with two tools:
+- **Flashcards** (`flashcards`, 🃏) — a document → Q&A study cards, each **answer cited to a source span**.
+- **Quiz me** (`quiz`, ❓) — a document → multiple-choice questions; each **correct answer cited to a span**, with
+  plausible distractors and a "Show answer" reveal.
+
+⭐ **Same trust discipline, reused not reinvented:** the model *drafts* items from **sanitized** text; the deterministic
+grounding gate (`support()` ≥ threshold, the exact-token cite-or-drop) then verifies each item's **answer** against a
+source span — a card/question that can't ground is **dropped (withheld), never invented**. The model only ever sees
+`safe_text`; tokens re-hydrate locally. Composes `phi-pii-data-boundary` (sanitize) + `summarize-brief-generator`
+(split + grounding) — **compose, don't fork.** New provider fns (`make_flashcards`/`make_quiz`, stub-extractive offline)
++ pipeline (`flashcards_text`/`quiz_text` + `_best_span`) + two tools + two result partials; registered under a new
+`"Learning"` platform (hub `_PLATFORM_ORDER` + a `meta` entry). Quiz options place the correct answer in a rotating slot
+(deterministic, not always first).
+
+**Status.** Accepted. 212 → **220 tests** (+8: flashcards grounded · drop-ungroundable · model-sees-only-sanitized ·
+quiz correct grounded+placed · quiz drop-ungroundable · platform registered · hub shows it · both routes render).
+⏳ **Trevor manual:** live-verify the two **"Try an example"** samples on the real model (the water-cycle paragraph),
+and a demo pass of Flashcards + Quiz on a real doc. **16 tools · 4 platforms · Learning live.** Next entry = **DEC 045**.

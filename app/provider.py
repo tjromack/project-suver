@@ -1024,3 +1024,132 @@ def narrate_table(safe_profile: str, safe_sample: str, n_rows: int, n_cols: int,
         except Exception:
             return _stub_narrate(n_rows, n_cols)
     return _stub_narrate(n_rows, n_cols)
+
+
+# --- Learning platform (DEC 044): turn a document into study material (flashcards, quiz) ------------------------
+# Same trust discipline as Summarize: the model DRAFTS study items from sanitized text; the deterministic grounding
+# gate (cite-or-drop, in the pipeline) then verifies each item's ANSWER against a source span before it's shown — a
+# card/question whose answer can't be grounded is dropped, never invented. The model only ever sees `safe_text`.
+
+def _first_words(text: str, n: int = 6) -> str:
+    ws = (text or "").split()
+    return " ".join(ws[:n]) + ("…" if len(ws) > n else "")
+
+
+def _parse_json_array(raw: str) -> list:
+    """Parse the model's reply into a JSON array, tolerant of a ```json fence. Malformed → [] (grounding is the gate)."""
+    raw = (raw or "").strip()
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        raw = raw[raw.find("\n") + 1:] if "\n" in raw else raw
+    try:
+        data = json.loads(raw)
+        return data if isinstance(data, list) else []
+    except (json.JSONDecodeError, ValueError):
+        return []
+
+
+_FLASHCARDS_PROMPT = (
+    "From the document below, write up to {k} study flashcards. Each flashcard is a question and a short answer.\n"
+    "Rules:\n"
+    "- Base every card ONLY on facts stated in the document. Do not add anything not stated.\n"
+    "- The ANSWER must be a fact from the document (prefer its own wording); keep it to one short sentence.\n"
+    "- Some names/identifiers may appear as bracketed tokens like [PERSON_NAME_1]; keep such tokens exactly.\n"
+    'Return ONLY a JSON array of objects: [{{"q":"...","a":"..."}}]. No prose, no markdown.\n\n'
+    "DOCUMENT:\n{doc}"
+)
+
+
+def _stub_flashcards(spans: list[Span], k: int) -> list[dict]:
+    """Extractive/offline: a card per information-dense span (answer IS the span, so it grounds trivially)."""
+    picked = [sp for sp in spans if len(content_tokens(sp.text)) >= _MIN_TOKENS][:k]
+    return [{"q": f'What does the document state about "{_first_words(sp.text)}"?', "a": sp.text} for sp in picked]
+
+
+def _anthropic_flashcards(safe_text: str, k: int) -> list[dict]:
+    import truststore
+
+    truststore.inject_into_ssl()
+    from anthropic import Anthropic
+
+    from app.config import settings
+
+    client = Anthropic()
+    msg = client.messages.create(
+        model=settings.anthropic_model, max_tokens=1200,
+        messages=[{"role": "user", "content": _FLASHCARDS_PROMPT.format(k=k, doc=safe_text)}],
+    )
+    raw = "".join(getattr(b, "text", "") for b in msg.content)
+    out: list[dict] = []
+    for it in _parse_json_array(raw):
+        if isinstance(it, dict):
+            q, a = str(it.get("q", "")).strip(), str(it.get("a", "")).strip()
+            if q and a:
+                out.append({"q": q, "a": a})
+    return out[:k]
+
+
+def make_flashcards(safe_text: str, spans: list[Span], provider: str, *, k: int) -> list[dict]:
+    """Draft candidate flashcards (q/a) from the SANITIZED text. `stub` is extractive/offline; `anthropic` is a real
+    draft. On any model error → the offline stub (production posture). Grounding downstream is the gate, either way."""
+    if provider == "anthropic":
+        try:
+            return _anthropic_flashcards(safe_text, k)
+        except Exception:
+            return _stub_flashcards(spans, k)
+    return _stub_flashcards(spans, k)
+
+
+_QUIZ_PROMPT = (
+    "From the document below, write up to {k} multiple-choice quiz questions.\n"
+    "Rules:\n"
+    "- Each question has ONE correct answer that is a fact stated in the document, and three plausible but WRONG\n"
+    "  options that are NOT stated as true in the document.\n"
+    "- Base the correct answer ONLY on the document; keep every option short.\n"
+    "- Some names/identifiers may appear as bracketed tokens like [PERSON_NAME_1]; keep such tokens exactly.\n"
+    'Return ONLY a JSON array: [{{"q":"...","correct":"...","distractors":["...","...","..."]}}]. No prose, no markdown.\n\n'
+    "DOCUMENT:\n{doc}"
+)
+
+
+def _stub_quiz(spans: list[Span], k: int) -> list[dict]:
+    picked = [sp for sp in spans if len(content_tokens(sp.text)) >= _MIN_TOKENS][:k]
+    return [{"q": f'According to the document, which is correct about "{_first_words(sp.text)}"?',
+             "correct": sp.text,
+             "distractors": ["This is not stated in the document.", "A different detail entirely.", "None of the above."]}
+            for sp in picked]
+
+
+def _anthropic_quiz(safe_text: str, k: int) -> list[dict]:
+    import truststore
+
+    truststore.inject_into_ssl()
+    from anthropic import Anthropic
+
+    from app.config import settings
+
+    client = Anthropic()
+    msg = client.messages.create(
+        model=settings.anthropic_model, max_tokens=1400,
+        messages=[{"role": "user", "content": _QUIZ_PROMPT.format(k=k, doc=safe_text)}],
+    )
+    raw = "".join(getattr(b, "text", "") for b in msg.content)
+    out: list[dict] = []
+    for it in _parse_json_array(raw):
+        if isinstance(it, dict):
+            q, correct = str(it.get("q", "")).strip(), str(it.get("correct", "")).strip()
+            dz = [str(x).strip() for x in (it.get("distractors") or []) if str(x).strip()]
+            if q and correct:
+                out.append({"q": q, "correct": correct, "distractors": dz[:3]})
+    return out[:k]
+
+
+def make_quiz(safe_text: str, spans: list[Span], provider: str, *, k: int) -> list[dict]:
+    """Draft candidate quiz questions (q/correct/distractors) from the SANITIZED text. `stub` offline; `anthropic`
+    real; error → stub. The pipeline grounds the CORRECT answer (cite-or-drop) before showing a question."""
+    if provider == "anthropic":
+        try:
+            return _anthropic_quiz(safe_text, k)
+        except Exception:
+            return _stub_quiz(spans, k)
+    return _stub_quiz(spans, k)

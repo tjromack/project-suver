@@ -144,7 +144,7 @@ def all_tools() -> list[Tool]:
 
 
 # Platform display order in the hub (unknown platforms sort after these, alphabetically).
-_PLATFORM_ORDER = ("Documents", "Communications", "Data & Analysis")
+_PLATFORM_ORDER = ("Documents", "Communications", "Data & Analysis", "Learning")
 
 
 def by_platform() -> list[tuple[str, list[Tool]]]:
@@ -173,4 +173,6 @@ def load_builtin() -> None:
     from app.tools import spreadsheet  # noqa: F401  (live — platform #3: Data & Analysis, 1st tool)
     from app.tools import data_summary  # noqa: F401  (live — Data & Analysis, 2nd tool)
     from app.tools import chart  # noqa: F401  (live — Data & Analysis, 3rd tool)
+    from app.tools import flashcards  # noqa: F401  (live — platform #4: Learning, 1st tool; DEC 044)
+    from app.tools import quiz  # noqa: F401  (live — Learning, 2nd tool)
     from app.tools import coming_soon  # noqa: F401  (no soon cards currently)

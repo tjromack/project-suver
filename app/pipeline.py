@@ -42,6 +42,8 @@ from app.provider import (
     expand_query,
     extract_action_items,
     extract_items,
+    make_flashcards,
+    make_quiz,
     narrate_table,
     plan_query,
     read_image,
@@ -1781,3 +1783,162 @@ def read_image_document(data: bytes, media_type: str, *, provider: str | None = 
         transcription=raw, sanitized=sanitized, sensitive_count=sensitive, sensitive_classes=classes,
         media_type=media_type, provider=provider, chars=len(raw), offline=offline, no_text=no_text,
     )
+
+
+# --- Learning platform (DEC 044): a document -> study material, cite-or-drop on every answer ------------------
+# Turn a document into flashcards or a quiz. Same trust posture as Summarize: sanitize before the model, the model
+# drafts study items, and the deterministic grounding gate verifies each item's ANSWER against a source span — an
+# item that can't be grounded is dropped (withheld), never invented. Tokens re-hydrate locally for display.
+
+def _best_span(answer: str, spans: list[Span]) -> tuple[Span | None, float]:
+    """The source span that best supports `answer`, with its exact-token support score (the cite-or-drop gate)."""
+    best: Span | None = None
+    best_s = 0.0
+    for sp in spans:
+        s = support(answer, sp.text)
+        if s > best_s:
+            best_s, best = s, sp
+    return best, best_s
+
+
+@dataclass(frozen=True)
+class Flashcard:
+    question: str
+    answer: str
+    span_id: str
+    span_text: str
+    support: float
+
+
+@dataclass(frozen=True)
+class FlashcardsResult:
+    cards: list = field(default_factory=list)
+    withheld_count: int = 0                 # candidate cards dropped because their answer didn't ground
+    handled_count: int = 0
+    handled_classes: list = field(default_factory=list)
+    decision: str = "clear"
+    provider: str = "stub"
+    kind: str = "text"
+    source_chars: int = 0
+    blocked: bool = False
+    block_message: str | None = None
+
+    @property
+    def handled_note(self) -> str:
+        n = self.handled_count
+        if n == 0:
+            return "No sensitive items detected"
+        return f"{n} sensitive {'item' if n == 1 else 'items'} handled before the model"
+
+
+@dataclass(frozen=True)
+class QuizQ:
+    question: str
+    options: list                            # the shuffled choices (correct + distractors)
+    correct_index: int                       # which option is correct
+    span_id: str
+    span_text: str
+    support: float
+
+
+@dataclass(frozen=True)
+class QuizResult:
+    questions: list = field(default_factory=list)
+    withheld_count: int = 0
+    handled_count: int = 0
+    handled_classes: list = field(default_factory=list)
+    decision: str = "clear"
+    provider: str = "stub"
+    kind: str = "text"
+    source_chars: int = 0
+    blocked: bool = False
+    block_message: str | None = None
+
+    @property
+    def handled_note(self) -> str:
+        n = self.handled_count
+        if n == 0:
+            return "No sensitive items detected"
+        return f"{n} sensitive {'item' if n == 1 else 'items'} handled before the model"
+
+
+def _learn_prep(text: str, provider: str | None):
+    """Shared front half: sanitize (fail-closed) + split. Returns (boundary, safe_text, spans, provider) or a
+    (None, ...) tuple carrying the block decision."""
+    provider = provider or settings.provider
+    boundary = sanitize(text, default_policy())
+    if boundary.safe_text is None:
+        return boundary, None, [], provider
+    return boundary, boundary.safe_text, split_document(boundary.safe_text), provider
+
+
+def flashcards_text(text: str, *, kind: str = "text", provider: str | None = None) -> FlashcardsResult:
+    boundary, safe, spans, provider = _learn_prep(text, provider)
+    handled, classes = len(boundary.spans), boundary.classes
+    if safe is None:
+        return FlashcardsResult(handled_count=handled, handled_classes=classes, decision=boundary.decision,
+                                provider=provider, kind=kind, source_chars=len(text), blocked=True,
+                                block_message=_BLOCK_MSG.format(classes=", ".join(classes) or "restricted content"))
+    tmap = boundary.token_map
+    cands = make_flashcards(safe, spans, provider, k=settings.learn_max_cards)
+    cards, withheld, seen = [], 0, set()
+    for c in cands:
+        q, a = (c.get("q") or "").strip(), (c.get("a") or "").strip()
+        sp, sc = _best_span(a, spans)
+        key = a.lower()
+        if sp and sc >= settings.ground_threshold and key and key not in seen:
+            seen.add(key)
+            cards.append(Flashcard(question=rehydrate(q, tmap), answer=rehydrate(a, tmap),
+                                   span_id=sp.id, span_text=rehydrate(sp.text, tmap), support=round(sc, 4)))
+        else:
+            withheld += 1
+    return FlashcardsResult(cards=cards, withheld_count=withheld, handled_count=handled, handled_classes=classes,
+                            decision=boundary.decision, provider=provider, kind=kind, source_chars=len(text))
+
+
+def quiz_text(text: str, *, kind: str = "text", provider: str | None = None) -> QuizResult:
+    boundary, safe, spans, provider = _learn_prep(text, provider)
+    handled, classes = len(boundary.spans), boundary.classes
+    if safe is None:
+        return QuizResult(handled_count=handled, handled_classes=classes, decision=boundary.decision,
+                          provider=provider, kind=kind, source_chars=len(text), blocked=True,
+                          block_message=_BLOCK_MSG.format(classes=", ".join(classes) or "restricted content"))
+    tmap = boundary.token_map
+    cands = make_quiz(safe, spans, provider, k=settings.quiz_max_questions)
+    qs, withheld, seen = [], 0, set()
+    for i, c in enumerate(cands):
+        q, correct = (c.get("q") or "").strip(), (c.get("correct") or "").strip()
+        dz = [(d or "").strip() for d in (c.get("distractors") or []) if (d or "").strip()][:3]
+        sp, sc = _best_span(correct, spans)
+        key = (q.lower(), correct.lower())
+        if sp and sc >= settings.ground_threshold and correct and key not in seen:
+            seen.add(key)
+            options = [rehydrate(d, tmap) for d in dz]
+            pos = i % (len(options) + 1)                       # rotate the correct option's slot (not always first)
+            options.insert(pos, rehydrate(correct, tmap))
+            qs.append(QuizQ(question=rehydrate(q, tmap), options=options, correct_index=pos,
+                            span_id=sp.id, span_text=rehydrate(sp.text, tmap), support=round(sc, 4)))
+        else:
+            withheld += 1
+    return QuizResult(questions=qs, withheld_count=withheld, handled_count=handled, handled_classes=classes,
+                      decision=boundary.decision, provider=provider, kind=kind, source_chars=len(text))
+
+
+def flashcards_document(filename: str, data: bytes | str, *, provider: str | None = None) -> FlashcardsResult:
+    r = extract_text(filename, data)
+    return flashcards_text(r.text, kind=r.kind, provider=provider)
+
+
+def flashcards_paste(text: str, *, provider: str | None = None) -> FlashcardsResult:
+    r = from_paste(text)
+    return flashcards_text(r.text, kind=r.kind, provider=provider)
+
+
+def quiz_document(filename: str, data: bytes | str, *, provider: str | None = None) -> QuizResult:
+    r = extract_text(filename, data)
+    return quiz_text(r.text, kind=r.kind, provider=provider)
+
+
+def quiz_paste(text: str, *, provider: str | None = None) -> QuizResult:
+    r = from_paste(text)
+    return quiz_text(r.text, kind=r.kind, provider=provider)

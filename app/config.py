@@ -77,6 +77,10 @@ class Settings:
     # "Chart your spreadsheet": at most this many bars per chart, and this many numeric measures charted.
     chart_max_bars: int = int(os.getenv("CHART_MAX_BARS", "12"))
     chart_max_measures: int = int(os.getenv("CHART_MAX_MEASURES", "3"))
+    # Learning platform (DEC 044): how many flashcards / quiz questions to aim for. Each item's answer must still
+    # ground to a source span (cite-or-drop) or it's dropped — so the actual count can be lower on a thin document.
+    learn_max_cards: int = int(os.getenv("LEARN_MAX_CARDS", "8"))
+    quiz_max_questions: int = int(os.getenv("QUIZ_MAX_QUESTIONS", "5"))
     samples_dir: Path = REPO_ROOT / os.getenv("SAMPLES_DIR", "data/samples")
     # Accounts & saved work (persistence MVP, DEC 034). One SQLite file — trivial to run/back up/hand to a client;
     # swap for Postgres by changing app/store.py only. Cookie name for the opaque session token. Anonymous use needs

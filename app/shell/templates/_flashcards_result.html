@@ -1,0 +1,54 @@
+<style>
+  .res{padding:22px}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:var(--radius);font-size:13px;
+    font-weight:600;background:var(--good-soft);color:var(--good)}
+  .chip.none{background:var(--accent-soft);color:var(--accent)}
+  .metaline{color:var(--faint);font-size:12.5px;margin-top:10px}
+  .cards{margin-top:16px;display:flex;flex-direction:column;gap:12px}
+  .fcard{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .fcard .q{padding:13px 16px;font-weight:600;font-size:15px;color:var(--ink);background:var(--accent-soft)}
+  .fcard .a{padding:13px 16px;font-size:14.5px;color:var(--ink);line-height:1.5}
+  .fcard details{border-top:1px solid var(--line)}
+  .fcard summary{cursor:pointer;color:var(--good);font-size:12px;font-weight:600;list-style:none;padding:9px 16px}
+  .fcard summary::-webkit-details-marker{display:none}
+  .fcard summary::before{content:"› ";}
+  .fcard details[open] summary::before{content:"⌄ ";}
+  .span{margin:0 16px 13px;padding:11px 13px;border-left:3px solid var(--good);background:var(--good-soft);
+    border-radius:var(--radius);font-size:13.5px;color:var(--muted)}
+  .span .lbl{display:block;color:var(--faint);font-size:11px;font-weight:700;letter-spacing:.03em;margin-bottom:4px}
+  .withheld{margin-top:14px;color:var(--faint);font-size:12.5px}
+  .blocked{padding:20px;border-radius:var(--radius);background:var(--warn-soft);color:var(--warn)}
+  .blocked strong{display:block;margin-bottom:4px;font-size:15px}
+  .empty{margin-top:14px;padding:16px 18px;border-radius:var(--radius);background:var(--accent-soft)}
+  .empty strong{display:block;margin-bottom:4px;color:var(--accent)}
+</style>
+
+<div class="panel res">
+  {% if r.handled_count > 0 %}<span class="chip">🛡 {{ r.handled_note }}</span>
+  {% else %}<span class="chip none">🛡 {{ r.handled_note }}</span>{% endif %}
+  <div class="metaline">
+    boundary: <strong>{{ r.decision }}</strong>
+    {% if r.handled_classes %}· handled: {{ r.handled_classes | join(", ") }}{% endif %}
+    · source: {{ r.kind }} ({{ "{:,}".format(r.source_chars) }} chars) · by: {{ r.provider }}
+  </div>
+
+  {% if r.blocked %}
+    <div class="blocked" style="margin-top:12px"><strong>Kept on your device — not sent.</strong>{{ r.block_message }}</div>
+  {% elif r.cards %}
+    <div class="cards">
+      {% for c in r.cards %}
+        <div class="fcard">
+          <div class="q">{{ c.question }}</div>
+          <div class="a">{{ c.answer }}</div>
+          <details>
+            <summary>{{ c.span_id }} · from your document · support {{ "%.0f"|format(c.support*100) }}%</summary>
+            <div class="span"><span class="lbl">{{ c.span_id }}</span>{{ c.span_text }}</div>
+          </details>
+        </div>
+      {% endfor %}
+    </div>
+    {% if r.withheld_count %}<div class="withheld">{{ r.withheld_count }} draft card{{ 's' if r.withheld_count != 1 else '' }} dropped — the answer couldn’t be grounded in your document (cite-or-drop; it won’t invent).</div>{% endif %}
+  {% else %}
+    <div class="empty"><strong>No groundable flashcards</strong>Nothing in this text produced a card whose answer is clearly supported — the tool won’t invent one. Try a more factual document.</div>
+  {% endif %}
+</div>
