@@ -6,14 +6,14 @@
   .metaline{color:var(--faint);font-size:12.5px;margin-top:10px}
   .cards{margin-top:16px;display:flex;flex-direction:column;gap:12px}
   .fcard{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
-  .fcard .q{padding:13px 16px;font-weight:600;font-size:15px;color:var(--ink);background:var(--accent-soft)}
-  .fcard .a{padding:13px 16px;font-size:14.5px;color:var(--ink);line-height:1.5}
-  .fcard details{border-top:1px solid var(--line)}
-  .fcard summary{cursor:pointer;color:var(--good);font-size:12px;font-weight:600;list-style:none;padding:9px 16px}
-  .fcard summary::-webkit-details-marker{display:none}
-  .fcard summary::before{content:"› ";}
-  .fcard details[open] summary::before{content:"⌄ ";}
-  .span{margin:0 16px 13px;padding:11px 13px;border-left:3px solid var(--good);background:var(--good-soft);
+  .fcard>summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:12px;
+    padding:14px 16px;font-weight:600;font-size:15px;color:var(--ink);background:var(--accent-soft)}
+  .fcard>summary::-webkit-details-marker{display:none}
+  .fcard .flip{font-size:11px;font-weight:600;color:var(--accent);white-space:nowrap}
+  .fcard[open] .flip{display:none}
+  .fcard .a{padding:14px 16px;font-size:15px;color:var(--ink);line-height:1.55;border-top:1px solid var(--line)}
+  .fcard .cite{padding:2px 16px 8px;color:var(--faint);font-size:11.5px}
+  .span{margin:0 16px 14px;padding:11px 13px;border-left:3px solid var(--good);background:var(--good-soft);
     border-radius:var(--radius);font-size:13.5px;color:var(--muted)}
   .span .lbl{display:block;color:var(--faint);font-size:11px;font-weight:700;letter-spacing:.03em;margin-bottom:4px}
   .withheld{margin-top:14px;color:var(--faint);font-size:12.5px}
@@ -35,16 +35,15 @@
   {% if r.blocked %}
     <div class="blocked" style="margin-top:12px"><strong>Kept on your device — not sent.</strong>{{ r.block_message }}</div>
   {% elif r.cards %}
+    <p class="metaline">Tap a card to flip it — the question is on the front, the cited answer on the back.</p>
     <div class="cards">
       {% for c in r.cards %}
-        <div class="fcard">
-          <div class="q">{{ c.question }}</div>
+        <details class="fcard">
+          <summary class="q"><span>{{ c.question }}</span><span class="flip">tap to flip ⤵</span></summary>
           <div class="a">{{ c.answer }}</div>
-          <details>
-            <summary>{{ c.span_id }} · from your document · support {{ "%.0f"|format(c.support*100) }}%</summary>
-            <div class="span"><span class="lbl">{{ c.span_id }}</span>{{ c.span_text }}</div>
-          </details>
-        </div>
+          <div class="cite">{{ c.span_id }} · cited from your document · support {{ "%.0f"|format(c.support*100) }}%</div>
+          <div class="span"><span class="lbl">{{ c.span_id }}</span>{{ c.span_text }}</div>
+        </details>
       {% endfor %}
     </div>
     {% if r.withheld_count %}<div class="withheld">{{ r.withheld_count }} draft card{{ 's' if r.withheld_count != 1 else '' }} dropped — the answer couldn’t be grounded in your document (cite-or-drop; it won’t invent).</div>{% endif %}

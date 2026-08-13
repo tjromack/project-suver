@@ -49,7 +49,7 @@
               <div class="opt" data-i="{{ loop.index0 }}">{{ "ABCD"[loop.index0] }}. {{ opt }}</div>
             {% endfor %}
           </div>
-          <button type="button" class="reveal">Show answer</button>
+          <button type="button" class="reveal" onclick="var q=this.closest('.qq');var ci=+q.dataset.correct;q.querySelectorAll('.opt').forEach(function(o){if(+o.dataset.i===ci)o.classList.add('correct');});var s=q.querySelector('.src');if(s)s.hidden=false;this.remove();">Show answer</button>
           <div class="src" hidden>
             <details><summary>{{ q.span_id }} · cited from your document · support {{ "%.0f"|format(q.support*100) }}%</summary>
               <div class="span"><span class="lbl">{{ q.span_id }}</span>{{ q.span_text }}</div>
@@ -59,19 +59,6 @@
       {% endfor %}
     </div>
     {% if r.withheld_count %}<div class="withheld">{{ r.withheld_count }} draft question{{ 's' if r.withheld_count != 1 else '' }} dropped — the correct answer couldn’t be grounded in your document (cite-or-drop).</div>{% endif %}
-    <script>
-      (function(){
-        document.querySelectorAll('.qq').forEach(function(qq){
-          var btn=qq.querySelector('.reveal'); if(!btn) return;
-          btn.addEventListener('click',function(){
-            var ci=parseInt(qq.getAttribute('data-correct'));
-            qq.querySelectorAll('.opt').forEach(function(o){ if(parseInt(o.getAttribute('data-i'))===ci) o.classList.add('correct'); });
-            var src=qq.querySelector('.src'); if(src) src.hidden=false;
-            btn.remove();
-          });
-        });
-      })();
-    </script>
   {% else %}
     <div class="empty"><strong>No groundable questions</strong>Nothing in this text produced a question whose correct answer is clearly supported — the tool won’t invent one. Try a more factual document.</div>
   {% endif %}
