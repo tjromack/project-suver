@@ -5,7 +5,7 @@ suite becomes: an AI **tool hub that removes the prompt.** This repo is Suver's 
 the hub launcher, and the tools). `DESIGN.md` holds the original spec (written when Summarize was the pilot); this
 file is the *how we work* contract. Product North Star: `../_PLATFORM/VISION.md`.
 
-## What this is  *(status: a multi-platform hub — 13 live tools across 3 platforms, 2026-08-10)*
+## What this is  *(status: a multi-platform hub — 16 live tools across 4 platforms, 2026-08-13; 222 tests)*
 > *Beyond the tools (as of 2026-08-10): a measured **Trust & Quality eval** (`eval/`, real-model scorecard **20/20** —
 > 0 hallucination, 0 fabrication; DEC 033); an optional, **pilot-grade accounts + saved-work** layer (`app/store.py`,
 > SQLite; sign in → save a document + question → resume; anonymous use untouched; `Dockerfile` + `DESIGN-PARTNER-KIT.md`
@@ -33,6 +33,11 @@ and re-hydrated locally. **Platform #1 — Documents** (*read · ask · write ·
   document** (the first **N-document** tool). *Map, don't blend:* the question is answered strictly within each
   document (reusing the single-doc grounding), so a fact from one document can **never** contaminate another's answer;
   attribution is correct by construction. A document that must stay local is **skipped** (named), never searched.
+- **Read an image ("Read an image")** — drop a PNG/JPG/GIF/WEBP → a faithful transcription of its visible text (the
+  first **image** input; DEC 041). The **honest-boundary** modality: you can't tokenize PII *inside* pixels, so it's
+  transparent that the image is sent to the model as-is, the model transcribes **only what's visible** (marks unreadable,
+  never guesses — the vision analog of abstain), and the data boundary runs on the **output** (detect + flag + a
+  sanitized copy for downstream). Same principle, adapted where the pre-egress guarantee can't hold.
 
 **Platform #2 — Communications** (the hub is not one Documents app):
 - **Meeting notes → actions** — drop meeting notes or a transcript → a list of **action items** (*who · what · by
@@ -57,6 +62,13 @@ and re-hydrated locally. **Platform #1 — Documents** (*read · ask · write ·
 - **Chart your spreadsheet** — drop a CSV → **bar charts** (each numeric column totalled by category), dependency-free
   CSS bars. **Accurate by construction + fully local** — the sums are computed from your rows; **no model call at all**
   (nothing sent). A new output modality (a visualization). Zero-config.
+
+**Platform #4 — Learning** (a document → study material; DEC 044 — the shell generalizes a 5th time, no new contract field):
+- **Flashcards** — drop a document → Q&A study cards, each **answer cited to a source span**; a card that can't ground
+  is **dropped, never invented** (same cite-or-drop discipline as Summarize). Flip-to-reveal; export a deck (CSV,
+  Anki/Quizlet-importable; DEC 045).
+- **Quiz me** — drop a document → multiple-choice questions; each **correct answer cited to a span**, plausible
+  distractors, a "Show answer" reveal. The model drafts, the deterministic grounding gate verifies before a question shows.
 
 It **composes built engines** (vendored lean cores, not forks): `phi-pii-data-boundary` (sanitize, under every
 tool) · `summarize-brief-generator` (split + cite-or-drop) · `draft-template-responder` (template + cite-or-block)

@@ -26,9 +26,9 @@ Suver fixes both:
 - **Trust you can measure.** A labeled evaluation scores the product on the real model — **20/20: 0 hallucinations,
   0 fabrications** — and re-runs on your own documents.
 
-## The tools — 13 across 3 platforms
+## The tools — 16 across 4 platforms
 
-**📄 Documents** — *read · ask · write · pull data · compare · chat · ask across*
+**📄 Documents** — *read · ask · write · pull data · compare · chat · ask across · read an image*
 - **Summarize** — a cited summary; unsupported points are withheld, never shown as trusted.
 - **Ask this document** — a grounded, cited answer, or an honest "not in your document."
 - **Draft** — pick a kind → a grounded memo; a section that can't be grounded is blocked, never faked.
@@ -37,6 +37,9 @@ Suver fixes both:
 - **Chat with a document** — multi-turn, grounded, follow-ups and all.
 - **Ask across your documents** — one question over a whole set → one cited answer **per document**, so a fact from
   one can never contaminate another's.
+- **Read an image** — drop a receipt, form, or screenshot → a faithful transcription. Because you can't tokenize PII
+  inside pixels, it's **transparent** that the image is sent as-is, and the data boundary runs on the *output* —
+  flagging any sensitive items and offering a sanitized copy.
 
 **✉️ Communications** — *sort inbound · draft outbound · extract from meetings*
 - **Meeting notes → actions** — action items (who · what · by when), grounded; owner/due only if actually stated.
@@ -47,6 +50,11 @@ Suver fixes both:
 - **Ask your spreadsheet** — an exact answer computed from your rows, showing the cells it used.
 - **Summarize a spreadsheet** — a plain-language overview + a computed column profile; every figure calculated, not invented.
 - **Chart your spreadsheet** — bar charts totalled by category, computed locally (no model call at all).
+
+**🎓 Learning** — *turn a document into study material*
+- **Flashcards** — Q&A study cards, each answer **cited to your text**; a card that can't be grounded is dropped, never
+  invented. Flip-to-reveal, and export a deck (CSV — Anki/Quizlet-importable).
+- **Quiz me** — multiple-choice questions; every correct answer is **cited to your document**.
 
 ## Trust, measured — not asserted
 `python -m eval.run` grades a labeled set on the real model across four categories — answerable (recall), unanswerable
@@ -63,11 +71,13 @@ One reusable, no-prompt **shell + hub**, with the trust machinery shared by ever
 > **ingest → sanitize → retrieve/split → draft (LLM) → ground (cite-or-abstain) → re-hydrate → show**
 
 The model only ever sees sanitized text; sanitizing, splitting, and grounding are deterministic and never call a model.
-New verticals (legal, healthcare, finance) are added by **configuration, not forks**. Accounts + saved work, per-user
-usage quotas & tiers (so a public instance can't run up the API bill), and a Docker deploy are included.
+New verticals (legal, healthcare, finance) are added by **configuration, not forks**. Retrieval quality is tunable — an
+optional LLM re-ranker lifts recall **without touching the grounding gate** — and a 👍/👎 feedback → review queue lets
+the tools learn from real use, **privacy by design** (it stores no document or answer content). Accounts + saved work,
+per-user usage quotas & tiers (so a public instance can't run up the API bill), and a Docker deploy are included.
 
 **Stack:** Python · FastAPI · Jinja/HTMX · SQLite · Docker · Claude (real model) with an offline stub for deterministic
-tests · a **190-test** suite. Synthetic/public data only in this repo; the product runs on your real documents.
+tests · a **222-test** suite. Synthetic/public data only in this repo; the product runs on your real documents.
 
 ## Run it locally
 ```bash
