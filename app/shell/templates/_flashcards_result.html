@@ -21,6 +21,10 @@
   .blocked strong{display:block;margin-bottom:4px;font-size:15px}
   .empty{margin-top:14px;padding:16px 18px;border-radius:var(--radius);background:var(--accent-soft)}
   .empty strong{display:block;margin-bottom:4px;color:var(--accent)}
+  .fctools{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px}
+  .dlbtn{appearance:none;border:1px solid var(--accent);background:none;color:var(--accent);font:inherit;font-size:13px;
+    font-weight:600;padding:7px 13px;border-radius:var(--radius);cursor:pointer;white-space:nowrap}
+  .dlbtn:hover{background:var(--accent-soft)}
 </style>
 
 <div class="panel res">
@@ -35,7 +39,11 @@
   {% if r.blocked %}
     <div class="blocked" style="margin-top:12px"><strong>Kept on your device — not sent.</strong>{{ r.block_message }}</div>
   {% elif r.cards %}
-    <p class="metaline">Tap a card to flip it — the question is on the front, the cited answer on the back.</p>
+    <div class="fctools">
+      <span class="metaline" style="margin:0">Tap a card to flip it — question on the front, cited answer on the back.</span>
+      <button type="button" class="dlbtn" onclick="suverDownloadCsv('fcdata','flashcards.csv')">⬇ Download deck (.csv)</button>
+    </div>
+    <script type="application/json" id="fcdata">[["Question","Answer"]{% for c in r.cards %},[{{ c.question|tojson }},{{ c.answer|tojson }}]{% endfor %}]</script>
     <div class="cards">
       {% for c in r.cards %}
         <details class="fcard">

@@ -93,3 +93,11 @@ def test_routes_render():
     assert a.status_code == 200 and "boundary:" in a.text
     b = client.post("/t/quiz/run", data={"paste": WC})
     assert b.status_code == 200 and "Show answer" in b.text
+
+
+def test_learning_outputs_are_downloadable(monkeypatch):
+    """DEC 045: a usable deck, not just readable — a CSV download (data + button) for flashcards and quiz."""
+    a = client.post("/t/flashcards/run", data={"paste": WC})
+    assert "Download deck (.csv)" in a.text and 'id="fcdata"' in a.text
+    b = client.post("/t/quiz/run", data={"paste": WC})
+    assert "Download (.csv)" in b.text and 'id="qzdata"' in b.text

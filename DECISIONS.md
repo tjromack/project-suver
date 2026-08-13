@@ -1057,3 +1057,19 @@ source span — a card/question that can't ground is **dropped (withheld), never
 quiz correct grounded+placed · quiz drop-ungroundable · platform registered · hub shows it · both routes render).
 ⏳ **Trevor manual:** live-verify the two **"Try an example"** samples on the real model (the water-cycle paragraph),
 and a demo pass of Flashcards + Quiz on a real doc. **16 tools · 4 platforms · Learning live.** Next entry = **DEC 045**.
+
+### DEC 045 — Learning export: make the study output *usable*, not just readable (+ a partials-safe download helper)
+**Context.** Trevor's honest demo note on Flashcards: *"it's not really making flashcards — just the content you'd put
+into your own."* Fair. The output was grounded and correct but not directly usable. (Also fixed same pass: the Quiz
+"Show answer" did nothing — a **`<script>` inside an HTMX-injected partial doesn't execute**; and Flashcards now flip.)
+
+**Decision.** Add a **downloadable deck** — a **CSV export** for Flashcards (Question,Answer — importable into Anki /
+Quizlet) and Quiz (Question, Correct answer, All options). Implemented **fully locally** (no model call, nothing sent):
+each result embeds its rows as a JSON `<script type="application/json">` and a **"⬇ Download (.csv)"** button calls a
+page-level `window.suverDownloadCsv(id, filename)` helper in the shell (`tool.html`) that CSV-encodes and downloads.
+⭐ **The reusable lesson banked:** scripts inside a partial swapped in via `innerHTML` **don't run**, so interactive
+result behavior must be an **inline handler** or a **page-level function** — used here (and for the Quiz reveal fix).
+
+**Status.** Accepted. 220 → **221 tests** (+1: both routes render the download data + button). Fully local export;
+Flashcards flip; Quiz reveal fixed. Backlog (Trevor's note): a richer export — an Anki `.apkg` / a print "study mode".
+**16 tools · 4 platforms.** Next entry = **DEC 046**.

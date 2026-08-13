@@ -26,6 +26,10 @@
   .blocked strong{display:block;margin-bottom:4px;font-size:15px}
   .empty{margin-top:14px;padding:16px 18px;border-radius:var(--radius);background:var(--accent-soft)}
   .empty strong{display:block;margin-bottom:4px;color:var(--accent)}
+  .fctools{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px}
+  .dlbtn{appearance:none;border:1px solid var(--accent);background:none;color:var(--accent);font:inherit;font-size:13px;
+    font-weight:600;padding:7px 13px;border-radius:var(--radius);cursor:pointer;white-space:nowrap}
+  .dlbtn:hover{background:var(--accent-soft)}
 </style>
 
 <div class="panel res">
@@ -40,6 +44,11 @@
   {% if r.blocked %}
     <div class="blocked" style="margin-top:12px"><strong>Kept on your device — not sent.</strong>{{ r.block_message }}</div>
   {% elif r.questions %}
+    <div class="fctools">
+      <span class="metaline" style="margin:0">Answer each, then reveal — the correct answer is cited to your document.</span>
+      <button type="button" class="dlbtn" onclick="suverDownloadCsv('qzdata','quiz.csv')">⬇ Download (.csv)</button>
+    </div>
+    <script type="application/json" id="qzdata">[["Question","Correct answer","All options"]{% for q in r.questions %},[{{ q.question|tojson }},{{ q.options[q.correct_index]|tojson }},{{ (q.options|join(" | "))|tojson }}]{% endfor %}]</script>
     <div class="quiz">
       {% for q in r.questions %}
         <div class="qq" data-correct="{{ q.correct_index }}">
