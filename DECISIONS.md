@@ -989,3 +989,26 @@ about what's sent, protect the output." Reuses `phi-pii-data-boundary` (compose,
 email+SSN · no-readable-text · registration · run input validation · route renders the trust note · shell renders).
 Live image demo is a **Trevor checkpoint** (a real receipt/form/screenshot on `PROVIDER=anthropic`; confirm a grounded
 read + the trust gate). **14 tools · 3 platforms · Documents now 8 (first image input).** Next entry = **DEC 042**.
+
+### DEC 042 — Feedback → review queue: close the loop with an online-eval signal (privacy by design)
+**Context.** Suver's trust is *measured* offline (the 20/20 eval, DEC 033) — but a real product also learns from live
+use. The missing piece is a lightweight way for a user to say "this was/ wasn't useful" and for that to become a review
+signal. This is the "online vs offline eval" gap and ties to the `feedback-retrain-loop` engine.
+
+**Decision.** Add a **👍 / 👎 / ⚑ flag** bar under every result + a **/reviews** queue. A verdict (plus an optional
+user-typed note) posts to `/feedback` and is stored; the **/reviews** page shows the online-eval tally (👍/👎/⚑) and the
+**👎/flag queue** — the items a human curates into the offline eval set (`eval/`). Implemented lean/dependency-free: a
+`feedback` table + `add_feedback`/`recent_feedback`/`feedback_counts` in `store.py`; `/feedback` (POST) + `/reviews`
+(GET) in `main.py`; the feedback bar in the shell (`tool.html`), revealed after any result.
+
+⭐ **Privacy by design (the trust story).** The `feedback` table has **no column for document or answer content** — it
+stores only the **tool slug, the verdict, and the note the user chose to type**. So the online-eval signal is captured
+**without ever retaining a user's document.** A flagged case is a *candidate* for the labeled eval set; a human decides
+what to add, using their own copy of the input — the product never harvests user content to grow the eval. A feedback
+click also **never fails loudly** (any error still returns a calm "thanks"). Anonymous use is untouched (no account
+needed to give feedback).
+
+**Status.** Accepted. 203 → **210 tests** (+7: add/query/counts + review-only filter · bad-verdict rejected ·
+schema-has-no-content-column · route records · route never-errors-on-bad-verdict · reviews page renders the queue ·
+shell shows the bar). Demo checkpoint (Trevor): click 👍/👎 on a result, then open **/reviews** and see it land. This
+closes the build→**learn-from-use**→sharpen loop. **14 tools · 3 platforms · online-eval signal live.** Next entry = **DEC 043**.

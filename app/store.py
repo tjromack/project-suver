@@ -98,6 +98,18 @@ def init_db() -> None:
                 count INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY (subject, day)
             );
+            -- Feedback → review queue (DEC 042): the "online eval" signal. A 👍/👎/flag on a result, plus an optional
+            -- user note. ⭐ PRIVACY BY DESIGN: no document content or answer text is ever stored — only which tool, the
+            -- verdict, and the note the user chooses to type. 👎/flag items become the review queue that informs the
+            -- (human-curated) offline eval set.
+            CREATE TABLE IF NOT EXISTS feedback (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tool_slug TEXT NOT NULL,
+                verdict TEXT NOT NULL,            -- 'up' | 'down' | 'flag'
+                note TEXT NOT NULL DEFAULT '',    -- optional; user-typed only (never document content)
+                subject TEXT NOT NULL DEFAULT '',
+                created_at REAL NOT NULL
+            );
             """
         )
         # migrate an older users table (created before the plan column existed)
@@ -237,6 +249,50 @@ def get_item(user_id: int, item_id: int) -> SavedItem | None:
 def delete_item(user_id: int, item_id: int) -> None:
     with _conn() as con:
         con.execute("DELETE FROM saved_items WHERE id = ? AND user_id = ?", (item_id, user_id))
+
+
+# --- feedback → review queue (DEC 042) — the online-eval signal (privacy by design: no content stored) ----
+
+@dataclass(frozen=True)
+class Feedback:
+    id: int
+    tool_slug: str
+    verdict: str            # 'up' | 'down' | 'flag'
+    note: str
+    subject: str
+    created_at: float
+
+
+def add_feedback(tool_slug: str, verdict: str, note: str = "", subject: str = "") -> int:
+    """Record a 👍/👎/flag on a result + an optional user note. Never stores document/answer content — only the tool,
+    the verdict, and the typed note. Raises ValueError on a bad verdict (the route swallows it into a friendly reply)."""
+    verdict = (verdict or "").strip().lower()
+    if verdict not in ("up", "down", "flag"):
+        raise ValueError("verdict must be up|down|flag")
+    with _conn() as con:
+        cur = con.execute(
+            "INSERT INTO feedback (tool_slug, verdict, note, subject, created_at) VALUES (?,?,?,?,?)",
+            ((tool_slug or "").strip()[:80], verdict, (note or "").strip()[:500], (subject or "")[:80], time.time()),
+        )
+        return cur.lastrowid
+
+
+def recent_feedback(limit: int = 100, *, only_review: bool = False) -> list[Feedback]:
+    """Recent feedback, newest first. `only_review=True` returns just the 👎/flag items — the review queue."""
+    q = "SELECT * FROM feedback"
+    if only_review:
+        q += " WHERE verdict IN ('down','flag')"
+    q += " ORDER BY id DESC LIMIT ?"
+    with _conn() as con:
+        rows = con.execute(q, (int(limit),)).fetchall()
+    return [Feedback(r["id"], r["tool_slug"], r["verdict"], r["note"], r["subject"], r["created_at"]) for r in rows]
+
+
+def feedback_counts() -> dict[str, int]:
+    """{'up': n, 'down': n, 'flag': n} — the at-a-glance online-eval tally."""
+    with _conn() as con:
+        rows = con.execute("SELECT verdict, COUNT(*) AS c FROM feedback GROUP BY verdict").fetchall()
+    return {r["verdict"]: r["c"] for r in rows}
 
 
 # --- daily usage / quota (DEC 037) — protect the API budget before public exposure -------------------

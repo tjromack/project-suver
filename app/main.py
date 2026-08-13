@@ -155,6 +155,30 @@ async def tool_run(
     return templates.TemplateResponse(request, out.template, _ctx(request, tool=tool, r=out.result))
 
 
+# --- Feedback → review queue (DEC 042): the online-eval signal (privacy by design — no content is stored) -------
+
+@app.post("/feedback", response_class=HTMLResponse)
+async def feedback(request: Request, slug: str = Form(""), verdict: str = Form(""), note: str = Form("")):
+    """Record a 👍/👎/flag on a result + an optional user note. Never stores document/answer content. A feedback
+    click must never fail loudly — any error still returns a calm thanks."""
+    subject, _ = _quota_subject(request, _current_user(request))
+    try:
+        store.add_feedback(slug, verdict, note, subject=subject)
+    except Exception:
+        return HTMLResponse("Thanks.")
+    return HTMLResponse("Thanks — logged for review.")
+
+
+@app.get("/reviews", response_class=HTMLResponse)
+def reviews(request: Request):
+    """The review queue + online-eval tally — 👎/flag items a human curates into the offline eval set (`eval/`)."""
+    return templates.TemplateResponse(
+        request, "reviews.html",
+        _ctx(request, review=store.recent_feedback(100, only_review=True),
+             recent=store.recent_feedback(20), counts=store.feedback_counts()),
+    )
+
+
 # --- Accounts & saved work (persistence MVP, DEC 034) — anonymous use is untouched; sign-in ADDS save/history ----
 
 def _set_session(resp: RedirectResponse, token: str) -> RedirectResponse:

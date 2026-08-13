@@ -129,6 +129,37 @@
 
   <div id="result" aria-live="polite"></div>
 
+  <style>
+    .fbbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px;padding:10px 2px;font-size:13px}
+    .fbbar .fbq{font-weight:600;color:var(--muted)}
+    .fbbtn{appearance:none;border:1px solid var(--line);background:var(--panel);color:var(--muted);font:inherit;
+      font-size:13px;padding:6px 12px;border-radius:var(--radius);cursor:pointer}
+    .fbbtn:hover{border-color:var(--accent);color:var(--accent)}
+    .fbbtn:disabled{opacity:.5;cursor:default}
+    .fbthanks{color:var(--good);font-weight:600}
+  </style>
+  <div id="feedbackbar" class="fbbar" hidden>
+    <span class="fbq">Was this useful?</span>
+    <button type="button" class="fbbtn" data-v="up">👍 Yes</button>
+    <button type="button" class="fbbtn" data-v="down">👎 No</button>
+    <button type="button" class="fbbtn" data-v="flag">⚑ Flag for review</button>
+    <span class="fbthanks" id="fbthanks" aria-live="polite" hidden></span>
+  </div>
+  <script>
+    (function(){
+      const bar=document.getElementById('feedbackbar'); if(!bar) return;
+      const th=document.getElementById('fbthanks');
+      bar.querySelectorAll('.fbbtn').forEach(b=>b.addEventListener('click',async ()=>{
+        let note='';
+        if(b.dataset.v!=='up'){ note=(prompt('Optional — what was off, or worth reviewing? (No document text is stored.)','')||''); }
+        const fd=new FormData(); fd.set('slug','{{ tool.slug }}'); fd.set('verdict',b.dataset.v); fd.set('note',note);
+        try{ const r=await fetch('/feedback',{method:'POST',body:fd}); th.textContent=await r.text(); }
+        catch(e){ th.textContent='Thanks.'; }
+        th.hidden=false; bar.querySelectorAll('.fbbtn').forEach(x=>x.disabled=true);
+      }));
+    })();
+  </script>
+
   <script>
     (function(){
       const form=document.getElementById('toolform'), result=document.getElementById('result'),
@@ -185,6 +216,9 @@
             ['drop','paste','filename'].forEach(id=>{const el=document.getElementById(id); if(el) el.style.display='none';});
             const or=document.querySelector('.or'); if(or) or.style.display='none';
           }
+          const fb=document.getElementById('feedbackbar');           // reveal the 👍/👎 feedback bar after a result
+          if(fb && resp.ok){ fb.hidden=false; const t=document.getElementById('fbthanks'); if(t){ t.hidden=true; t.textContent=''; }
+                             fb.querySelectorAll('.fbbtn').forEach(x=>x.disabled=false); }
         }catch(e){
           const w=document.getElementById('__wk'); if(w) w.remove();
           result.insertAdjacentHTML('beforeend','<div class="panel" style="padding:20px">Couldn’t reach the server. Try again.</div>');

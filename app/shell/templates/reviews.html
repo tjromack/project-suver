@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Review queue · Suver{% endblock %}
+{% block crumbs %}<a href="/">← all tools</a>{% endblock %}
+{% block head %}
+<style>
+  .rv h1{margin-bottom:2px}
+  .rv .lede{margin-bottom:20px;color:var(--muted)}
+  .tally{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:22px}
+  .stat{flex:1;min-width:130px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:16px 18px}
+  .stat .n{font-size:26px;font-weight:700}
+  .stat .l{color:var(--faint);font-size:12.5px;margin-top:4px}
+  .stat.up .n{color:var(--good)} .stat.down .n{color:var(--warn)} .stat.flag .n{color:var(--accent)}
+  .item{display:flex;align-items:flex-start;gap:12px;padding:14px 18px;background:var(--panel);border:1px solid var(--line);
+    border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:10px}
+  .item .v{font-size:18px}
+  .item .body{flex:1;min-width:0}
+  .item .top{font-weight:600;font-size:14px}
+  .item .note{color:var(--muted);font-size:13.5px;margin-top:4px;white-space:pre-wrap}
+  .item .meta{color:var(--faint);font-size:12px;margin-top:4px}
+  .empty{background:var(--panel);border:1px dashed var(--line);border-radius:var(--radius);padding:34px;text-align:center;color:var(--muted)}
+  .note-priv{color:var(--faint);font-size:12.5px;margin:14px 0 0}
+</style>
+{% endblock %}
+{% block body %}
+<div class="rv">
+  <h1>Review queue</h1>
+  <p class="lede">The <b>online-eval</b> signal — how the tools do with real use. 👎 and ⚑ items are the queue a human
+    curates into the offline eval set (<code>eval/</code>). <b>Privacy by design:</b> no document or answer text is ever
+    stored — only which tool, the verdict, and any note the user chose to type.</p>
+
+  <div class="tally">
+    <div class="stat up"><div class="n">{{ counts.get('up', 0) }}</div><div class="l">👍 useful</div></div>
+    <div class="stat down"><div class="n">{{ counts.get('down', 0) }}</div><div class="l">👎 not useful</div></div>
+    <div class="stat flag"><div class="n">{{ counts.get('flag', 0) }}</div><div class="l">⚑ flagged for review</div></div>
+  </div>
+
+  <h3>Needs review ({{ review|length }})</h3>
+  {% if review %}
+    {% for f in review %}
+      <div class="item">
+        <span class="v">{{ '👎' if f.verdict == 'down' else '⚑' }}</span>
+        <div class="body">
+          <div class="top">{{ f.tool_slug }}</div>
+          {% if f.note %}<div class="note">{{ f.note }}</div>{% endif %}
+          <div class="meta">{{ f.verdict }} · {{ f.created_at | int }}</div>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty">Nothing to review yet. When someone marks a result 👎 or ⚑, it lands here.</div>
+  {% endif %}
+
+  <p class="note-priv">A flagged case is a candidate for the labeled eval set — a human decides what (if anything) to add,
+    using their own copy of the input. The product never captures user documents to do this.</p>
+</div>
+{% endblock %}
