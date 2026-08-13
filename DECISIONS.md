@@ -959,3 +959,33 @@ existing tests unchanged**).
 no-op · pool-widening-and-reorder). Live before/after recall is a **Trevor demo checkpoint** (`python -m eval.run` with
 `RETRIEVAL_RERANK=1`; confirm recall ↑ and fabrications still 0 — the eval delta is the interview artifact). ⭐ Discipline
 banked, third time (DEC 031/032/040): **improve retrieval; never touch the grounding gate.** Next entry = **DEC 041**.
+
+### DEC 041 — Read an image (the 14th tool): the modality where the pre-egress boundary can't hold — so be transparent
+**Context.** Every Suver tool so far is text-in: the data boundary tokenizes PII **before** the model sees anything.
+Images break that assumption — you can't find-and-replace sensitive data *inside pixels* without first reading the
+image, and reading it means sending it. Adding a vision tool therefore forces an honest reckoning with the "safe on
+sensitive data" story rather than a quiet exception. (Claude is multimodal, so this is the **same Anthropic API** — no
+new vendor; it closes the "multimodal" gap on Trevor's own learning map.)
+
+**Decision.** Ship **"Read an image"** (slug `read-image`, 🖼️, Documents) — drop a PNG/JPG/GIF/WEBP → a faithful
+transcription of its visible text. The trust posture is **transparency + boundary-on-output**, not a false promise:
+- **Transparent input.** The drop-zone caption and the result's trust note state plainly that *the image is sent to
+  the AI as-is* — the text boundary can't tokenize inside a picture. (New `Tool` fields: `accept_ext`, `no_paste`,
+  `upload_note`; the shell renders an image drop zone with no paste box.)
+- **Honesty in the prompt (the vision analog of abstain/flag).** The model transcribes **only what's visible**, writes
+  `[unreadable]` for anything it can't read, and returns `[no readable text]` for a blank image — it never guesses at
+  content that isn't there.
+- **Boundary applied to the OUTPUT.** We run the data boundary over the returned transcription: **detect + flag** any
+  sensitive content (`sensitive_count`/`classes`) and offer a **sanitized copy** for anything the user shares
+  downstream. So even though the pre-egress guarantee can't apply to the pixels, the *text* is still protected onward.
+- **Offline honesty.** The stub can't read pixels → returns `""` → an honest "read it with the real model" note. It
+  never fabricates a transcription.
+
+⭐ **Same principle, adapted:** *never a confident fabrication* — here as "transcribe only what's visible, be transparent
+about what's sent, protect the output." Reuses `phi-pii-data-boundary` (compose, don't fork); `provider.read_image`
+(multimodal call) + `pipeline.read_image_document` (+ `image_media_type`) + `_vision_result.html`.
+
+**Status.** Accepted. 195 → **203 tests** (+8: media-type detection · stub-can't-read · boundary-on-output tokenizes
+email+SSN · no-readable-text · registration · run input validation · route renders the trust note · shell renders).
+Live image demo is a **Trevor checkpoint** (a real receipt/form/screenshot on `PROVIDER=anthropic`; confirm a grounded
+read + the trust gate). **14 tools · 3 platforms · Documents now 8 (first image input).** Next entry = **DEC 042**.

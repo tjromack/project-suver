@@ -44,6 +44,7 @@ from app.provider import (
     extract_items,
     narrate_table,
     plan_query,
+    read_image,
     rerank_passages,
 )
 from app.sessions import ConverseTurn, create_session, get_session
@@ -1722,3 +1723,61 @@ def chart_table_document(filename: str, data: bytes | str) -> ChartOutcome:
 def chart_table_paste(text: str) -> ChartOutcome:
     r = from_paste(text)
     return chart_table(r.text, doc_kind=r.kind)
+
+
+# --- Read an image (DEC 041): the modality where the pre-egress boundary can't hold — so be transparent ----------
+
+_IMAGE_TYPES = {
+    "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
+    "gif": "image/gif", "webp": "image/webp",
+}
+
+
+def image_media_type(filename: str) -> str | None:
+    """Map a filename to a supported image media type, or None (unsupported → the tool raises a friendly error)."""
+    ext = (filename or "").rsplit(".", 1)[-1].strip().lower() if "." in (filename or "") else ""
+    return _IMAGE_TYPES.get(ext)
+
+
+@dataclass(frozen=True)
+class ImageReadResult:
+    """A faithful read of an image's visible text — plus an honest account of the trust trade-off. Unlike the text
+    tools, the image itself is sent to the model (you can't tokenize PII inside pixels before reading them), so the
+    data boundary is applied to the OUTPUT: `sensitive_count`/`sensitive_classes` are what it detected in the
+    transcription, and `sanitized` is the tokenized version to use for anything shared downstream."""
+
+    transcription: str                                  # the model's faithful read (the user's own content, shown locally)
+    sanitized: str                                      # the transcription with sensitive spans tokenized (for downstream)
+    sensitive_count: int = 0
+    sensitive_classes: list[str] = field(default_factory=list)
+    media_type: str = ""
+    provider: str = "stub"
+    chars: int = 0
+    offline: bool = False                               # stub/no-key: pixels can't be read offline
+    no_text: bool = False                               # the image had no readable text (honest "[no readable text]")
+
+    @property
+    def handled_note(self) -> str:
+        n = self.sensitive_count
+        if n == 0:
+            return "No sensitive items detected in the transcription"
+        return f"{n} sensitive {'item' if n == 1 else 'items'} detected in the transcription"
+
+
+def read_image_document(data: bytes, media_type: str, *, provider: str | None = None) -> ImageReadResult:
+    """Read an image → its visible text, honesty-first. The model transcribes only what's visible (marking unreadable
+    parts, never guessing — the vision analog of abstention); we then run the data boundary over the transcription to
+    detect + flag sensitive content and produce a sanitized copy for downstream use. Transparent by design: the image
+    is sent to the model as-is (the tool's trust note says so plainly — the boundary can't tokenize inside pixels)."""
+    provider = provider or settings.provider
+    raw = (read_image(data, media_type, provider) or "").strip()
+    offline = provider != "anthropic"
+    no_text = (not raw) or raw == "[no readable text]"
+    b = sanitize(raw, default_policy()) if raw else None
+    sensitive = len(b.spans) if b else 0
+    classes = sorted(set(b.classes)) if b else []
+    sanitized = b.safe_text if (b and b.safe_text is not None) else raw
+    return ImageReadResult(
+        transcription=raw, sanitized=sanitized, sensitive_count=sensitive, sensitive_classes=classes,
+        media_type=media_type, provider=provider, chars=len(raw), offline=offline, no_text=no_text,
+    )

@@ -1,0 +1,66 @@
+<style>
+  .res{padding:22px}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 13px;border-radius:var(--radius);font-size:13px;
+    font-weight:600;background:var(--good-soft);color:var(--good)}
+  .chip.none{background:var(--accent-soft);color:var(--accent)}
+  .chip.warn{background:var(--warn-soft);color:var(--warn)}
+  .chip.img{background:var(--accent-soft);color:var(--accent)}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .notice{margin:0 0 16px;padding:14px 16px;border-radius:var(--radius);background:var(--accent-soft);
+    border-left:3px solid var(--accent);font-size:13.5px;line-height:1.5;color:var(--muted)}
+  .notice.warn{background:var(--warn-soft);border-left-color:var(--warn)}
+  .notice strong{display:block;margin-bottom:4px;font-size:13px;color:var(--ink);letter-spacing:.02em}
+  .sech{margin:20px 0 8px;font-size:12px;font-weight:700;letter-spacing:.03em;color:var(--faint);text-transform:uppercase}
+  .transcript{margin:0;padding:14px 16px;border-radius:var(--radius);background:var(--accent-soft);color:var(--ink);
+    font-size:13.5px;line-height:1.55;white-space:pre-wrap;word-break:break-word;overflow-x:auto}
+  .transcript.sanitized{background:var(--good-soft)}
+  details.src{margin:0}
+  details.src summary{cursor:pointer;color:var(--good);font-size:12.5px;font-weight:600;list-style:none;margin-bottom:8px}
+  details.src summary::-webkit-details-marker{display:none}
+  details.src summary::before{content:"› ";}
+  details.src[open] summary::before{content:"⌄ ";}
+  .abstain{margin-top:14px;padding:16px 18px;border-radius:var(--radius);background:var(--accent-soft)}
+  .abstain strong{display:block;margin-bottom:4px;font-size:15px;color:var(--accent)}
+</style>
+
+<div class="panel res">
+  <div class="notice {% if r.sensitive_count > 0 %}warn{% endif %}">
+    <strong>How this tool handles trust</strong>
+    Unlike Suver's text tools, an image is <b>sent to the AI as-is</b> to be read — sensitive data can't be tokenized
+    inside a picture before it's seen. So the boundary runs on the <b>result</b>:
+    {% if r.sensitive_count > 0 %}
+      it found <b>{{ r.sensitive_count }}</b> sensitive item{{ 's' if r.sensitive_count != 1 else '' }}
+      ({{ r.sensitive_classes | join(", ") }}) in the transcription — use the <b>sanitized version</b> below for
+      anything you share downstream.
+    {% else %}
+      it detected no sensitive items in the transcription.
+    {% endif %}
+  </div>
+
+  <div class="chips">
+    <span class="chip img">🖼 image read by: {{ r.provider }}</span>
+    <span class="chip {% if r.sensitive_count > 0 %}warn{% else %}none{% endif %}">🛡 {{ r.handled_note }}</span>
+  </div>
+
+  {% if r.offline %}
+    <div class="abstain">
+      <strong>Couldn't read the image offline</strong>
+      Reading an image needs the real model — set <code>PROVIDER=anthropic</code> (with an API key) and try again.
+      The offline stub can't read pixels, and it won't pretend to.
+    </div>
+  {% elif r.no_text %}
+    <div class="abstain">
+      <strong>No readable text found</strong>
+      The image didn't contain text the model could read — and it won't guess at what isn't there (that's by design).
+    </div>
+  {% else %}
+    <h4 class="sech">Transcription · {{ "{:,}".format(r.chars) }} chars</h4>
+    <pre class="transcript">{{ r.transcription }}</pre>
+    {% if r.sensitive_count > 0 %}
+      <details class="src" style="margin-top:14px" open>
+        <summary>Sanitized version — {{ r.sensitive_count }} item{{ 's' if r.sensitive_count != 1 else '' }} tokenized (safe to share)</summary>
+        <pre class="transcript sanitized">{{ r.sanitized }}</pre>
+      </details>
+    {% endif %}
+  {% endif %}
+</div>

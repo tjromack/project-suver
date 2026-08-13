@@ -99,6 +99,13 @@ class Tool:
     # Multi-turn chat tools (Converse): the shell keeps the conversation going — after the first answer it hides the
     # drop zone, keeps the question box, and sends the session id (not the doc) on each follow-up.
     is_chat: bool = False
+    # File-picker filter for the drop zone's <input accept>. Defaults to the document types; an image tool (Read an
+    # image, DEC 041) overrides it. `no_paste` hides the "or paste text" box for tools whose input can't be pasted
+    # (an image). `upload_note` is the honest one-line caption under the drop zone — for images it states plainly that
+    # the picture itself is sent to the model (the text data-boundary can't tokenize inside pixels).
+    accept_ext: str = ".pdf,.docx,.txt,.md,.markdown,.text"
+    no_paste: bool = False
+    upload_note: str = "your file never leaves your device un-sanitized"
     # A curated built-in example (DEC 037) — "Try an example" fills the paste box (+ question / pick) with this and
     # runs it, so a first-time visitor sees a real cited result in one click without bringing their own document.
     sample_text: str = ""
@@ -159,6 +166,7 @@ def load_builtin() -> None:
     from app.tools import compare  # noqa: F401  (live — the 5th Documents tool; first two-document tool)
     from app.tools import converse  # noqa: F401  (live — the 6th Documents tool; first multi-turn/chat tool)
     from app.tools import ask_across  # noqa: F401  (live — the 7th Documents tool; first N-document tool)
+    from app.tools import vision  # noqa: F401  (live — the 8th Documents tool; first IMAGE input, DEC 041)
     from app.tools import meeting_actions  # noqa: F401  (live — platform #2: Communications, 1st tool)
     from app.tools import triage  # noqa: F401  (live — Communications, 2nd tool)
     from app.tools import reply  # noqa: F401  (live — Communications, 3rd tool)

@@ -331,6 +331,57 @@ def _anthropic_rerank(safe_query: str, passages: list[str]) -> list[int]:
     return order
 
 
+# --- Read an image: faithfully transcribe the VISIBLE text of an image, honesty-first (DEC 041) ------------------
+# The one modality where sanitize-before-egress can't hold: you can't tokenize PII *inside* pixels without first
+# reading the image. So the image is sent to the model as-is (transparently — see the tool's trust note), and the
+# honesty discipline moves into the PROMPT: transcribe only what's visible, mark unreadable parts, never guess (the
+# vision analog of abstain / flag-the-uncertain). The data boundary is then applied to the OUTPUT transcription so we
+# can detect + flag sensitive content and offer a sanitized version for anything shared downstream.
+
+_READ_IMAGE_PROMPT = (
+    "Transcribe the text visible in this image faithfully and completely, preserving structure "
+    "(labels, line items, totals) as plain text.\n"
+    "Rules:\n"
+    "- Include ONLY what is actually visible. Do NOT infer, complete, or guess anything that is not shown.\n"
+    "- If part is unreadable or cut off, write [unreadable] there rather than guessing.\n"
+    "- If the image contains no readable text, reply with exactly: [no readable text]"
+)
+
+
+def read_image(data: bytes, media_type: str, provider: str) -> str:
+    """Transcribe an image's visible text via the multimodal model, or `""`. The stub/no-key path returns `""` (it
+    can't read pixels offline — the pipeline notes this honestly); on any model error we also degrade to `""`."""
+    if provider != "anthropic" or not data:
+        return ""
+    try:
+        return _anthropic_read_image(data, media_type)
+    except Exception:
+        return ""
+
+
+def _anthropic_read_image(data: bytes, media_type: str) -> str:
+    import base64
+
+    import truststore
+
+    truststore.inject_into_ssl()
+    from anthropic import Anthropic
+
+    from app.config import settings
+
+    b64 = base64.standard_b64encode(data).decode("ascii")
+    client = Anthropic()
+    msg = client.messages.create(
+        model=settings.anthropic_model,
+        max_tokens=2000,
+        messages=[{"role": "user", "content": [
+            {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": b64}},
+            {"type": "text", "text": _READ_IMAGE_PROMPT},
+        ]}],
+    )
+    return "".join(getattr(b, "text", "") for b in msg.content).strip()
+
+
 # --- Draft: write one memo SECTION from the salient passages (clean prose, no preamble, no inline markers) -------
 
 import re as _re

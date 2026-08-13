@@ -68,17 +68,19 @@
     {% else %}
     {% if tool.needs_second %}<div class="doclabel">{{ tool.doc_labels[0] }}</div>{% endif %}
     <label class="drop" id="drop">
-      <input type="file" name="file" id="file" accept=".pdf,.docx,.txt,.md,.markdown,.text" hidden>
-      <div class="big">Drop a document here, or click to choose</div>
-      <div class="sub">{{ tool.accepts }} · up to 20&nbsp;MB · your file never leaves your device un-sanitized</div>
+      <input type="file" name="file" id="file" accept="{{ tool.accept_ext }}" hidden>
+      <div class="big">Drop a{% if tool.no_paste %}n image{% else %} document{% endif %} here, or click to choose</div>
+      <div class="sub">{{ tool.accepts }} · up to 20&nbsp;MB · {{ tool.upload_note }}</div>
       <div class="file" id="filename" hidden>
         <span id="fname-text"></span>
         <button type="button" class="clearfile" id="clearfile" aria-label="Remove this file">✕ remove</button>
       </div>
     </label>
 
+    {% if not tool.no_paste %}
     <div class="or">or paste text</div>
     <textarea name="paste" id="paste" placeholder="Paste a document or article here…">{% if prefill %}{{ prefill.text }}{% endif %}</textarea>
+    {% endif %}
     {% endif %}
 
     {% if tool.needs_second %}
