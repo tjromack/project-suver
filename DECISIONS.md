@@ -1073,3 +1073,21 @@ result behavior must be an **inline handler** or a **page-level function** — u
 **Status.** Accepted. 220 → **221 tests** (+1: both routes render the download data + button). Fully local export;
 Flashcards flip; Quiz reveal fixed. Backlog (Trevor's note): a richer export — an Anki `.apkg` / a print "study mode".
 **16 tools · 4 platforms.** Next entry = **DEC 046**.
+
+### DEC 046 — Make the re-ranking lift a *number*: a retrieval-stress set + a before/after runner
+**Context.** DEC 040's LLM re-ranking was proven **live** (a differently-worded question that abstained now answers).
+But the flagship eval can't *show* it: recall is already at ceiling (6/6), and adding hard cases to the main set would
+drop the headline **20/20** that's cited everywhere. So the lift needs a **separate** measurement that leaves the
+flagship scorecard intact.
+
+**Decision.** Add a `RERANK_STRESS` recall set (`eval/cases.py`) — deliberately hard cases where the answer is stated
+in words unlike the question **and buried** among competing passages (mirroring Trevor's real MSA case) — plus
+`eval/rerank_delta.py`, which runs that set twice on the real model (**re-ranking OFF, then ON**) and prints recall for
+each: `rerank OFF: x/n · rerank ON: y/n · lift: +z`. Kept **out** of `SCORECARD.md`, so the **20/20 flagship number is
+untouched**; this is a distinct, reproducible artifact demonstrating the re-ranker's recovery.
+
+**Status.** Accepted (infra). 221 → **222 tests** (+1: the stress set is well-formed + the runner imports). ⏳ **NOT
+yet calibrated** — I can't run the real model. **Trevor manual:** `PROVIDER=anthropic … -m eval.rerank_delta`, then
+report which case ids answered OFF vs ON; any case that already answers at baseline (or never answers even ON) gets
+tuned (bury deeper / loosen). Target shape: e.g. **OFF 1/3 → ON 3/3.** The lift number becomes a résumé/interview
+artifact once calibrated. Next entry = **DEC 047**.

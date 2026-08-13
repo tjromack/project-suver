@@ -115,3 +115,64 @@ CASES: list[EvalCase] = [
     EvalCase("s4", "sensitive", "What is the amount due?", [INVOICE],
              expect_answer="4,320", expect_handled=True, note="contact PII tokenized; the invoice total answers"),
 ]
+
+
+# --- Retrieval-stress set (DEC 040/046): a SEPARATE recall set for the re-ranking before/after ------------------
+# These are deliberately HARD: the answer is stated in words that share almost nothing with the question, and it is
+# BURIED among several competing passages that DO share the question's words — so lexical ranking (even with DEC 031
+# stemming + DEC 032 expansion) tends to push the real answer below the top-K the answerer reads → it abstains. LLM
+# re-ranking (DEC 040) re-orders the wider pool by which passage actually answers, promoting the buried one. This set
+# is kept OUT of the flagship SCORECARD (which stays at ceiling) and is run twice — rerank OFF vs ON — by
+# `python -m eval.rerank_delta` to produce a reproducible lift number. Needs the real model.
+# ⚠️ CALIBRATION: these cases are DESIGNED to bury the answer but are not yet live-verified to show a clean off→on
+# delta — run rerank_delta once and tune any case that already answers at baseline (make the doc longer / the answer
+# wording more distant) or never answers even with rerank (loosen the burial).
+
+VENDOR_MSA = ("vendor_msa.txt",
+    "MASTER SERVICES AGREEMENT between Northwind Analytics LLC (the Client) and Cedar Ridge Consulting, Inc. (the "
+    "Vendor), effective March 1, 2026. "
+    "Engagement. The Vendor is retained to furnish data-integration and reporting services as an independent "
+    "contractor and not as an employee or agent of the Client. "
+    "Term. This Agreement continues for twenty-four months and renews automatically for successive twelve-month "
+    "periods unless either party gives sixty days written notice. "
+    "Compensation. The Client shall remit to the Vendor the sum of twelve thousand dollars ($12,000) at the close of "
+    "each calendar month. "
+    "Any disbursement arriving more than fifteen days after its due date accrues a surcharge of one and one-half "
+    "percent per month. "
+    "Expenses. The Client shall reimburse reasonable out-of-pocket costs supported by receipts, not to exceed $2,500 "
+    "in any single month without prior written authorization. "
+    "Deliverables. The Vendor shall deliver the initial integrated dataset no later than the forty-fifth day following "
+    "the Effective Date, with subsequent reporting packages on a fortnightly cadence. "
+    "Confidentiality. Each party shall safeguard the other's non-public information for three years beyond termination. "
+    "Termination. Either party may terminate for convenience upon ninety days written notice. "
+    "Governing Law. This Agreement is governed by the laws of the State of Illinois.")
+
+LATEFEE = ("payment_terms.txt",
+    "PAYMENT TERMS. Invoices are issued on the first business day of each month. "
+    "The Client shall make all payments by ACH or wire transfer to the account on file. "
+    "Payment is due within thirty days of the invoice date. "
+    "A remittance advice should accompany each payment. "
+    "Should any amount remain unpaid after its due date, a late surcharge of 1.5% per month accrues on the "
+    "outstanding balance. "
+    "Payment questions may be directed to the billing department. "
+    "Partial payments are applied to the oldest outstanding invoice first.")
+
+RENEWAL = ("agreement_terms.txt",
+    "GENERAL TERMS. This Agreement begins on the Effective Date and remains in force for two years. "
+    "The Agreement renews automatically for one-year periods unless written notice is given. "
+    "The parties shall review performance annually at a scheduled meeting. "
+    "Either party may terminate for convenience by providing ninety days written notice. "
+    "Upon expiration, all licenses granted hereunder immediately cease. "
+    "This document is the entire understanding between the parties.")
+
+RERANK_STRESS: list[EvalCase] = [
+    EvalCase("r1", "answerable", "What compensation is owed each month?", [VENDOR_MSA], expect_answer="12,000",
+             note="Trevor-verified live (abstained rerank-off; answered rerank-on) — the $12,000 span omits the word "
+                  "'compensation' and competes with other 'month' spans"),
+    EvalCase("r2", "answerable", "What is the penalty for paying late?", [LATEFEE], expect_answer="1.5",
+             note="answer is a 'surcharge on overdue balance' — few tokens shared with 'penalty/late'; buried among "
+                  "'payment' spans"),
+    EvalCase("r3", "answerable", "How can I end the contract early?", [RENEWAL], expect_answer="ninety",
+             note="answer is 'terminate for convenience on ninety days notice' — shares no tokens with "
+                  "'end/contract/early'; buried among term/renewal spans"),
+]

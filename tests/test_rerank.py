@@ -64,3 +64,13 @@ def test_rerank_widens_the_candidate_pool_and_reorders(monkeypatch):
     assert ok
     assert seen["count"] > pipeline.settings.copilot_top_k          # the pool was widened beyond the final K
     assert "number 12" in ans                                       # reversed pool (S1..S12) → S12 promoted to top
+
+
+def test_rerank_stress_set_is_well_formed():
+    """The retrieval-stress recall set (DEC 046) is structurally valid; the before/after runner imports cleanly.
+    (The cases run on the REAL model via `python -m eval.rerank_delta` — not exercised here.)"""
+    import eval.rerank_delta  # noqa: F401 — must import without error
+    from eval.cases import RERANK_STRESS
+    assert len(RERANK_STRESS) >= 3
+    assert all(c.category == "answerable" and c.expect_answer for c in RERANK_STRESS)
+    assert all(len(c.docs) == 1 for c in RERANK_STRESS)   # single-doc -> the Copilot retrieval path
