@@ -1091,3 +1091,27 @@ yet calibrated** — I can't run the real model. **Trevor manual:** `PROVIDER=an
 report which case ids answered OFF vs ON; any case that already answers at baseline (or never answers even ON) gets
 tuned (bury deeper / loosen). Target shape: e.g. **OFF 1/3 → ON 3/3.** The lift number becomes a résumé/interview
 artifact once calibrated. Next entry = **DEC 047**.
+
+### DEC 047 — Re-ranking calibration: an honest negative result, and an additive-safety fix
+**Context.** Trevor ran `eval.rerank_delta` on the real model. Result — the opposite of a vanity number, and more
+useful: **rerank OFF 3/3 · rerank ON 2/3 · lift −1.** Two findings: (1) the stress set's baseline was already **3/3** —
+**query expansion (DEC 032) already surfaces these answers**, so the cases weren't hard enough to need re-ranking; (2)
+**re-ranking REGRESSED r3** — it demoted a correct passage ("terminate for convenience … ninety days") out of the top-K
+and the tool abstained where lexical retrieval had answered. As built, enabling the re-ranker could **reduce recall** — a
+real flaw, not just a missed lift.
+
+**Decision.** Make re-ranking **additive (promote-only).** The model may PROMOTE a buried pool passage into the top-K,
+but the final set is now **reranked top-K ∪ lexical top-K** — so a passage the lexical retriever already had is **never
+dropped**, and turning rerank on can only **help or tie, never regress**. (The grounding gate is still downstream and
+unchanged.) Rerank stays **off by default**; its value is now bounded and safe.
+
+⭐ **The honest story banked (this is the artifact — not a manufactured lift):** *I hypothesized an LLM re-ranker would
+lift recall; I built it behind a flag and measured it. On a long real contract it recovered an abstention, but on a
+controlled stress set my simpler query-expansion approach already sufficed AND the re-ranker regressed a case — so I
+made it additive (can't drop a lexical hit) and kept it off. Measuring caught a regression I'd otherwise have shipped.*
+That's judgment + rigor — a stronger interview answer than a made-up number.
+
+**Status.** Accepted. 222 → **223 tests** (+1: additive re-ranking never drops a lexical top-K hit). Re-running
+`eval.rerank_delta` should now show **OFF 3/3 → ON 3/3** (no regression; lift 0 on these expansion-solvable cases). A
+positive lift would need genuinely harder/longer docs — optional, and not needed for the (stronger) honest story. Next
+entry = **DEC 048**.

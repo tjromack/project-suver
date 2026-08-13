@@ -331,7 +331,21 @@ def _answer_over_spans(spans: list[Span], safe_query: str, tmap: dict, provider:
     if not retrieved:
         return False, _ABSTAIN, []                     # no vocabulary match → abstain (over hallucination)
     if rerank_on:
-        retrieved = _rerank(safe_query, retrieved, provider)[: settings.copilot_top_k]
+        # ADDITIVE re-ranking (DEC 047 — calibration found rerank could DEMOTE a correct passage out of the top-K and
+        # regress recall). The model may PROMOTE a buried pool passage into the top-K, but it must never DROP a passage
+        # the lexical retriever already had in its top-K. Final = reranked top-K ∪ lexical top-K → recall can only rise.
+        k = settings.copilot_top_k
+        lexical_topk = retrieved[:k]
+        reranked_topk = _rerank(safe_query, retrieved, provider)[:k]
+        seen: set[str] = set()
+        merged: list[tuple[Span, float]] = []
+        for sp, sc in reranked_topk + lexical_topk:
+            if sp.id not in seen:
+                seen.add(sp.id)
+                merged.append((sp, sc))
+        retrieved = merged
+    else:
+        retrieved = retrieved[: settings.copilot_top_k]
     ranked = [sp for sp, _ in retrieved]
     raw = draft_answer(safe_query, ranked, provider, context=context, across=across)
     if raw == NOT_IN_DOCUMENT or support(raw, " ".join(sp.text for sp in ranked)) < settings.ground_threshold:

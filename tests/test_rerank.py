@@ -74,3 +74,23 @@ def test_rerank_stress_set_is_well_formed():
     assert len(RERANK_STRESS) >= 3
     assert all(c.category == "answerable" and c.expect_answer for c in RERANK_STRESS)
     assert all(len(c.docs) == 1 for c in RERANK_STRESS)   # single-doc -> the Copilot retrieval path
+
+
+def test_rerank_is_additive_never_drops_lexical_topk(monkeypatch):
+    """DEC 047: additive re-ranking — the model may promote a buried passage, but a lexical top-K hit is never dropped
+    (calibration found rerank could demote a correct passage out of the top-K and regress recall)."""
+    text = " ".join(f"Sentence number {i} about topic {i}." for i in range(1, 16))
+    spans = split_document(text)
+
+    def fake_rerank(q, passages, provider):
+        return list(range(len(passages) - 1, len(passages) - 5, -1))   # rank only the LAST pool passages; omit the lexical top ones
+
+    def fake_draft(q, ranked, provider, context=None, across=False):
+        return " ".join(sp.text for sp in ranked)                      # everything that survived into the answer set
+
+    monkeypatch.setattr(pipeline, "rerank_passages", fake_rerank)
+    monkeypatch.setattr(pipeline, "draft_answer", fake_draft)
+    monkeypatch.setattr(pipeline, "settings", Settings(retrieval_rerank=True))
+    ok, ans, cites = _answer_over_spans(spans, "topic number", {}, "anthropic")
+    assert ok
+    assert "number 1 about topic 1" in ans      # the lexical top-1 survived even though the reranker omitted it
