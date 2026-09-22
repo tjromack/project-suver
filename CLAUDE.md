@@ -5,7 +5,7 @@ suite becomes: an AI **tool hub that removes the prompt.** This repo is Suver's 
 the hub launcher, and the tools). `DESIGN.md` holds the original spec (written when Summarize was the pilot); this
 file is the *how we work* contract. Product North Star: `../_PLATFORM/VISION.md`.
 
-## What this is  *(status: a multi-platform hub — 16 live tools across 4 platforms, 2026-08-13; 222 tests)*
+## What this is  *(status: a multi-platform hub — 16 live tools across 4 platforms, 2026-08-13; 225 tests)*
 > *Beyond the tools (as of 2026-08-10): a measured **Trust & Quality eval** (`eval/`, real-model scorecard **20/20** —
 > 0 hallucination, 0 fabrication; DEC 033); an optional, **pilot-grade accounts + saved-work** layer (`app/store.py`,
 > SQLite; sign in → save a document + question → resume; anonymous use untouched; `Dockerfile` + `DESIGN-PARTNER-KIT.md`

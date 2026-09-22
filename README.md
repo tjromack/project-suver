@@ -79,17 +79,55 @@ the tools learn from real use, **privacy by design** (it stores no document or a
 per-user usage quotas & tiers (so a public instance can't run up the API bill), and a Docker deploy are included.
 
 **Stack:** Python · FastAPI · Jinja/HTMX · SQLite · Docker · Claude (real model) with an offline stub for deterministic
-tests · a **222-test** suite. Synthetic/public data only in this repo; the product runs on your real documents.
+tests · a **225-test** suite. Synthetic/public data only in this repo; the product runs on your real documents.
 
 ## Run it locally
 ```bash
 python -m venv .venv
-.venv/Scripts/python -m pip install -r requirements.txt
-.venv/Scripts/python -m uvicorn app.main:app --port 8000     #  → http://127.0.0.1:8000
-.venv/Scripts/python -m pytest -q                            #  tests (offline stub, no key needed)
+# activate the venv:
+source .venv/bin/activate        # macOS / Linux
+# .venv\Scripts\activate         # Windows (PowerShell)
+
+python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --port 8000     #  → http://127.0.0.1:8000
+python -m pytest -q                            #  225 tests (offline stub, no key needed)
 ```
-Runs fully offline on a deterministic stub. For the real model, set `PROVIDER=anthropic` and `ANTHROPIC_API_KEY` in a
-`.env` file. To stand up your own hosted instance, see [`DEPLOY.md`](DEPLOY.md).
+No key needed for the steps above — the test suite and the UI run fully offline on a deterministic stub. For the **real
+model**, set `PROVIDER=anthropic` and `ANTHROPIC_API_KEY` in a `.env` file, then re-run. To stand up your own hosted
+instance, see [`DEPLOY.md`](DEPLOY.md).
+
+*(Windows without activating: swap `python` for `.venv\Scripts\python`. macOS/Linux without activating: `.venv/bin/python`.)*
+
+## Demonstrates
+**Grounded generation with cite-or-abstain** — every claim is attributed to a span of *your* source or withheld, and
+sensitive data is tokenized before egress. Verified by a labeled real-model eval, not asserted.
+
+## What Suver does *not* do
+It is **not** a legal, clinical, or financial adviser, and it does **not** decide anything for you — it retrieves,
+grounds, and cites, and abstains when your source doesn't support an answer. It won't summarize the open web, act as a
+general chatbot, or "fill in" a fact that isn't in the document you gave it.
+
+## Limits & boundaries
+Stated plainly, because the boundary is the product:
+
+- **Synthetic / public data only in this repo.** Every document under `data/` and in `eval/` is invented or public.
+  No real client data, ever. The product runs on *your* documents; this repository does not contain any.
+- **Not a certified system.** The 20/20 scorecard is a measurement on a **labeled 20-case set on the real model**
+  (`python -m eval.run`), not a guarantee, a benchmark, or a compliance certification. Reproduce it on your own
+  documents before you trust it on them.
+- **The sanitization boundary — exact scope.** PII/PHI is detected locally and tokenized *before* any text reaches a
+  model, then re-hydrated only in your view (`app/_engines/boundary/`). It is **recall-first**: it over-redacts rather
+  than under-redacts.
+  - **Detected & tokenized:** SSN · credit-card-like numbers (13–19 digits, flagged even if Luhn-invalid) · MRN (the id
+    after an `MRN:` marker) · email · US-format phone · dates / DOB · person names (a gazetteer of common first names +
+    an adjacent capitalized surname) · US-style street address.
+  - **Known to pass through** (stated honestly): names outside the gazetteer or with unusual capitalization; non-US or
+    unusually-formatted addresses; and identifier types **not modeled** — passport, driver's license, bank
+    account/routing, IP address, and national IDs other than SSN. Name/address detection is heuristic, not NER-complete.
+  - **Trade-off:** recall-first means occasional over-redaction (e.g., a long order number may be tokenized). That is
+    deliberate — for a trust boundary, a false positive is cheap and a miss is not.
+- **Scope of the trust claim.** "Never a confident fabrication" is enforced by the grounding gate and *measured* on the
+  labeled set; it is not a claim that every possible input has been tested.
 
 ## License
 **Source-available for review — not open-source.** © 2026 Trevor J. Romack. All rights reserved; no reuse or commercial

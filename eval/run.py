@@ -72,9 +72,10 @@ def _score(case: EvalCase, answers: list[tuple[str, str]], handled: int, answere
     return CaseResult(case, passed, checks, answers, handled, detail)
 
 
-def run(provider: str | None = None) -> tuple[list[CaseResult], dict]:
+def run(provider: str | None = None, cases: list[EvalCase] | None = None) -> tuple[list[CaseResult], dict]:
     provider = provider or settings.provider
-    results = [_score(c, *_run_case(c, provider)) for c in CASES]
+    cases = cases if cases is not None else CASES
+    results = [_score(c, *_run_case(c, provider)) for c in cases]
     by_cat: dict[str, tuple[int, int]] = {}
     for cat in _CATEGORIES:
         rs = [r for r in results if r.case.category == cat]
