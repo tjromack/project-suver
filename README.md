@@ -11,7 +11,7 @@ is sanitized before any model sees it.
 No signup. Open any tool and click **✨ Try an example** for a real, cited result in one click.
 *(It's a free-tier host — if it's asleep, the first click takes ~30 seconds to wake.)*
 
-**Prefer the short version?** Read the [1-page case study](https://claude.ai/code/artifact/df32c8dc-d1da-4b38-98c6-f9f520253002).
+**Prefer the story?** Read the [Suver case study](https://www.tjromack.com/work/project-suver/) — what was decided, what it cost, and how it's verified.
 
 ![Suver — "Ask this document": when the answer isn't in your document, it abstains instead of guessing](docs/demo.gif)
 
