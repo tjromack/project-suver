@@ -13,6 +13,11 @@ No signup. Open any tool and click **✨ Try an example** for a real, cited resu
 
 **Prefer the short version?** Read the [1-page case study](https://claude.ai/code/artifact/df32c8dc-d1da-4b38-98c6-f9f520253002).
 
+![Suver — "Ask this document": when the answer isn't in your document, it abstains instead of guessing](docs/demo.gif)
+
+*Above: the **abstention** beat in "Ask this document" — the behavior a regulated buyer asks about first, and almost no
+demo shows. When the fact isn't in your source, Suver says so rather than inventing one.*
+
 ---
 
 ## Why Suver is different
@@ -66,6 +71,14 @@ scorecard (`eval/SCORECARD.md`):
 > **20/20 — recall 6/6 · abstention 5/5 · no-fabrication 5/5 · PII-handled 4/4 · 0 hallucination incidents · 0 fabrication incidents.**
 
 It re-runs on any corpus, so the trust claim can be reproduced on your own documents.
+
+**Where it bends — the hard set.** A deliberately-messy set (`python -m eval.run_hard`: superseded facts, OCR noise,
+tables, distractor-dense unanswerables, near-duplicate documents, paraphrase gaps) pushes it until something fails —
+~7/9, with a **published error analysis** ([`eval/FINDINGS-HARD.md`](eval/FINDINGS-HARD.md)). The finding that matters:
+**every miss is over-caution or over-generalization — 0 fabrications, 0 confident wrong citations** on either set.
+Two "failures" turned out to be the *checks*, not the model (a mislabeled metric; a brittle grader) — and the
+re-ranker that fixes a retrieval miss re-introduces an over-generalization elsewhere, which is why it ships off by
+default. An honest picture beats a clean sweep.
 
 ## How it's built
 One reusable, no-prompt **shell + hub**, with the trust machinery shared by every tool:

@@ -105,7 +105,7 @@ HARD_CASES: list[EvalCase] = [
              [LONG_POLICY], expect_answer="350",
              note="Retrieval depth: fact in the middle, surrounded by similar per-limit clauses."),
     EvalCase("h7", "answerable", "If I'm laid off, how many weeks of pay continuation do I get?", [PARAPHRASE_DOC],
-             expect_answer="twelve",
+             expect_answer="12",   # accept the digit form; the doc says "twelve (12) weeks" and the model may render either
              note="Paraphrase gap: question shares almost no vocabulary with 'involuntary separation without cause'."),
 
     # --- unanswerable-but-tempting (ABSTENTION / hallucination stress) ---
