@@ -1,0 +1,29 @@
+# Does this repo run from a fresh clone, with no keys and no local state?
+#
+# That is the whole point of this workflow: a clean container, the checked-in
+# requirements, and the offline test suite. If it passes here it passes for a
+# reviewer who clones it cold.
+name: clean-clone
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  clean-clone:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install from the checked-in requirements
+        run: pip install -r requirements.txt
+
+      - name: Test suite — offline, no API key
+        run: make test
