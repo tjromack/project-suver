@@ -1,8 +1,13 @@
 # Does this repo run from a fresh clone, with no keys and no local state?
 #
 # That is the whole point of this workflow: a clean container, the checked-in
-# requirements, and the offline test suite. If it passes here it passes for a
-# reviewer who clones it cold.
+# requirements, and the repo's own documented test command. If it passes here it
+# passes for a reviewer who clones it cold.
+#
+# The venv is deliberate rather than installing into the runner's Python. Some of
+# these Makefiles call `.venv/bin/python` and others call `pytest` from PATH, so
+# creating the venv and adding it to PATH makes `make test` work as written —
+# which is the command the README tells a reader to run.
 name: clean-clone
 
 on:
@@ -23,7 +28,11 @@ jobs:
           cache: pip
 
       - name: Install from the checked-in requirements
-        run: pip install -r requirements.txt
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -r requirements.txt
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
       - name: Test suite — offline, no API key
         run: make test
