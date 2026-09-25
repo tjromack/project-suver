@@ -129,3 +129,11 @@ Makefile .env.example requirements.txt .gitignore
   a test covers it — and **"the model only sees sanitized text" always has a test.**
 - The 3-click / no-config / no-prompt promise is preserved (a change that adds a knob needs a reason).
 - `DECISIONS.md` updated on any real choice. Docs stay consistent — this reads as the first piece of the product.
+
+## Case study voice
+State plainly what the system is, what it does, the decisions made, and what was learned.
+
+- No disclaimers about the author's experience. Limits belong to the system, stated as scope or cost.
+- No honesty signalling ("the honest version", "published as a loss"). State the number.
+- No apologising for scale. State the numbers and the design target.
+- Real limits, costs, and failures stay — as facts about the system, not confessions.
