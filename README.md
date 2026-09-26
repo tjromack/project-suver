@@ -13,6 +13,8 @@ No signup. Open any tool and click **✨ Try an example** for a real, cited resu
 
 **Prefer the story?** Read the [Suver case study](https://www.tjromack.com/work/project-suver/) — what was decided, what it cost, and how it's verified.
 
+**The delivery view:** [`docs/ENGAGEMENT.md`](docs/ENGAGEMENT.md) — Suver as a worked engagement for a fictional health plan (discovery → requirements → integration → evidence → runbook → day-1-to-day-30).
+
 ![Suver — "Ask this document": when the answer isn't in your document, it abstains instead of guessing](docs/demo.gif)
 
 *Above: the **abstention** beat in "Ask this document" — the behavior a regulated buyer asks about first, and almost no
