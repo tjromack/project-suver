@@ -1115,3 +1115,22 @@ That's judgment + rigor — a stronger interview answer than a made-up number.
 `eval.rerank_delta` should now show **OFF 3/3 → ON 3/3** (no regression; lift 0 on these expansion-solvable cases). A
 positive lift would need genuinely harder/longer docs — optional, and not needed for the (stronger) honest story. Next
 entry = **DEC 048**.
+
+### DEC 048 — "Try one it can't answer": abstention is triggerable in the demo, with a visible reason
+**Context.** "Try an example" (DEC 037) only ever showed a *successful* cited answer — deliberately, since a sample that
+abstains is a bad first impression. But the behaviour a regulated buyer asks about first is the opposite one: *does it
+decline when the answer isn't there, and can I see it do so?* Almost no demo shows that on purpose.
+
+**Decision.** Added a second curated question per grounded tool — `Tool.sample_abstain_query` — a plausible question the
+*same* sample document does not answer, surfaced as a **🚫 Try one it can't answer** button next to "✨ Try an example".
+Clicking it loads the sample + the unanswerable question and runs it, so the tool abstains and the result renders the
+existing abstain block: **"Not in your document"** + the reason line (*"Why: the document doesn't support an answer to
+that question — the tool won't guess."*). Wired on **Ask this document** (Copilot) and **Chat with a document**
+(Converse) — the two clearest single-document grounded tools. Verified on the real model: both queries abstain with the
+reason set.
+
+**Why.** It turns the strongest trust property from a claim into a one-click, self-evident demonstration — the visitor
+watches the tool decline instead of guess, which is exactly what a cautious buyer wants to see. The success example
+stays the default; the abstention example is opt-in, so first impressions are unaffected.
+
+**Status.** Accepted. 225 tests unchanged (a UI/sample addition, no pipeline change). Next entry = **DEC 049**.

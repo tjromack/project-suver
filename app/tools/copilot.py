@@ -44,6 +44,7 @@ COPILOT = register(
                      "agreement auto-renews for successive one-year terms unless either party gives sixty (60) days "
                      "written notice. Fees are $12,000 per month, net thirty days. Governing law is the State of New York."),
         sample_query="What is the governing law?",
+        sample_abstain_query="What is the penalty for paying late?",
         needs_query=True,
         query_label="Your question",
         query_placeholder="e.g. What are the key deadlines, and who is responsible?",

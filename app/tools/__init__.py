@@ -111,10 +111,17 @@ class Tool:
     sample_text: str = ""
     sample_query: str = ""
     sample_choice: str = ""
+    # A second curated question over the SAME sample that the document does NOT answer, so "Try one it can't answer"
+    # triggers an honest abstention with a visible reason — the behaviour a regulated buyer asks about first.
+    sample_abstain_query: str = ""
 
     @property
     def has_sample(self) -> bool:
         return bool(self.sample_text.strip())
+
+    @property
+    def has_abstain_sample(self) -> bool:
+        return bool(self.sample_text.strip() and self.sample_abstain_query.strip())
 
     @property
     def has_options(self) -> bool:
